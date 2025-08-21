@@ -4,14 +4,13 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
-    "build": "vite build",
-    "predeploy": "npm run build && cp dist/index.html dist/404.html",
-    "deploy": "gh-pages -d dist",
+    "build": "vue-cli-service build",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
     "core-js": "^3.8.3",
     "firebase": "^12.1.0",
+    "longdo-map-vue": "^2.1.0",
     "vue": "^3.2.13"
   },
   "devDependencies": {
@@ -21,8 +20,7 @@
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
     "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^8.0.3",
-    "gh-pages": "^6.3.0"
+    "eslint-plugin-vue": "^8.0.3"
   },
   "eslintConfig": {
     "root": true,

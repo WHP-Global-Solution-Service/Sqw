@@ -8,11 +8,14 @@ import './firebase'
 
 const app = createApp(App)
 
+window.__LONGDO_KEY = '21165f932c687ee21197a8d82594e493';
+
 app.use(LongdoMap, {
     load: {
-        apiKey: '3013d29eca5230ad752a9dc3c9b4bad1',
+        apiKey: window.__LONGDO_KEY, // ใช้ key เดียวกัน
         language: 'th',
-        defer: true,
+        defer: false,
+        services: ['search'],
     },
 })
 

@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>Test Bom.kml</name>
+	<StyleMap id="m_ylw-pushpin04010">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin061</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl00002</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin11">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin4</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl60</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin12">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin5</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl6</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin15">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin7</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl1</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="msn_ylw-pushpin212">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin0011</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin07</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="msn_ylw-pushpin24">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin1</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin28</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="msn_ylw-pushpin28">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin28</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin73</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="msn_ylw-pushpin9">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin25</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin3</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin061">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>9900aaff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin4">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>b300ff00</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin5">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>b300ff00</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin7">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>8000ffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl00002">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>9900aaff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl1">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>8000ffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl6">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>b300ff00</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl60">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>b300ff00</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin07">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>8000ffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin28">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>b300ff00</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin3">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>b30000ff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin73">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>8000ffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin0011">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>8000ffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin1">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>b300ff00</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin25">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>b30000ff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin28">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<width>0</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>8000ffff</color>
+		</PolyStyle>
+	</Style>
+	<Folder>
+		<name>21/1/2021</name>
+		<open>1</open>
+		<Placemark>
+			<name>ปากซอยแบริ่ง10</name>
+			<open>1</open>
+			<description>ไม่มีข้อมูล</description>
+			<styleUrl>#m_ylw-pushpin12</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.6060758809491,13.65667368188853,0 100.6059691677958,13.65634076126622,0 100.6062855638025,13.65621159576151,0 100.6064147431518,13.65653723927498,0 100.6060758809491,13.65667368188853,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>LA611097  พหล50 แยกพหล-เทพรักษ์</name>
+			<open>1</open>
+			<description>
+				เนื้อที่ 2-0-50 ไร่
+				ตร.ว 180,000.00 บาท
+				ราคาขาย ฿153,000,000 บาท	
+				ห่างBTSสายหยุด 270 m.
+				ผังเมือง สีแดง พ.3
+				FAR.7
+				ติดต่อ 0866622335 คุณ ไพศาล
+			</description>
+			<ExtendedData>
+				<Data name="name"><value>LA611097  พหล50 แยกพหล-เทพรักษ์</value></Data>
+				<Data name="description"><value>ราคาขาย ฿153,000,000 บาท	
+				ห่างBTSสายหยุด 270 m.
+				ผังเมือง สีแดง พ.3
+				FAR.7
+				ติดต่อ 0866622335 คุณ ไพศาล</value></Data>
+				<Data name="area"><value>850</value></Data>
+    			<Data name="pricePerSqw"><value>180000</value></Data>
+				<Data name="frontage"><value>30</value></Data>
+				<Data name="roadWidth"><value>7</value></Data>
+
+			</ExtendedData>
+			<styleUrl>#m_ylw-pushpin04010</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.6070303940619,13.89053040631577,0 100.6071101477523,13.89072404540861,0 100.607322449722,13.89065709413486,0 100.6073141130061,13.89071369671721,0 100.6076923284968,13.89106210905266,0 100.6074674281594,13.89132477954636,0 100.6068171311869,13.89083378919523,0 100.6069910292632,13.89076561862255,0 100.6068947459,13.89057317896201,0 100.6070303940619,13.89053040631577,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>พระราม 3 ซอย 1</name>
+			<description>วันที่ : 4/02/2021
+เนื้อที่ : 1-3-96.20 Rai (796.20 sq.wah )
+ราคาต่อตารางวา : 302,499 Baht
+ราคารวม : 240,849,704 Baht
+ผังสี : เหลือง ย 9 / FAR 7
+แนวรถไฟฟ้า : ห่างจากสถานี เจริญกรุง 125 m.
+ชื่อนายหน้า เบอโทร : ดิลกา(นุ้ย) +66 (0) 2650 5151</description>
+			<styleUrl>#m_ylw-pushpin11</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.4982888537834,13.69617964059318,0 100.4984358812372,13.69643228636251,0 100.4983300756844,13.69651042661886,0 100.498382340526,13.69660876946771,0 100.4984608314855,13.69655789076327,0 100.4984870243625,13.6965896645263,0 100.4984022184873,13.69665040460621,0 100.4984423126003,13.69673129712763,0 100.4985594154406,13.69666962532361,0 100.4986494641578,13.69684973519061,0 100.4985445432513,13.69692655103009,0 100.4984768747867,13.69682985892047,0 100.4984127974881,13.69686975154289,0 100.4983929303583,13.69684979161879,0 100.4983543961801,13.69687976185243,0 100.4983677269617,13.69689980300368,0 100.4982770329588,13.69697048743851,0 100.4983471827507,13.69706588404753,0 100.4982815243504,13.69711072886066,0 100.4980778532886,13.69685662036746,0 100.4979953220065,13.69671211627233,0 100.4981147280153,13.69659607223046,0 100.4979922268668,13.69647622425714,0 100.4982888537834,13.69617964059318,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>LA62064 จรัญ96/2</name>
+			<open>1</open>
+			<description>20/09/18
+Singkaew RE 093-808-8157
+เนื้อที่ 4-0-14.6 ไร่
+ราคาขาย 250k/wa
+FAR-6 น้ำตาล ย.8</description>
+			<styleUrl>#msn_ylw-pushpin9</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.5111246964809,13.80884808480308,0 100.5110585297159,13.80875516777674,0 100.5110214938149,13.80859792767579,0 100.5110216799044,13.80846908628275,0 100.5110673883497,13.80830819993509,0 100.5111751199487,13.80810724352672,0 100.5112703755344,13.80791044083885,0 100.5114110539503,13.80770156105442,0 100.5114400130635,13.80770954277393,0 100.5113239470459,13.8083645988427,0 100.512088951389,13.80848214727963,0 100.5119735825569,13.80894812038303,0 100.5111246964809,13.80884808480308,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>ปิ่นเกล้า บางยี่ขัน</name>
+			<description>วันที่ : 19/1/2021
+เนื้อที่ : 6-1-28.3 Rai ( 2,528.3 sq.wah )
+ราคาต่อตารางวา : 255,000
+ราคารวม : 644,716,500
+ผังสี : แดง พ.3-15 / FAR 7
+แนวรถไฟฟ้า : ห่างจากสถานี บางยี่ขัน 800 m.
+ชื่อนายหน้า เบอโทร : 0878858866 ทอป</description>
+			<styleUrl>#msn_ylw-pushpin28</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.4797115765098,13.77496107677817,0 100.4794728269254,13.77521378983556,0 100.4792006927616,13.77499344390925,0 100.4793785721125,13.77481361037998,0 100.4790406644541,13.77450830217992,0 100.4792078589735,13.77432894165343,0 100.4789639138731,13.77409905783639,0 100.4790892807996,13.77397720128076,0 100.4794684591361,13.77431184854187,0 100.4797333368891,13.77402478898059,0 100.4800481044509,13.77429155858533,0 100.479910087094,13.77443349318251,0 100.4800713231013,13.77458270343184,0 100.4800855169984,13.77459298151514,0 100.4799402741638,13.77473592396546,0 100.4799822145897,13.77477664731618,0 100.4800745055252,13.77486036414767,0 100.4799817283898,13.77496316643314,0 100.4798624170115,13.77509464183624,0 100.4797115765098,13.77496107677817,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>พหลโยธิน 24 แยก 8</name>
+			<description>วันที่ : 7/1/2021
+เนื้อที่ : 3-0-0 Rai ( 1,200 sq.wah )
+ราคาต่อตารางวา : 240,000
+ราคารวม : 288,000,000
+ผังสี : ส้ม ย.7-4 / FAR 5
+แนวรถไฟฟ้า : ห่างจากสถานีพหล24 750 m
+ชื่อนายหน้า เบอโทร : คุณพิธัญภูมิ  กิ่งแก้ว  โทร 062-226-2128, 083-539-8781</description>
+			<styleUrl>#msn_ylw-pushpin212</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.5715201408394,13.82304436503348,0 100.571612846922,13.82252954072261,0 100.5723631426366,13.82266848565648,0 100.5722604726498,13.8231806558836,0 100.5715201408394,13.82304436503348,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>จรัญสนิทวงศ์ 88</name>
+			<description>วันที่ : 5/01/2021
+เนื้อที่ : 2-1-62 Rai ( 962 sq.wah )
+ราคาต่อตารางวา : 301,000 Baht
+ราคารวม : 289,562,000 Baht
+ผังสี : น้ำตาล ย 8 / FAR 6
+แนวรถไฟฟ้า : 	ติดสถานีรถไฟฟ้าบางอ้อ 
+ชื่อนายหน้า เบอโทร : 0878858866 ทอป</description>
+			<styleUrl>#msn_ylw-pushpin24</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.5099431467119,13.79888911871956,0 100.5100343067017,13.79880639732754,0 100.5098643515071,13.79858156539063,0 100.5100204706804,13.79838432924161,0 100.5102087815883,13.79823913274265,0 100.5103806892572,13.79844810363444,0 100.5102230908479,13.79858115630685,0 100.5103462709609,13.79871885433315,0 100.5101279806065,13.79891536366531,0 100.510027821269,13.79900253376529,0 100.5099431467119,13.79888911871956,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>อุดมสุข 24</name>
+			<description>วันที่ : 21/01/2021
+เนื้อที่ : 2-3-26.6 Rai ( 1,126 sq.wah )
+ราคาต่อตารางวา : 270,000 Baht
+ราคารวม : 304,182,000 Baht
+ผังสี : ส้ม ย 7-25 / FAR 5
+แนวรถไฟฟ้า : ห่างจากสถานี อุดมสุข 1.1 km.
+ชื่อนายหน้า เบอโทร : Plan B Property Co., Ltd. Tel : 02 711 4527</description>
+			<styleUrl>#m_ylw-pushpin15</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							100.6195949539804,13.6783348304174,0 100.6190501954208,13.67835513203175,0 100.6187943305957,13.67765979811211,0 100.6191916601259,13.67751015302936,0 100.6194809248273,13.67818926193584,0 100.6195416528232,13.67819022927155,0 100.6195949539804,13.6783348304174,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<atom:link rel="app" href="https://www.google.com/earth/about/versions/#earth-pro" title="Google Earth Pro 7.3.6.10201"></atom:link>
+	</Folder>
+</Document>
+</kml>

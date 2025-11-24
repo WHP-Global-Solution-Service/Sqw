@@ -2,13 +2,13 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import LongdoMap from 'longdo-map-vue'
-
-// ensure Firebase initializes & auth is available
 import './firebase'
 
 const app = createApp(App)
 
-window.__LONGDO_KEY = '21165f932c687ee21197a8d82594e493';
+app.component('RouterView', { name: 'RouterViewStub', render() { return null } })
+
+window.__LONGDO_KEY = '3013d29eca5230ad752a9dc3c9b4bad1';
 
 app.use(LongdoMap, {
     load: {

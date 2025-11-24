@@ -3,7 +3,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 1rem;
   transition: all 0.2s;
 }
 
@@ -87,4 +87,41 @@
   background: #6b7280;
   border-color: #6b7280;
   cursor: not-allowed;
+}
+.size-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.size-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+}
+.size-group label {
+  color: #cbd5e1;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.input {
+  background: #1f2937;
+  border: 1px solid #334155;
+  color: #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+}
+.triple {
+  display: grid;
+  grid-template-columns: 80px 80px 100px;
+  gap: 8px;
+}
+.center {
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .triple {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }

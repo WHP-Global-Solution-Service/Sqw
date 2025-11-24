@@ -1,8 +1,10 @@
 .main-content {
   flex: 1;
   display: flex;
-  margin-left: 320px;
+  /* margin-left: 385px; */
+  margin-left: 0;
   height: calc(100vh - 80px);
+  position: relative;
 }
 
 .map-container {
@@ -55,4 +57,81 @@
 
 .control-btn:hover svg {
   color: #3b82f6;
+}
+
+/* FORCE LONGDO POPUP */
+div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable {
+  background: rgba(0, 0, 0, 0.85) !important;
+  border: 1px solid #ddd !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  padding: 12px 16px !important;
+}
+
+div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable .ldmap_title {
+  color: #fff !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable .ldmap_element {
+  color: #f5f5f5 !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable
+  .ldmap_popup_close {
+  color: #ccc !important;
+  font-size: 20px !important;
+  font-weight: bold !important;
+}
+
+/* HIDE LONGDO MAP WATERMARK / ATTRIBUTION
+   The Longdo map library injects attribution/logo elements into the map DOM.
+   Add conservative list of selectors commonly emitted by longdo (ldmap_*)
+   and hide them via CSS. If you need to restore attribution later, remove
+   these lines. Be aware of provider terms of use - attribution may be required.
+*/
+#map .ldmap_logo,
+#map .ldmap_footer,
+#map .ldmap_attribution,
+#map .ldmap_credit,
+#map .ldmap_copyright,
+#map .ldmap_poweredby,
+#map .ldmap_tile_copyright,
+#map .ldmap_attrib,
+.ldmap_logo,
+.ldmap_attribution,
+.ldmap_credit {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Also hide anchors or images that clearly reference Longdo */
+#map a[href*="longdo"],
+#map img[alt*="Longdo"] {
+  display: none !important;
+}
+
+/* Minimal: hide Longdo base-map / tab control (small white tab bar)
+   Targets common class-name patterns for the tab/layer switcher shown
+   in the screenshot ("แผนที่", "ดาวเทียม"). This only hides the
+   control elements; map tiles and overlays are left untouched.
+*/
+#map .ldmap_tab,
+#map .ldmap_tabs,
+#map .ldmap_tab_item,
+#map .ldmap_tab_button,
+#map .ldmap_layerbox,
+#map .ldmap_layerlist,
+#map .ldmap_layerselector,
+#map .ldmap_layer_switcher,
+.ldmap_tab,
+.ldmap_layerbox {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }

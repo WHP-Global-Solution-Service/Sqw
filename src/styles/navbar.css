@@ -361,9 +361,9 @@
 } /* เขียว */
 
 /* Modern layout and additional styles for redesigned bar */
-.login-bar.modern {
+/* .login-bar.modern {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-}
+} */
 .login-bar .left,
 .login-bar .center,
 .login-bar .right {

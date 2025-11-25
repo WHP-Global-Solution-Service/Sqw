@@ -29,10 +29,10 @@
 
       <div class="mode-buttons">
         <button class="mode-btn sale" @click="selectMode('sale')">
-          🏡 ระบบซื้อขายที่ดิน
+          ระบบซื้อขายที่ดิน
         </button>
         <button class="mode-btn pledge" @click="selectMode('pledge')">
-          🤝 ระบบขายฝากที่ดิน
+          ระบบขายฝากที่ดิน
         </button>
       </div>
     </div>
@@ -49,42 +49,66 @@
               border-radius: 8px;
             "
           >
-            <button @click="addBangkokOverlay()">ผังเมือง กทม. 2556</button>
-            <button @click="addBangkokOverlayDaft()">
-              ผังเมือง กทม. 2570 (ร่าง)
-            </button>
-            <button @click="clearBangkokOverlay()">ซ่อนผังเมือง</button>
+            <div class="action-buttons">
+              <button @click="addBangkokOverlay()" class="btn btn-info">
+                ผังเมือง กทม. 2556
+              </button>
+              <button @click="addBangkokOverlayDaft()" class="btn btn-info">
+                ผังเมือง กทม. 2570 (ร่าง)
+              </button>
+              <button @click="clearBangkokOverlay()" class="btn btn-info">
+                ซ่อนผังเมือง
+              </button>
+            </div>
 
-            <label class="checkbox-label">Opacity (ผัง กทม.)</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              :value="kmlOpacity"
-              @input="setBangkokOverlayOpacity($event.target.value)"
-            />
-            <span style="font-size: 12px">{{ kmlOpacity.toFixed(2) }}</span>
+            <div class="opacity-control">
+              <label class="checkbox-label">Opacity</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                :value="kmlOpacity"
+                class="slider"
+                @input="setBangkokOverlayOpacity($event.target.value)"
+              />
+              <span style="font-size: 12px; color: #fff">{{
+                kmlOpacity.toFixed(2)
+              }}</span>
+            </div>
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              background: #fff1;
+              padding: 8px;
+              border-radius: 8px;
+            "
+          >
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="dolEnabled"
+                @change="onToggleDol"
+              />
+              <span class="checkmark">{{ dolEnabled ? "✓" : "" }}</span>
+              ระวางกรมที่ดินสีแดง
+            </label>
+            <div class="opacity-control">
+              <label class="checkbox-label">Opacity</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                v-model="opacity"
+                class="slider"
+                @input="onChangeDolOpacity"
+              />
+              <span class="opacity-value">{{ opacity }}</span>
+            </div>
           </div>
 
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="dolEnabled" @change="onToggleDol" />
-            <span class="checkmark">{{ dolEnabled ? "✓" : "" }}</span>
-            ระวางกรมที่ดินสีแดง
-          </label>
-          <div class="opacity-control">
-            <label class="checkbox-label">Opacity</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              v-model="opacity"
-              class="slider"
-              @input="onChangeDolOpacity"
-            />
-            <span class="opacity-value">{{ opacity }}</span>
-          </div>
           <!-- <div class="button-group">
           <button class="btn btn-primary" @click="centerBangkok">
             Center: Bangkok
@@ -1013,38 +1037,14 @@
 }
 
 /* ===== FORCE LONGDO POPUP OVERRIDE (NUCLEAR MODE) ===== */
-body div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable {
-  all: unset !important;
-  position: absolute !important;
-  background: rgba(0, 0, 0, 0.85) !important;
-  border: 1px solid #ddd !important;
-  color: #fff !important;
-  border-radius: 12px !important;
-  padding: 12px 16px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-}
 
-/* Title */
-div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable .ldmap_title {
-  color: #fff !important;
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  margin-bottom: 6px !important;
-}
-
-/* Content */
-div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable .ldmap_element {
-  color: #f5f5f5 !important;
-  font-size: 14px !important;
-  line-height: 1.4 !important;
-}
-
-/* Close button */
-div.ldmap_placeholder.ldmap_frame.ldmap_popup.ldmap_selectable
-  .ldmap_popup_close {
-  color: #ccc !important;
-  font-size: 20px !important;
-  font-weight: bold !important;
+/* Ensure inner content containers relax restrictions */
+.ldmap_popup_content,
+.ldmap_content,
+.ldmap_element,
+.ldmap_body {
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 @import "./styles/base.css";

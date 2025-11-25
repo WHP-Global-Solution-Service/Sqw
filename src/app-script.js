@@ -794,13 +794,13 @@ export default {
             if (idx === 0) {
               // ชื่อ: เก็บตัวแรก + xxx (หรือจำนวน x ตามขนาด ถ้าสั้น)
               const keep = p.charAt(0);
-              const xs = "x".repeat(Math.min(3, Math.max(1, len - 1)));
+              const xs = "xx";
               return keep + xs;
             } else {
               // นามสกุล: เก็บ 3 ตัวท้าย ถ้ามี แทนที่กลางด้วย x
               if (len <= 1) return "x".repeat(len);
               const last1 = p.slice(-1);
-              const xs = "x".repeat(len - 1);
+              const xs = "xx";
               return xs + last1;
             }
           });
@@ -814,13 +814,21 @@ export default {
           if (s.length <= 3) return s.replace(/.(?=.)/g, "x");
           const first2 = s.slice(0, 2);
           const last1 = s.slice(-1);
-          const mid = "x".repeat(Math.max(0, s.length - 3));
+          const mid = "xxx";
           return first2 + mid + last1;
         };
 
-        const maskLine = (v) => (v ? "xxx" : "");
+        const maskLine = (v) => {
+          if (!v) return "";
+          const s = String(v).replace(/\s+/g, "");
+          if (s.length <= 3) return s.replace(/.(?=.)/g, "x");
+          const first2 = s.slice(0, 1);
+          const last1 = s.slice(-1);
+          const mid = "xxx";
+          return first2 + mid + last1;
+        };
 
-
+        /* const maskLine = (v) => (v ? "xxx" : ""); */
         // --- prepare fields ---
         const rawOwner = item.owner || "";
         const rawAgent = item.agent || "";
@@ -861,89 +869,77 @@ export default {
         // otherwise mask the phone for privacy.
         const phoneRaw = String(item.phone || "");
         const phone = rawAgent ? esc(phoneRaw) : esc(maskPhone(phoneRaw));
-        const lineId = maskLine(item.lineId || "");
+        const lineId = rawAgent ? esc(item.lineId || "") : esc(maskLine(item.lineId || ""));
         const landFrame = esc(item.landFrame || "");
         const deed = esc(item.deedInformation || item.detail || "");
         const jsUid = String(item.ownerUid || item.ownerUid || '').replace(/'/g, "\\'");
         const jsName = String(displayOwner || '').replace(/'/g, "\\'");
 
         const html = `
-          <div style="
-            min-width:300px;
-            max-width:360px;
-            font-family: Inter, Arial, Helvetica, sans-serif;
-            color:#e6eef8;
-            background:linear-gradient(180deg,#0b1220 0%, #071022 100%);
-            border-radius:12px;
-            box-shadow:0 10px 30px rgba(2,6,23,0.75);
-            padding:12px;
-            border: none;
-            overflow: visible;
-          ">
+          <div style="font-family: Inter, Arial, Helvetica, sans-serif;background:#ffffff;border: none;overflow: visible;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-              <div style="font-weight:800;font-size:14px;color:#f8fafc;line-height:1.05">${esc(title)}</div>
+              <div style="font-weight:800;font-size:14px;color:#000000FF;line-height:1.05">${esc(title)}</div>
             </div>
 
             <div style="display:flex;gap:8px;margin-bottom:10px">
               <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#9fb6cf;margin-bottom:4px">ขนาดที่ดิน (ตร.วา)</div>
-                  <div style="font-weight:700;font-size:18px;color:#e6fff7">${fmt(area)}</div>
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF;margin-bottom:4px">ขนาดที่ดิน</div>
+                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(area)} ตร.วา</div>
                 </div>
 
-                <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#9fb6cf;margin-bottom:4px">หน้ากว้างติดถนน (ม.)</div>
-                  <div style="font-weight:700;font-size:16px;color:#bfe1ff">${fmt(frontage)}</div>
-                </div>
-              </div>
-
-              <div style="width:120px;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:10px;text-align:center;overflow:visible">
-                  <div style="font-size:12px;color:#9fb6cf">ขนาด (ไร่/งาน/วา)</div>
-                  <div style="font-weight:700;font-size:14px;color:#e6fff7">${esc(rai)} / ${esc(ngan)} / ${esc(wah)}</div>
-                </div>
-
-                <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:10px;text-align:center;overflow:visible">
-                  <div style="font-size:12px;color:#9fb6cf">ขนาดถนน (ม.)</div>
-                  <div style="font-weight:700;font-size:14px;color:#e7d5ff">${fmt(road)}</div>
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF;margin-bottom:4px">หน้ากว้างติดถนน</div>
+                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(frontage)} ม.</div>
                 </div>
               </div>
-            </div>
 
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-              <div style="flex:1;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:10px;border-radius:10px;overflow:visible">
-                <div style="font-size:12px;color:#9fb6cf">ราคา/ตร.วา</div>
-                <div style="font-weight:800;font-size:16px;color:#e7d5ff">${fmt(pricePer, 'money')} บ.</div>
-              </div>
-              <div style="flex:1;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:10px;border-radius:10px;overflow:visible">
-                <div style="font-size:12px;color:#9fb6cf">ราคารวม</div>
-                <div style="font-weight:800;font-size:16px;color:#bfe1ff">${fmt(total, 'money')} บ.</div>
-              </div>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px">
-
-              <div style="display:flex;gap:8px">
-                <div style="flex:1">
-                  <div style="font-size:12px;color:#9fb6cf">โทร</div>
-                  <div style="font-weight:700;color:#e6fff7">${esc(phone) || '-'}</div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF">ขนาด (ไร่/งาน/วา)</div>
+                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${esc(rai)} / ${esc(ngan)} / ${esc(wah)}</div>
                 </div>
-                <div style="flex:1">
-                  <div style="font-size:12px;color:#9fb6cf">LINE ID</div>
-              <div style="font-weight:700;color:#e6fff7">${esc(lineId) || '-'}</div>
+
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF">ขนาดถนน</div>
+                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(road)} ม.</div>
                 </div>
               </div>
             </div>
 
-            ${landFrame ? `<div style="font-size:12px;color:#9fb6cf;margin-bottom:6px">กรอบที่ดิน</div>
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF">ราคา/ตร.วา</div>
+                  <div style="font-weight:600;font-size:12px;color:#1D1D1DFF">${fmt(pricePer, 'money')} บ.</div>
+                </div>
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF">โทร</div>
+                  <div style="font-weight:700;color:#1D1D1DFF">${esc(phone) || '-'}</div>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF">ราคารวม</div>
+                  <div style="font-weight:600;font-size:12px;color:#1D1D1DFF">${fmt(total, 'money')} บ.</div>
+                </div>
+                
+                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
+                  <div style="font-size:12px;color:#000000FF">LINE ID</div>
+                  <div style="font-weight:700;color:#1D1D1DFF">${esc(lineId) || '-'}</div>
+                </div>
+              </div>
+            </div>
+            
+            ${landFrame ? `<div style="font-size:12px;color:#000000FF;margin-bottom:6px">กรอบที่ดิน</div>
               <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:#e6eef8;font-size:13px;margin-bottom:8px;overflow:visible">${landFrame}</div>` : ""}
 
-            ${deed ? `<div style="font-size:12px;color:#9fb6cf;margin-bottom:4px">ข้อมูลโฉนด / ระวาง</div>
+            ${deed ? `<div style="font-size:12px;color:#000000FF;margin-bottom:4px">ข้อมูลโฉนด / ระวาง</div>
               <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:#cfe8ff;font-size:12px;max-height:none;overflow:visible">${deed}</div>` : ""}
 
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
-              ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="background:linear-gradient(90deg,#06b6d4,#0ea5e9);color:#071029;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">แชทผู้ขาย</a>` : ''}
-              <a href="javascript:void(0)" style="background:linear-gradient(90deg,#7c3aed,#5eead4);color:#071029;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">ดูรายละเอียด</a>
+              ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="background:#3b82f6;color:#FFFFFFFF;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">แชทผู้ขาย</a>` : ''}
+              <a href="javascript:void(0)" style="background:#3b82f6;color:#FFFFFFFF;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">ดูรายละเอียด</a>
             </div>
           </div>
         `.trim();
@@ -1200,6 +1196,54 @@ export default {
               });
             } catch (e) {
               console.debug('cleanup remove attribution failed:', e);
+            }
+            // Inject runtime CSS and a MutationObserver to force Longdo popups
+            try {
+              if (!document.getElementById('sqw-longdo-popup-style')) {
+                const css = `
+                  .ldmap_placeholder.ldmap_frame.ldmap_popup { overflow: visible !important; max-height: none !important; max-width: 720px !important; width: auto !important; }
+                  .ldmap_placeholder.ldmap_frame.ldmap_popup, .ldmap_placeholder.ldmap_frame.ldmap_popup * { overflow: visible !important; max-height: none !important; height: auto !important; }
+                `;
+                const s = document.createElement('style');
+                s.id = 'sqw-longdo-popup-style';
+                s.appendChild(document.createTextNode(css));
+                document.head.appendChild(s);
+              }
+
+              const fixPopupNode = (node) => {
+                try {
+                  node.style.overflow = 'visible';
+                  node.style.maxHeight = 'none';
+                  node.style.height = 'auto';
+                  node.style.width = 'auto';
+                  node.style.maxWidth = '720px';
+                  node.querySelectorAll('*').forEach((ch) => {
+                    try { ch.style.overflow = 'visible'; ch.style.maxHeight = 'none'; ch.style.height = 'auto'; } catch (_) { }
+                  });
+                } catch (_) { }
+              };
+
+              // Patch existing popups
+              document.querySelectorAll('.ldmap_placeholder.ldmap_frame.ldmap_popup').forEach(fixPopupNode);
+
+              // Observe DOM to patch future popups created by Longdo
+              const mo = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                  for (const n of m.addedNodes) {
+                    if (n && n.nodeType === 1) {
+                      const el = /** @type {Element} */ (n);
+                      if (el.classList && el.classList.contains('ldmap_placeholder')) {
+                        fixPopupNode(el);
+                      }
+                      // sometimes wrapper is added deeper
+                      el.querySelectorAll && el.querySelectorAll('.ldmap_placeholder').forEach(fixPopupNode);
+                    }
+                  }
+                }
+              });
+              mo.observe(document.body, { childList: true, subtree: true });
+            } catch (e) {
+              console.debug('longdo popup override injection failed:', e);
             }
           });
         } catch (e) { console.warn("binding ready event failed", e); }

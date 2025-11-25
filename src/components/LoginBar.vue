@@ -247,7 +247,6 @@ function tidy(e) {
   border-radius: 8px;
   background: linear-gradient(90deg, #fff, #efefef);
   border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
   position: relative;
 }
 
@@ -368,111 +367,6 @@ function tidy(e) {
   .brand-logo {
     font-size: 16px;
     padding: 6px 10px;
-  }
-}
-
-/* Modern layout and additional styles for redesigned bar */
-.login-bar.modern {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-}
-.login-bar .left,
-.login-bar .center,
-.login-bar .right {
-  display: flex;
-  align-items: center;
-}
-.login-bar .left {
-  flex: 0 0 auto;
-}
-.login-bar .center {
-  flex: 1 1 auto;
-  justify-content: center;
-}
-.login-bar .right {
-  flex: 0 0 auto;
-}
-
-.control-group .icon-btn {
-  background: transparent;
-  border: 0;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  color: #333;
-}
-.control-group .icon-btn:hover {
-  background: rgba(0, 0, 0, 0.03);
-  transform: translateY(-2px);
-}
-
-.user-pill {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  background: transparent;
-  padding: 4px 8px;
-  border-radius: 10px;
-}
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #111;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-}
-.user-meta .user-name {
-  font-weight: 700;
-  font-size: 13px;
-  color: #000000;
-}
-.user-meta .user-sub {
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.45);
-}
-
-.compact-form {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-left: 6px;
-}
-
-/* ensure the whole bar never exceeds 80px visually */
-.top-strip {
-  min-height: 48px;
-  height: auto;
-}
-
-/* responsive: keep auth inputs usable on very small screens (stack vertically) */
-@media (max-width: 520px) {
-  .compact-form {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-  .compact-form input {
-    display: block;
-    width: 160px;
-    max-width: 60vw;
-  }
-  .login-btn {
-    padding: 6px 8px;
-    width: auto;
-  }
-  .actions {
-    flex-direction: row;
-  }
-  .actions .reg-btn {
-    display: inline-flex;
   }
 }
 </style>

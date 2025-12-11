@@ -814,11 +814,7 @@
       <div
         class="layers-panel"
         v-show="showLayers"
-        style="
-          position: fixed;
-
-          inset: 158px auto auto 1578px;
-        "
+        style="position: fixed; z-index: 2100; top: 100px; right: 80px"
       >
         <div class="panel-header">
           <h3>Layers</h3>
@@ -1287,7 +1283,7 @@
   display: flex;
   gap: 12px;
   align-items: stretch;
-  z-index: 2100;
+  z-index: 1999;
   pointer-events: auto;
 }
 

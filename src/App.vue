@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <header class="app-header">
-      <LoginBar />
+      <LoginBar :current-mode="currentMode" @change-mode="backToModeSelect" />
       <RouterView v-if="false" />
     </header>
 
@@ -10,9 +10,18 @@
       <div class="mode-disclaimer-box">
         <div class="mode-disclaimer-icon">⚠️</div>
         <div class="mode-disclaimer-text">
-          ข้อมูลนี้เพื่อใช้แสดงสภาพพื้นที่ตำแหน่งแปลงที่ดิน<br />
-          และแปลงข้างเคียงร่วมกับ Google Maps เท่านั้น<br />
-          <strong>ไม่ใช่หลักฐานที่ใช้ในทางกฏหมาย</strong><br />
+          ข้อมูลผลลัพธ์ในแพลตฟอร์มนี้ <br />
+          เป็นการนำข้อมูลเบื้องต้น ทั้งรูปแผนที่ กฎหมายผังเมือง และข้อมูลอื่นๆ
+          มาแสดง โดยผสานกับการใช้ข้อมูลภาพถ่ายดาวเทียมรวมถึง Base Maps
+          จากหลายเว็บต่างๆ เพื่อแสดงตำแหน่งที่ตั้งโดยสังเขป
+          และแสดงสภาพแวดล้อมแปลงที่ดินเท่านั้น
+          <br />
+          ไม่สามารถนำข้อมูลขนาดเนื้อที่ ระยะขอบเขต และตำแหน่ง ไปใช้ทางกฎหมายได้
+          กรุณาดูเพื่อศึกษา ประกอบการตัดสินใจเท่านั้น <br />
+          <strong
+            >หากมีข้อสงสัยสามารถติดต่อทีมงาน
+            เพื่อทำหนังสือสอบถามไปยังหน่วยงานราชการได้</strong
+          ><br />
         </div>
         <div style="text-align: center; margin-top: 12px">
           <button class="btn btn-primary" @click="acceptModeDisclaimer">
@@ -22,160 +31,156 @@
       </div>
     </div>
 
+    <!-- Purchase modal (mock) - styled like screenshot -->
+    <div v-if="showPurchaseModal" class="purchase-overlay">
+      <div class="purchase-box">
+        <div class="purchase-icon">💳</div>
+        <div class="purchase-text">
+          <div class="purchase-title">
+            เพื่อดูรายละเอียดการติดต่อ คุณต้องชำระค่าบริการเล็กน้อย
+          </div>
+          <div class="purchase-sub">(ทดสอบแบบจำลอง)</div>
+        </div>
+        <div class="purchase-actions">
+          <button class="btn btn-secondary" @click="cancelPurchase">
+            ยกเลิก
+          </button>
+          <button class="btn btn-primary" @click="confirmPurchase">
+            ชำระและดูรายละเอียด
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full details modal (shows seller contact after purchase or if owner) -->
+    <div v-if="showFullDetailsModal" class="mode-disclaimer-overlay">
+      <div
+        class="mode-disclaimer-box"
+        style="max-width: 520px; text-align: left; color: #0b1220"
+      >
+        <h3 style="margin: 0 0 8px">ข้อมูลผู้ขาย (เฉพาะผู้ที่ซื้อแล้ว)</h3>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap">
+          <div style="flex: 1; min-width: 140px">
+            <strong>ชื่อ:</strong>
+            <div>
+              {{ fullDetailsLand?.owner || fullDetailsLand?.agent || "-" }}
+            </div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>ขนาดที่ดิน:</strong>
+            <div>
+              {{ fullDetailsLand?.size || fullDetailsLand?.area || "-" }} ตร.วา
+            </div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>ขนาด (ไร่/งาน/วา):</strong>
+            <div>
+              {{
+                (raiModel || "-") +
+                " / " +
+                (nganModel || "-") +
+                " / " +
+                (wahModel || "-")
+              }}
+            </div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>หน้ากว้างติดถนน:</strong>
+            <div>
+              {{ fullDetailsLand?.frontage || fullDetailsLand?.width || "-" }}
+              ม.
+            </div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>ขนาดถนน:</strong>
+            <div>{{ landData.road || "-" }} ม.</div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>ราคา/ตร.วา:</strong>
+            <div>
+              {{
+                formatPrice(
+                  fullDetailsLand?.pricePerSqw || fullDetailsLand?.price
+                )
+              }}
+              บ.
+            </div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>ราคารวม:</strong>
+            <div>{{ formatPrice(fullDetailsLand?.totalPrice) }} บ.</div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>โทร:</strong>
+            <div>{{ fullDetailsLand?.phone || "-" }}</div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>LINE ID</strong>
+            <div>{{ fullDetailsLand?.lineId || "-" }}</div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>กรอบที่ดิน</strong>
+            <div>
+              <a
+                class="download-link"
+                href="https://drive.google.com/drive/folders/14egaStxGXWacaO9cq7vaJCOFm2wIurmy?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="color: #e11d48; text-decoration: underline"
+                onclick="this.classList.add('sqw-blink'); setTimeout(()=>this.classList.remove('sqw-blink'),900);"
+                >คลิ้กเพื่อดาวน์โหลด</a
+              >
+            </div>
+          </div>
+          <div style="flex: 1; min-width: 140px">
+            <strong>ข้อมูลโฉนด/ระวาง</strong>
+            <div>
+              <a
+                class="download-link"
+                href="https://drive.google.com/drive/folders/14egaStxGXWacaO9cq7vaJCOFm2wIurmy?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="color: #e11d48; text-decoration: underline"
+                onclick="this.classList.add('sqw-blink'); setTimeout(()=>this.classList.remove('sqw-blink'),900);"
+                >คลิ้กเพื่อดาวน์โหลด</a
+              >
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: right; margin-top: 12px">
+          <button
+            class="btn btn-secondary"
+            @click="showFullDetailsModal = false"
+          >
+            ปิด
+          </button>
+        </div>
+      </div>
+    </div>
+    <div v-if="!currentMode" class="mode-select fullscreen1"></div>
+    <div v-if="showModeDisclaimerModal" class="mode-select fullscreen1"></div>
     <!-- หน้าเลือกโหมด (ขึ้นเมื่อเปิดครั้งแรก)-->
     <div v-if="!currentMode" class="mode-select fullscreen">
       <h2>เลือกโหมดการใช้งาน</h2>
-      <p>กรุณาเลือกประเภทการใช้งานระบบจัดการที่ดิน</p>
+      <p>กรุณาเลือกดูข้อมูลที่ดิน</p>
 
       <div class="mode-buttons">
         <button class="mode-btn sale" @click="selectMode('sale')">
-          ระบบซื้อขายที่ดิน
+          ซื้อขายที่ดิน
         </button>
         <button class="mode-btn pledge" @click="selectMode('pledge')">
-          ระบบขายฝากที่ดิน
+          ขายฝากที่ดิน
         </button>
       </div>
     </div>
 
     <div v-else-if="currentMode === 'sale'">
       <nav class="navbar">
-        <!-- Map Controls Section -->
-        <div class="control-section">
-          <div
-            style="
-              margin-top: 8px;
-              background: #fff1;
-              padding: 8px;
-              border-radius: 8px;
-            "
-          >
-            <div class="action-buttons">
-              <button @click="addBangkokOverlay()" class="btn btn-info">
-                ผังเมือง กทม. 2556
-              </button>
-              <button @click="addBangkokOverlayDaft()" class="btn btn-info">
-                ผังเมือง กทม. 2570 (ร่าง)
-              </button>
-              <button @click="clearBangkokOverlay()" class="btn btn-info">
-                ซ่อนผังเมือง
-              </button>
-            </div>
-
-            <div class="opacity-control">
-              <label class="checkbox-label">Opacity</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                :value="kmlOpacity"
-                class="slider"
-                @input="setBangkokOverlayOpacity($event.target.value)"
-              />
-              <span style="font-size: 12px; color: #fff">{{
-                kmlOpacity.toFixed(2)
-              }}</span>
-            </div>
-          </div>
-          <div
-            style="
-              margin-top: 8px;
-              background: #fff1;
-              padding: 8px;
-              border-radius: 8px;
-            "
-          >
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="dolEnabled"
-                @change="onToggleDol"
-              />
-              <span class="checkmark">{{ dolEnabled ? "✓" : "" }}</span>
-              ระวางกรมที่ดินสีแดง
-            </label>
-            <div class="opacity-control">
-              <label class="checkbox-label">Opacity</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                v-model="opacity"
-                class="slider"
-                @input="onChangeDolOpacity"
-              />
-              <span class="opacity-value">{{ opacity }}</span>
-            </div>
-          </div>
-
-          <!-- <div class="button-group">
-          <button class="btn btn-primary" @click="centerBangkok">
-            Center: Bangkok
-          </button>
-          <button class="btn btn-secondary" @click="reloadAPI">
-            Reload API
-          </button>
-          <div
-            class="button-group"
-            style="display: flex; gap: 8px; align-items: center"
-          >
-          
-            <button
-              class="btn btn-primary"
-              @click="loadKmlFromUrl('/kml/Test-Bom3.kml')"
-            >
-              Load .kml
-            </button>
-          </div>
-        </div> -->
-        </div>
-
         <!-- Navigation Buttons -->
-        <div class="flex-container">
-          <div class="dashboard land-plots">
-            <span class="dashboard-number"
-              >{{ dashboard.plots.toLocaleString() }}
-              <span class="highlight">ประกาศ</span></span
-            >
-            <div class="dashboard-label">ที่ดินทั้งหมด</div>
-          </div>
-          <div class="dashboard area">
-            <span class="dashboard-number"
-              >{{ fmt2(dashboard.areaRai)
-              }}<span class="highlight"> ไร่</span></span
-            >
-            <div class="dashboard-label">จำนวนรวม</div>
-          </div>
+        <!-- Dashboard removed from navbar; moved to floating container -->
 
-          <!-- <div class="dashboard owners">
-          <span class="dashboard-number"
-            >{{ dashboard.owners.toLocaleString()
-            }}<span class="highlight"> คน</span></span
-          >
-          <div class="dashboard-label">เจ้าของทั้งหมด</div>
-        </div> -->
-        </div>
-
-        <div class="flex-container">
-          <!-- <div class="dashboard area">
-          <span class="dashboard-number"
-            >{{ fmt2(dashboard.areaRai)
-            }}<span class="highlight"> ไร่</span></span
-          >
-          <div class="dashboard-label">จำนวนรวม</div>
-        </div> -->
-
-          <div class="dashboard value">
-            <span class="dashboard-number">{{
-              fmt(dashboard.totalValueMillion)
-            }}</span>
-            <div class="dashboard-label">
-              <span class="highlight">ล้านบาท</span>
-            </div>
-            <div class="dashboard-label">มูลค่าที่ดินรวม</div>
-          </div>
-        </div>
+        <!-- Dashboard value removed from navbar; moved to floating container -->
 
         <!-- <div class="btn-stack" style="max-width: 260px; margin: 0 auto">
         <div class="flood-summary-box">
@@ -252,16 +257,6 @@
           </button>
         </div>
       </div> -->
-
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-          <button class="btn btn-info" @click="startDrawing">
-            เริ่มวาดขอบเขต
-          </button>
-          <button class="btn btn-success" @click="finishDrawing">Finish</button>
-          <button class="btn btn-danger" @click="clearDrawing">Clear</button>
-        </div>
-
         <!-- Form Section -->
         <div class="form-section">
           <h3 @click="isFormOpen = !isFormOpen" style="cursor: pointer">
@@ -537,6 +532,24 @@
     <section class="right-panel">
       <!-- Map Control Buttons -->
       <div class="map-controls">
+        <!-- Layers Button (moved to top) -->
+        <button
+          class="control-btn layers-btn"
+          @click="toggleLayers"
+          title="Layers"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+        </button>
+
         <!-- Search Button -->
         <button
           class="control-btn search-btn"
@@ -569,6 +582,7 @@
             <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46" />
           </svg>
         </button>
+
         <!-- P2P Chat Button -->
         <button
           class="control-btn p2p-btn"
@@ -590,10 +604,40 @@
             unreadCount
           }}</span>
         </button>
+
+        <!-- Draw (pencil) Button -->
+        <button
+          ref="drawBtn"
+          class="control-btn draw-btn"
+          :class="{ active: showDrawMenu }"
+          @click="showDrawMenu = !showDrawMenu"
+          title="Draw"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M3 21v-3.75L14.06 6.19a2 2 0 0 1 2.83 0l1.92 1.92a2 2 0 0 1 0 2.83L7.75 21H3z"
+            />
+            <path d="M14 7l3 3" />
+          </svg>
+        </button>
       </div>
 
+      <!-- Draw Panel: moved out as floating popup (see below) -->
+
       <!-- Search Panel -->
-      <div class="search-panel" v-show="showSearch">
+      <div
+        class="search-panel"
+        v-show="showSearch"
+        style="
+          position: fixed;
+          inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
+        "
+      >
         <div class="panel-header">
           <h3>ค้นหา</h3>
           <button @click="showSearch = false" class="close-btn">×</button>
@@ -617,7 +661,14 @@
       </div>
 
       <!-- Filters Panel -->
-      <div class="filters-panel" v-show="showFilters">
+      <div
+        class="filters-panel"
+        v-show="showFilters"
+        style="
+          position: fixed;
+          inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
+        "
+      >
         <div class="panel-header">
           <h3>ตัวกรอง</h3>
           <button @click="showFilters = false" class="close-btn">×</button>
@@ -760,6 +811,71 @@
       </div>
 
       <!-- Layers Panel -->
+      <div
+        class="layers-panel"
+        v-show="showLayers"
+        style="
+          position: fixed;
+
+          inset: 158px auto auto 1578px;
+        "
+      >
+        <div class="panel-header">
+          <h3>Layers</h3>
+          <button @click="showLayers = false" class="close-btn">×</button>
+        </div>
+
+        <div class="layer-section">
+          <div class="layer-buttons">
+            <button @click="addBangkokOverlay()" class="btn btn-info">
+              ผังเมือง กทม. 2556
+            </button>
+            <button @click="addBangkokOverlayDaft()" class="btn btn-info">
+              ผังเมือง กทม. 2570 (ร่าง)
+            </button>
+            <button @click="clearBangkokOverlay()" class="btn btn-info">
+              ซ่อนผังเมือง
+            </button>
+          </div>
+
+          <div class="opacity-control">
+            <label class="opacity-label">Opacity</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              :value="kmlOpacity"
+              class="slider"
+              @input="setBangkokOverlayOpacity($event.target.value)"
+            />
+            <span class="opacity-value">{{ kmlOpacity.toFixed(2) }}</span>
+          </div>
+        </div>
+
+        <div class="layer-section">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="dolEnabled" @change="onToggleDol" />
+            <span class="checkmark">{{ dolEnabled ? "✓" : "" }}</span>
+            ระวางกรมที่ดินสีแดง
+          </label>
+          <div class="opacity-control">
+            <label class="opacity-label">Opacity</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              v-model="opacity"
+              class="slider"
+              @input="onChangeDolOpacity"
+            />
+            <span class="opacity-value">{{ opacity }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Old Layers Panel (commented) -->
       <!-- <div class="layers-panel" v-show="showLayers">
           <div class="panel-header">
             <h3>Layers</h3>
@@ -779,7 +895,11 @@
         </div> -->
 
       <!-- P2P Chat Panel -->
-      <div class="chat-popup" v-show="showChat">
+      <div
+        class="chat-popup"
+        v-show="showChat"
+        style="position: fixed; inset: 957px auto auto 1616px"
+      >
         <div class="chat-header">
           <div class="chat-title">
             <h3>P2P Chat</h3>
@@ -900,6 +1020,53 @@
         </div>
       </div>
     </section>
+
+    <!-- Floating Draw Panel (popup, not embedded) -->
+    <div
+      ref="drawPanel"
+      class="draw-panel floating-draw"
+      v-show="showDrawMenu"
+      style="
+        position: fixed;
+        inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
+      "
+    >
+      <div class="panel-header">
+        <h3>วาดพื้นที่</h3>
+        <button @click="showDrawMenu = false" class="close-btn">×</button>
+      </div>
+
+      <div style="display: flex; gap: 8px; padding: 12px">
+        <button class="btn btn-info" @click="startDrawing">
+          เริ่มวาดขอบเขต
+        </button>
+        <button class="btn btn-success" @click="finishDrawing">Finish</button>
+        <button class="btn btn-danger" @click="clearDrawing">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating dashboard: centered at bottom of viewport -->
+  <div id="floating-dashboard" class="floating-dashboard" aria-hidden="false">
+    <div class="dashboard land-plots">
+      <div class="dashboard-label">ที่ดินทั้งหมด</div>
+      <span class="dashboard-number"
+        >{{ dashboard.plots.toLocaleString() }}
+      </span>
+      <span class="highlight">ประกาศ</span>
+    </div>
+    <div class="dashboard area">
+      <div class="dashboard-label">จำนวนรวม</div>
+      <span class="dashboard-number">{{ fmt(dashboard.areaRai) }} </span>
+      <span class="highlight"> ไร่</span>
+    </div>
+    <div class="dashboard value">
+      <div class="dashboard-label">มูลค่าที่ดินรวม</div>
+      <span class="dashboard-number">{{
+        fmt(dashboard.totalValueMillion)
+      }}</span>
+      <span class="highlight">ล้านบาท</span>
+    </div>
   </div>
 </template>
 
@@ -1036,6 +1203,16 @@
   white-space: nowrap;
 }
 
+/* Make popup headers show draggable cursor */
+.panel-header,
+.chat-header,
+.purchase-text {
+  cursor: move;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
 /* ===== FORCE LONGDO POPUP OVERRIDE (NUCLEAR MODE) ===== */
 
 /* Ensure inner content containers relax restrictions */
@@ -1059,4 +1236,106 @@
 @import "./styles/responsive.css";
 @import "./styles/chat.css";
 @import "./styles/main.css";
+
+/* Purchase modal styles (matching screenshot) */
+.purchase-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 3000;
+}
+.purchase-box {
+  background: #ffffff;
+  color: #0b1220;
+  padding: 20px 22px;
+  border-radius: 12px;
+  min-width: 420px;
+  max-width: 92%;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.65);
+  text-align: center;
+}
+.purchase-icon {
+  font-size: 42px;
+  margin-bottom: 8px;
+}
+.purchase-text .purchase-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.purchase-text .purchase-sub {
+  color: #334155;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.purchase-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.purchase-actions .btn {
+  min-width: 120px;
+}
+/* Floating dashboard (center bottom) */
+.floating-dashboard {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 18px;
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  z-index: 2100;
+  pointer-events: auto;
+}
+
+/* Floating draw panel: prefer fixed positioning and let JS place it */
+.floating-draw {
+  position: fixed !important;
+  inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
+  z-index: 2000;
+  background: rgba(6, 10, 15, 0.95);
+}
+
+@media (max-width: 720px) {
+  .floating-dashboard {
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 12px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .floating-dashboard .dashboard {
+    padding: 12px 10px;
+    min-width: 92px;
+  }
+}
+
+/* Download link blink animation */
+.download-link {
+  transition: transform 0.12s ease;
+}
+.sqw-blink {
+  animation: sqwBlink 0.9s ease-in-out;
+}
+@keyframes sqwBlink {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 0.18;
+    transform: scale(0.98);
+  }
+  60% {
+    opacity: 0.18;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 </style>

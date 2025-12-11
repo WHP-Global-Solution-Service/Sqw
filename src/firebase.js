@@ -43,6 +43,19 @@ export async function ensureUserProfile(uid, displayName = "") {
   }
 }
 
+// อ่านโปรไฟล์ผู้ใช้แบบครั้งเดียว (ไม่ subscribe)
+export async function getUserProfile(uid) {
+  if (!uid) return null;
+  try {
+    const pRef = ref(db, `users/${uid}/profile`);
+    const snap = await get(pRef);
+    return snap.exists() ? snap.val() : null;
+  } catch (e) {
+    console.warn('getUserProfile failed', e);
+    return null;
+  }
+}
+
 
 /* ========================
    Firebase Config 

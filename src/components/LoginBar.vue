@@ -4,6 +4,14 @@
     <div class="left">
       <div class="brand">
         <div class="brand-logo" title="SQW">SQW</div>
+        <div
+          class="mode-indicator"
+          v-if="currentMode"
+          @click="changeModeRequest"
+          title="คลิกเพื่อเปลี่ยนโหมด"
+        >
+          {{ displayMode }}
+        </div>
       </div>
     </div>
 
@@ -87,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, defineProps } from "vue";
 import {
   onAuthChanged,
   loginWithGoogle,
@@ -103,6 +111,28 @@ const user = ref(null);
 const email = ref("");
 const password = ref("");
 const error = ref("");
+
+// เพิ่ม props เพื่อรับค่า mode จาก parent
+const props = defineProps({
+  currentMode: {
+    type: String,
+    default: null,
+  },
+});
+
+// คำนวณข้อความที่จะแสดง
+const displayMode = computed(() => {
+  if (!props.currentMode) return "";
+  return props.currentMode === "sale" ? "ซื้อขายที่ดิน" : "ขายฝากที่ดิน";
+});
+
+// Emit สำหรับเปลี่ยนโหมด
+// eslint-disable-next-line no-undef
+const emit = defineEmits(["change-mode"]);
+
+function changeModeRequest() {
+  emit("change-mode");
+}
 
 let unsub = null;
 onMounted(() => {
@@ -248,6 +278,24 @@ function tidy(e) {
   background: linear-gradient(90deg, #fff, #efefef);
   border: 1px solid rgba(0, 0, 0, 0.06);
   position: relative;
+}
+
+.mode-indicator {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-indicator:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 .auth-area {

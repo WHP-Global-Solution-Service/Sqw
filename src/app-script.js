@@ -14,6 +14,7 @@ import {
   saveFloodZone,
   deleteFloodZone,
   subscribeFloodZonesAll,
+  getUserProfile,
 } from "./firebase";
 
 import LoginBar from "./components/LoginBar.vue";
@@ -42,6 +43,7 @@ export default {
 
 
       currentMode: null,
+      n_mode: "กรุณาเลือกโหมด", // 'sale' | 'pledge'
       raiModel: "",
       nganModel: "",
       wahModel: "",
@@ -99,6 +101,7 @@ export default {
       showSearch: false,
       showFilters: false,
       showLayers: false,
+      showDrawMenu: false,
       searchQuery: "",
       filters: {
         landType: "",
@@ -131,6 +134,7 @@ export default {
         name: "",
         joinedAt: null,
       },
+      isAdmin: false,
       tempUserName: "",
       hasNewMessage: false,
       unreadCount: 0,
@@ -158,6 +162,11 @@ export default {
       showDisclaimer: true,
       // show a centered modal after selecting sale/pledge mode
       showModeDisclaimerModal: false,
+      // Purchase / details modals (mock payment)
+      showPurchaseModal: false,
+      purchaseLandPending: null, // land id being purchased
+      showFullDetailsModal: false,
+      fullDetailsLand: null,
       kmlState: null,        // ผลลัพธ์จาก kmlToLongdoMap (overlays, bound)
       kmlOverlays: [],       // สำรองไว้กรณีต้องจัดการเองเป็นรายชิ้น
       kmlFeatures: [],
@@ -175,6 +184,7 @@ export default {
         this.resetP2PState();
         this.currentUserId = null;
         this.userProfile = { name: "", joinedAt: null };
+        this.isAdmin = false;
         return;
       }
       const ack = localStorage.getItem("ackDisclaimer");
@@ -185,6 +195,21 @@ export default {
       if (switched) this.resetP2PState();
 
       this.currentUserId = u.uid;
+      // determine admin flag from user profile (optional DB field: profile.isAdmin or profile.role==='admin')
+      try {
+        getUserProfile(u.uid)
+          .then((prof) => {
+            try {
+              this.isAdmin = !!(prof && (prof.isAdmin === true || prof.role === 'admin'));
+            } catch (e) { this.isAdmin = false; }
+          })
+          .catch((e) => {
+            console.warn('getUserProfile failed', e);
+            this.isAdmin = false;
+          });
+      } catch (e) {
+        this.isAdmin = false;
+      }
 
       // เติมชื่อจากบัญชี (ถ้ายังไม่มีชื่อในช่องแชท)
       if (!this.userProfile.name) {
@@ -211,6 +236,80 @@ export default {
       this.renderFloodsOnMap();
       this.$nextTick(() => this.checkLandsFloodStatus());
     });
+    // enable dragging for popup panels after initial render
+    this.$nextTick(() => {
+      try { if (typeof this.enableDraggables === 'function') this.enableDraggables(); } catch (e) { console.debug('enableDraggables call failed', e); }
+
+      // Position floating draw panel next to the draw button when opened.
+      try {
+        // create a placement helper attached to this instance so we can remove listeners later
+        this._positionDrawPanel = () => {
+          try {
+            const btn = (this.$refs && this.$refs.drawBtn) || document.querySelector('.control-btn.draw-btn');
+            const panel = (this.$refs && this.$refs.drawPanel) || document.querySelector('.floating-draw');
+            if (!btn || !panel) return;
+
+            // ensure panel uses viewport-fixed coordinates so placement is predictable
+            panel.style.position = 'fixed';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+
+            const btnRect = btn.getBoundingClientRect();
+            const panelRect = panel.getBoundingClientRect();
+
+            // Prefer placing the panel to the left of the button (controls are on the right side)
+            const gap = 8; // px
+            let left = Math.round(btnRect.left - panelRect.width - gap);
+            // If not enough space on left, place to the right of the button
+            if (left < 8) left = Math.round(btnRect.right + gap);
+
+            // Align vertically with the button's top (or ensure it stays inside viewport)
+            let top = Math.round(btnRect.top);
+            if (top + panelRect.height > window.innerHeight - 8) {
+              top = Math.max(8, window.innerHeight - panelRect.height - 8);
+            }
+
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+            panel.style.zIndex = 9999;
+          } catch (e) {
+            // ignore
+          }
+        };
+
+        // reposition on resize / scroll
+        window.addEventListener('resize', this._positionDrawPanel);
+        window.addEventListener('scroll', this._positionDrawPanel, true);
+
+        // watch the showDrawMenu flag and position when it opens
+        try {
+          this.$watch && this.$watch('showDrawMenu', (val) => {
+            if (val) {
+              this.$nextTick(() => {
+                try { this._positionDrawPanel(); } catch (_) { }
+                try {
+                  // ensure the draw panel is draggable even if it was not processed earlier
+                  const dp = (this.$refs && this.$refs.drawPanel) || document.querySelector('.floating-draw');
+                  if (dp) {
+                    const handle = dp.querySelector('.panel-header') || dp;
+                    try { this._makeDraggable(dp, handle); } catch (_) { }
+                  }
+                } catch (_) { }
+              });
+            }
+          });
+        } catch (e) { }
+
+        // also ensure draw panel gets draggable initialization now (if present)
+        try {
+          const dpNow = (this.$refs && this.$refs.drawPanel) || document.querySelector('.floating-draw');
+          if (dpNow) {
+            const h = dpNow.querySelector('.panel-header') || dpNow;
+            try { this._makeDraggable(dpNow, h); } catch (_) { }
+          }
+        } catch (_) { }
+      } catch (e) { console.debug('position draw panel setup failed', e); }
+    });
   },
 
   beforeUnmount() {
@@ -220,6 +319,14 @@ export default {
     if (this.onlineStatusInterval) clearInterval(this.onlineStatusInterval);
     if (this.typingTimer) clearTimeout(this.typingTimer);
     if (this.authUnsubscribe) this.authUnsubscribe();
+    // cleanup draw panel listeners
+    try {
+      if (this._positionDrawPanel) {
+        window.removeEventListener('resize', this._positionDrawPanel);
+        window.removeEventListener('scroll', this._positionDrawPanel, true);
+        this._positionDrawPanel = null;
+      }
+    } catch (e) { }
   },
 
   computed: {
@@ -359,10 +466,95 @@ export default {
 
   methods: {
 
+    // Make popup panels draggable by their header. Applies to common popup selectors.
+    enableDraggables() {
+      try {
+        const selectors = ['.search-panel', '.filters-panel', '.layers-panel', '.chat-popup', '.floating-draw', '.purchase-box', '.mode-disclaimer-box'];
+        selectors.forEach((sel) => {
+          document.querySelectorAll(sel).forEach((el) => {
+            // choose header-like handle
+            const handle = el.querySelector('.panel-header') || el.querySelector('.chat-header') || el.querySelector('.purchase-text') || el;
+            this._makeDraggable(el, handle);
+          });
+        });
+      } catch (e) {
+        console.debug('enableDraggables error', e);
+      }
+    },
+
+    _makeDraggable(el, handle) {
+      if (!el || !handle) return;
+      // allow reinitialization if handle changed
+      try {
+        console.debug && console.debug('init _makeDraggable', { el, handle });
+      } catch (_) { }
+      if (el.__draggableInitialized && el.__draggableHandle === handle) return;
+      el.__draggableInitialized = true;
+      el.__draggableHandle = handle;
+
+      try { handle.style.cursor = 'move'; } catch (_) { }
+      const onMouseDown = (e) => {
+        // only left button
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        try { console.debug && console.debug('draggable onMouseDown', { el, handle }); } catch (_) { }
+        e.preventDefault();
+        try { e.stopPropagation(); } catch (_) { }
+
+        // mark dragging state so other handlers (map clicks) ignore interactions
+        try { this.__isDragging = true; } catch (_) { }
+        // also temporarily disable pointer events on the map element to avoid accidental clicks
+        const mapEl = document.getElementById && document.getElementById('map');
+        const _oldMapPointer = mapEl ? mapEl.style.pointerEvents : null;
+        if (mapEl) mapEl.style.pointerEvents = 'none';
+
+        const rect = el.getBoundingClientRect();
+        const startX = (e.touches ? e.touches[0].clientX : e.clientX);
+        const startY = (e.touches ? e.touches[0].clientY : e.clientY);
+        const offsetX = startX - rect.left;
+        const offsetY = startY - rect.top;
+
+        // switch to fixed positioning (viewport) so movement coordinates match clientX/Y
+        el.style.position = 'fixed';
+        el.style.left = rect.left + 'px';
+        el.style.top = rect.top + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+        el.style.zIndex = 9999;
+
+        const onMove = (ev) => {
+          const cx = (ev.touches ? ev.touches[0].clientX : ev.clientX);
+          const cy = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+          el.style.left = (cx - offsetX) + 'px';
+          el.style.top = (cy - offsetY) + 'px';
+        };
+
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('touchend', onUp);
+          try { this.__isDragging = false; } catch (_) { }
+          if (mapEl) {
+            try { mapEl.style.pointerEvents = _oldMapPointer || ''; } catch (_) { }
+          }
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+      };
+
+      handle.addEventListener('mousedown', onMouseDown);
+      handle.addEventListener('touchstart', onMouseDown, { passive: false });
+    },
+
     selectMode(mode) {
       this.currentMode = mode;
       // Show the centered disclaimer modal after mode selection
       this.showModeDisclaimerModal = true;
+
+      this.n_mode = mode;
     },
     acceptModeDisclaimer() {
       // Dismiss the modal; user has acknowledged the notice
@@ -370,6 +562,93 @@ export default {
     },
     backToModeSelect() {
       this.currentMode = null;
+    },
+
+    // --- Purchase / details (mock payment) ---
+    requestPurchase(landId) {
+      try {
+        if (!this.currentUserId) {
+          alert('กรุณาเข้าสู่ระบบก่อนซื้อข้อมูล');
+          return;
+        }
+        const land = this.getLandById(landId);
+        if (!land) {
+          alert('ไม่พบรายการที่ต้องการ');
+          return;
+        }
+        // Owner sees full details without purchase
+        if (this.currentUserId && String(land.ownerUid) === String(this.currentUserId)) {
+          this.showFullDetails(land);
+          return;
+        }
+        if (this.hasPurchased(landId, this.currentUserId)) {
+          this.showFullDetails(land);
+          return;
+        }
+        // Show mock payment modal
+        this.purchaseLandPending = landId;
+        this.showPurchaseModal = true;
+      } catch (e) {
+        console.error('requestPurchase error', e);
+      }
+    },
+
+    cancelPurchase() {
+      this.purchaseLandPending = null;
+      this.showPurchaseModal = false;
+    },
+
+    confirmPurchase() {
+      try {
+        const landId = this.purchaseLandPending;
+        if (!landId) return;
+        const uid = this.currentUserId;
+        if (!uid) { alert('กรุณาเข้าสู่ระบบ'); return; }
+        // Save to localStorage as mock purchase record
+        const key = 'sqw_purchases_v1';
+        let data = {};
+        try { data = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) { data = {}; }
+        const arr = Array.isArray(data[landId]) ? data[landId] : [];
+        if (!arr.includes(uid)) arr.push(uid);
+        data[landId] = arr;
+        try { localStorage.setItem(key, JSON.stringify(data)); } catch (_) { }
+        this.showPurchaseModal = false;
+        this.purchaseLandPending = null;
+        const land = this.getLandById(landId);
+        if (land) this.showFullDetails(land);
+        else alert('ชำระเรียบร้อย แต่ไม่พบข้อมูลแปลง');
+      } catch (e) {
+        console.error('confirmPurchase error', e);
+        alert('เกิดข้อผิดพลาดขณะบันทึกการชำระ');
+      }
+    },
+
+    hasPurchased(landId, uid) {
+      try {
+        const key = 'sqw_purchases_v1';
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        return Array.isArray(data[landId]) && data[landId].includes(uid);
+      } catch (e) { return false; }
+    },
+
+    getLandById(id) {
+      if (!id) return null;
+      const tid = String(id);
+      const findIn = (arr) => Array.isArray(arr) ? arr.find(x => String(x.id) === tid) : null;
+      let found = findIn(this.savedLands) || findIn(this.filteredLands);
+      if (found) return found;
+      // try markers
+      for (const m of this.mapMarkers || []) {
+        try { if (m && m.data && String(m.data.id) === tid) return m.data; } catch (_) { }
+      }
+      return null;
+    },
+
+    showFullDetails(land) {
+      try {
+        this.fullDetailsLand = land;
+        this.showFullDetailsModal = true;
+      } catch (e) { console.error('showFullDetails error', e); }
     },
 
     clearSelectedLand() {
@@ -874,72 +1153,103 @@ export default {
         const deed = esc(item.deedInformation || item.detail || "");
         const jsUid = String(item.ownerUid || item.ownerUid || '').replace(/'/g, "\\'");
         const jsName = String(displayOwner || '').replace(/'/g, "\\'");
+        const jsLandId = String(item.id || '').replace(/'/g, "\\'");
+
+        // determine last-updated date (try common fields), fallback to 27/11/2025
+        const dateRaw = item.updatedAt || item.updated_at || item.date || item.createdAt || item.created_at || item.postedAt || item.publishedAt || null;
+        const displayDate = (() => {
+          try {
+            if (!dateRaw) return '27/11/2025';
+            const d = new Date(dateRaw);
+            if (Number.isNaN(d.getTime())) {
+              const sr = String(dateRaw || '').trim();
+              const normalized = sr.replace(/[-.\s]+/g, '/');
+              const parts = normalized.split('/');
+              if (parts.length >= 3) {
+                let day = parts[0].padStart(2, '0');
+                let month = parts[1].padStart(2, '0');
+                let year = parts[2];
+                if (year.length === 2) {
+                  const ynum = parseInt(year, 10);
+                  year = (ynum >= 50 ? '19' + year : '20' + year);
+                }
+                return `${day}/${month}/${year}`;
+              }
+              return '27/11/2025';
+            }
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = String(d.getFullYear());
+            return `${dd}/${mm}/${yyyy}`;
+          } catch (e) {
+            return '27/11/2025';
+          }
+        })();
 
         const html = `
-          <div style="font-family: Inter, Arial, Helvetica, sans-serif;background:#ffffff;border: none;overflow: visible;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-              <div style="font-weight:800;font-size:14px;color:#000000FF;line-height:1.05">${esc(title)}</div>
+          <div style="font-family: Inter, Arial, Helvetica, sans-serif; background:#ffffff; color:#111; width:100%;">
+            <div style="padding:8px 14px 0 14px; display:flex;align-items:center;gap:8px;color:#666;font-size:12px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="11" stroke="#666" stroke-width="1" fill="#fff" />
+                <path d="M11.25 7.5h1.5v1.5h-1.5V7.5zM12 10.5c-.414 0-.75.336-.75.75v3c0 .414.336.75.75.75s.75-.336.75-.75v-3c0-.414-.336-.75-.75-.75z" fill="#666" />
+              </svg>
+              <div>วันที่ลงข้อมูล ${esc(displayDate)}</div>
+            </div>
+            <div style="padding:6px 14px 0 14px;">
+              <div style="font-weight:800;font-size:18px;line-height:1.05;color:#111">${esc(title)}</div>
+              <div style="font-size:12px;color:#666;margin-top:4px">${esc(item.address || item.title || '')}</div>
             </div>
 
-            <div style="display:flex;gap:8px;margin-bottom:10px">
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF;margin-bottom:4px">ขนาดที่ดิน</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(area)} ตร.วา</div>
-                </div>
-
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF;margin-bottom:4px">หน้ากว้างติดถนน</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(frontage)} ม.</div>
-                </div>
+            <div style="padding:12px 14px; display:flex; gap:8px; margin-top:10px;">
+              <div style="flex:1; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">ขนาดที่ดิน</div>
+                <div style="font-weight:800;font-size:20px;color:#000;margin-top:6px">${fmt(area)} ตร.วา</div>
               </div>
-
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ขนาด (ไร่/งาน/วา)</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${esc(rai)} / ${esc(ngan)} / ${esc(wah)}</div>
-                </div>
-
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ขนาดถนน</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(road)} ม.</div>
-                </div>
+              <div style="width:100px; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">ไร่/งาน/วา</div>
+                <div style="font-weight:700;font-size:16px;color:#000;margin-top:6px">${esc(rai)} - ${esc(ngan)} - ${esc(wah)}</div>
               </div>
             </div>
 
-            <div style="display:flex;gap:8px;margin-bottom:10px">
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ราคา/ตร.วา</div>
-                  <div style="font-weight:600;font-size:12px;color:#1D1D1DFF">${fmt(pricePer, 'money')} บ.</div>
-                </div>
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">โทร</div>
-                  <div style="font-weight:700;color:#1D1D1DFF">${esc(phone) || '-'}</div>
-                </div>
+            <div style="padding:0 14px 12px 14px; margin-top:8px; display:flex; gap:8px;">
+              <div style="flex:1; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">หน้ากว้างติดถนน</div>
+                <div style="font-weight:700;font-size:16px;color:#000;margin-top:6px">${fmt(frontage)} ม.</div>
               </div>
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ราคารวม</div>
-                  <div style="font-weight:600;font-size:12px;color:#1D1D1DFF">${fmt(total, 'money')} บ.</div>
-                </div>
-                
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">LINE ID</div>
-                  <div style="font-weight:700;color:#1D1D1DFF">${esc(lineId) || '-'}</div>
-                </div>
+              <div style="flex:1; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">ขนาดถนน</div>
+                <div style="font-weight:700;font-size:16px;color:#000;margin-top:6px">${fmt(road)} ม.</div>
               </div>
             </div>
-            
-            ${landFrame ? `<div style="font-size:12px;color:#000000FF;margin-bottom:6px">กรอบที่ดิน</div>
-              <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:#e6eef8;font-size:13px;margin-bottom:8px;overflow:visible">${landFrame}</div>` : ""}
 
-            ${deed ? `<div style="font-size:12px;color:#000000FF;margin-bottom:4px">ข้อมูลโฉนด / ระวาง</div>
-              <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:#cfe8ff;font-size:12px;max-height:none;overflow:visible">${deed}</div>` : ""}
+            <hr style="border:none;border-top:1px solid #eee;margin:8px 0;">
 
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
-              ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="background:#3b82f6;color:#FFFFFFFF;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">แชทผู้ขาย</a>` : ''}
-              <a href="javascript:void(0)" style="background:#3b82f6;color:#FFFFFFFF;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">ดูรายละเอียด</a>
+            <div style="padding:0 14px 12px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div style="font-size:12px;color:#333">ราคา/ตร.วา</div>
+                <div style="font-weight:700;color:#000">${fmt(pricePer, 'money')} บ.</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:12px;color:#333">ราคารวม</div>
+                <div style="font-weight:800;font-size:18px;color:#000">${fmt(total, 'money')} บ.</div>
+              </div>
+            </div>
+
+            <hr style="border:none;border-top:1px solid #eee;margin:6px 0;">
+
+            <div style="padding:0 14px 12px 14px; font-size:13px; color:#333;">
+              <div style="margin-bottom:6px;font-weight:700">ข้อมูลติดต่อ</div>
+              <div style="display:flex;justify-content:space-between"><div>เจ้าของ</div><div>${displayOwner || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>นายหน้า</div><div>${displayAgent || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>โทร</div><div>${esc(phone) || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>LINE ID</div><div>${esc(lineId) || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>กรอบที่ดิน</div><div>${'NaN'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>ข้อมูลโฉนด/ระวาง</div><div>${'NaN'}</div></div>
+            </div>
+
+            <div style="padding:12px;display:flex;gap:8px;justify-content:space-between;">
+              ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">แชทผู้ขาย</a>` : ''}
+              <a href="javascript:void(0)" onclick="(window.requestPurchase||function(){} )('${jsLandId}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">คลิ้กเพื่อดูปลดล็อคข้อมูล</a>
             </div>
           </div>
         `.trim();
@@ -1134,6 +1444,129 @@ export default {
           }
         }
 
+        try {
+          this.map.Event.bind("ready", () => {
+            console.log("Map is ready, adding markers...");
+
+            // ----------------- FORCE ESRI AS DEFAULT BASE -----------------
+            const ESRI_IMAGERY_URL =
+              'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer';
+            const ESRI_LABEL_URL =
+              'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer';
+
+            try {
+              // base: ESRI imagery
+              const esriImagery = new window.longdo.Layer(ESRI_IMAGERY_URL, {
+                type: 'ArcGIS',
+                opacity: 1,
+              });
+
+              // overlay: labels/roads
+              const esriLabels = new window.longdo.Layer(ESRI_LABEL_URL, {
+                type: 'ArcGIS',
+                opacity: 1,
+              });
+
+              if (this.map.Layers?.setBase) {
+                this.map.Layers.setBase(esriImagery);
+              } else if (this.map.Layers?.base) {
+                this.map.Layers.base(esriImagery);
+              }
+
+              this.map.Overlays.add(esriLabels);
+              this.selectedMapType = 'esri-imagery';
+
+              console.log('ESRI World_Imagery set as base with labels overlay');
+            } catch (e) {
+              console.warn('Failed to init ESRI base, keep default Longdo base:', e);
+            }
+            // ---------------------------------------------------------------
+
+            // เพิ่ม marker ตามเดิม
+            try { this.addMarkersToMap(); } catch (e) { console.error("addMarkersToMap failed", e); }
+
+            // Defensive cleanup: remove Longdo attribution/logo nodes if present.
+            // CSS rules already attempt to hide these, but some builds inject
+            // elements in ways CSS may not catch — remove as a JS fallback.
+            try {
+              const candidates = [
+                '.ldmap_logo', '.ldmap_footer', '.ldmap_attribution',
+                '.ldmap_credit', '.ldmap_copyright', '.ldmap_poweredby',
+                '.ldmap_tile_copyright', '.ldmap_attrib',
+                'a[href*="longdo"]', 'img[alt*="Longdo"]'
+              ];
+              candidates.forEach((sel) => {
+                document.querySelectorAll(sel).forEach((n) => {
+                  try { n.remove(); }
+                  catch (_) { n.style && (n.style.display = 'none'); }
+                });
+              });
+            } catch (e) {
+              console.debug('cleanup remove attribution failed:', e);
+            }
+
+            // Inject runtime CSS and a MutationObserver to force Longdo popups
+            try {
+              if (!document.getElementById('sqw-longdo-popup-style')) {
+                const css = `
+          .ldmap_placeholder.ldmap_frame.ldmap_popup { overflow: visible !important; max-height: none !important; max-width: 720px !important; width: auto !important; }
+          .ldmap_placeholder.ldmap_frame.ldmap_popup, .ldmap_placeholder.ldmap_frame.ldmap_popup * { overflow: visible !important; max-height: none !important; height: auto !important; }
+        `;
+                const s = document.createElement('style');
+                s.id = 'sqw-longdo-popup-style';
+                s.appendChild(document.createTextNode(css));
+                document.head.appendChild(s);
+              }
+
+              const fixPopupNode = (node) => {
+                try {
+                  node.style.overflow = 'visible';
+                  node.style.maxHeight = 'none';
+                  node.style.height = 'auto';
+                  node.style.width = 'auto';
+                  node.style.maxWidth = '720px';
+                  node.querySelectorAll('*').forEach((ch) => {
+                    try {
+                      ch.style.overflow = 'visible';
+                      ch.style.maxHeight = 'none';
+                      ch.style.height = 'auto';
+                    } catch (_) { }
+                  });
+                } catch (_) { }
+              };
+
+              // Patch existing popups
+              document
+                .querySelectorAll('.ldmap_placeholder.ldmap_frame.ldmap_popup')
+                .forEach(fixPopupNode);
+
+              // Observe DOM to patch future popups created by Longdo
+              const mo = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                  for (const n of m.addedNodes) {
+                    if (n && n.nodeType === 1) {
+                      const el = /** @type {Element} */ (n);
+                      if (el.classList && el.classList.contains('ldmap_placeholder')) {
+                        fixPopupNode(el);
+                      }
+                      // sometimes wrapper is added deeper
+                      el.querySelectorAll &&
+                        el.querySelectorAll('.ldmap_placeholder')
+                          .forEach(fixPopupNode);
+                    }
+                  }
+                }
+              });
+              mo.observe(document.body, { childList: true, subtree: true });
+            } catch (e) {
+              console.debug('longdo popup override injection failed:', e);
+            }
+          });
+        } catch (e) {
+          console.warn("binding ready event failed", e);
+        }
+
+
         // basic map setup (safe ops)
         try {
           this.map.location(
@@ -1252,6 +1685,9 @@ export default {
         try {
           this.map.Event.bind("click", (ev) => {
             try {
+              // If a UI panel is being dragged, ignore map clicks
+              if (this.__isDragging) return;
+
               this.showMarkerInfo = false;
               if (!this.drawMode && !this.floodMode) {
                 this.clearSelectedLand();
@@ -1275,9 +1711,10 @@ export default {
           });
         } catch (e) { console.warn("binding click event failed", e); }
 
-        // expose selectSaleType for popup buttons if present
+        // expose selectSaleType / openChatWith / requestPurchase for popup buttons if present
         try { window.selectSaleType = this.selectSaleType.bind(this); } catch (e) { }
         try { window.openChatWith = this.openChatWith?.bind(this) || (() => { }); } catch (e) { }
+        try { window.requestPurchase = this.requestPurchase?.bind(this) || (() => { }); } catch (e) { }
 
         // hide some UI components if available (safe)
         try { this.map.Ui?.Zoombar?.visible(false); this.map.Ui?.DPad?.visible(false); } catch (e) { }
@@ -1863,7 +2300,7 @@ export default {
       this.drawPoints = [];
       this.redrawDrawing();
       this.updateSnapPoints();
-      try { document.getElementById('map').style.cursor = 'crosshair'; } catch (e) { }
+      try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
     },
     finishDrawing() {
       if (!this.map) return;
@@ -2445,7 +2882,7 @@ export default {
       this.floodLevel = level;
       this.floodPoints = [];
       this.redrawFloodDrawing();
-      try { document.getElementById('map').style.cursor = 'crosshair'; } catch (e) { }
+      try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
     },
 
     async finishFloodDrawing() {

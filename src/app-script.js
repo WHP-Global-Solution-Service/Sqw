@@ -88,6 +88,7 @@ export default {
         road: "",
         landFrame: "",
         deedInformation: "",
+        images: [],
       },
 
       savedLands: [],
@@ -162,6 +163,8 @@ export default {
       showDisclaimer: true,
       // show a centered modal after selecting sale/pledge mode
       showModeDisclaimerModal: false,
+      // Coming soon modal for pledge mode
+      showComingSoonModal: false,
       // Purchase / details modals (mock payment)
       showPurchaseModal: false,
       purchaseLandPending: null, // land id being purchased
@@ -172,6 +175,21 @@ export default {
       kmlFeatures: [],
       bkkRect: null,
       kmlOpacity: 0.6,   // 0–1
+
+      // Image viewer
+      showImageViewer: false,
+      viewerImages: [],
+      currentImageIndex: 0,
+
+      // ChillPay configuration
+      chillpay: {
+        merchantCode: 'M037016',
+        apiKey: 'Oh7XNjDQowUfM7G020YIU1gt7jNXxIdUaCm8UL8XFXvEzElamuzurR1HGuuxLP8',
+        sandboxUrl: 'https://sandbox-pgw.chillpay.co/api/v3',
+        backendUrl: 'http://localhost:3001', // Backend server URL
+        useBackend: true, // true = ใช้ backend, false = demo mode
+      },
+      chillpayProcessing: false,
 
     };
   },
@@ -223,9 +241,22 @@ export default {
       // เริ่ม subscribe ส่วนต่าง ๆ ของ P2P
       this.initP2PFacade();
 
+      // เช็คว่ามี payment response หรือไม่ (หลัง redirect กลับมา)
+      this.checkPaymentResponse();
+
+      // เพิ่ม listener สำหรับรับข้อมูลจาก payment popup
+      this.setupPaymentMessageListener();
+
       // === subscribe lands ของฉัน ===
       this.landsUnsub = subscribeLandsAll((list) => {
         this.savedLands = Array.isArray(list) ? list : [];
+        console.log('📍 Lands loaded:', this.savedLands.length, 'lands');
+        // Debug: ตรวจสอบรูปภาพ
+        this.savedLands.forEach((land, idx) => {
+          if (land.images && land.images.length > 0) {
+            console.log(`  Land ${idx + 1} (${land.owner || 'Unknown'}): ${land.images.length} images`);
+          }
+        });
         this.renderLandsOnMap();
         this.$nextTick(() => this.checkLandsFloodStatus());
       });
@@ -550,6 +581,12 @@ export default {
     },
 
     selectMode(mode) {
+      // ถ้าเป็นโหมด pledge ให้แสดง coming soon popup แทน
+      if (mode === 'pledge' || mode === 'eia') {
+        this.showComingSoonModal = true;
+        return;
+      }
+
       this.currentMode = mode;
       // Show the centered disclaimer modal after mode selection
       this.showModeDisclaimerModal = true;
@@ -559,6 +596,9 @@ export default {
     acceptModeDisclaimer() {
       // Dismiss the modal; user has acknowledged the notice
       this.showModeDisclaimerModal = false;
+    },
+    closeComingSoon() {
+      this.showComingSoonModal = false;
     },
     backToModeSelect() {
       this.currentMode = null;
@@ -598,28 +638,326 @@ export default {
       this.showPurchaseModal = false;
     },
 
-    confirmPurchase() {
+    async confirmPurchase() {
       try {
         const landId = this.purchaseLandPending;
         if (!landId) return;
         const uid = this.currentUserId;
         if (!uid) { alert('กรุณาเข้าสู่ระบบ'); return; }
-        // Save to localStorage as mock purchase record
-        const key = 'sqw_purchases_v1';
-        let data = {};
-        try { data = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) { data = {}; }
-        const arr = Array.isArray(data[landId]) ? data[landId] : [];
-        if (!arr.includes(uid)) arr.push(uid);
-        data[landId] = arr;
-        try { localStorage.setItem(key, JSON.stringify(data)); } catch (_) { }
-        this.showPurchaseModal = false;
-        this.purchaseLandPending = null;
+
+        // เช็คซ้ำว่าซื้อแล้วหรือยัง
+        if (this.hasPurchased(landId, uid)) {
+          alert('✅ คุณซื้อข้อมูลนี้ไปแล้ว');
+          this.showPurchaseModal = false;
+          const land = this.getLandById(landId);
+          if (land) this.showFullDetails(land);
+          return;
+        }
+
         const land = this.getLandById(landId);
-        if (land) this.showFullDetails(land);
-        else alert('ชำระเรียบร้อย แต่ไม่พบข้อมูลแปลง');
+        if (!land) {
+          alert('ไม่พบข้อมูลแปลง');
+          return;
+        }
+
+        // เริ่มชำระเงินผ่าน ChillPay
+        this.chillpayProcessing = true;
+        await this.processChillPayPayment(land);
+
       } catch (e) {
         console.error('confirmPurchase error', e);
-        alert('เกิดข้อผิดพลาดขณะบันทึกการชำระ');
+        alert('เกิดข้อผิดพลาดขณะชำระเงิน: ' + (e.message || e));
+        this.chillpayProcessing = false;
+      }
+    },
+
+    async processChillPayPayment(land) {
+      try {
+        const amount = land.totalPrice || 100;
+        const orderId = `LAND-${land.id}-${Date.now()}`;
+
+        console.log('🎯 Payment Mode:', this.chillpay.useBackend ? 'Backend API' : 'Demo');
+        console.log('Order ID:', orderId);
+        console.log('Amount:', amount, 'THB');
+
+        // Check if backend is enabled
+        if (this.chillpay.useBackend) {
+          // Use backend API
+          await this.callBackendPaymentAPI(orderId, amount, land);
+        } else {
+          // Use demo mode
+          await this.processDemoPayment(orderId, amount, land);
+        }
+
+      } catch (e) {
+        console.error('ChillPay payment error:', e);
+        this.chillpayProcessing = false;
+        throw e;
+      }
+    },
+
+    async callBackendPaymentAPI(orderId, amount, land) {
+      try {
+        console.log('📡 Calling backend API...');
+
+        const response = await fetch(`${this.chillpay.backendUrl}/api/payment/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId,
+            amount: parseFloat(amount).toFixed(2),
+            customerName: this.userProfile?.name || 'Guest',
+            landId: land.id
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Backend error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ Backend response:', result);
+
+        if (result.success && result.data?.PaymentUrl) {
+          // Save order
+          this.savePaymentOrder(orderId, land.id);
+
+          // Open payment page in popup instead of redirect
+          console.log('💳 Opening payment in popup...');
+          const paymentWindow = window.open(
+            result.data.PaymentUrl,
+            'ChillPayPayment',
+            'width=800,height=700,scrollbars=yes,resizable=yes'
+          );
+
+          if (!paymentWindow) {
+            alert('❌ กรุณาอนุญาตให้เปิด Popup Window');
+            this.chillpayProcessing = false;
+            return;
+          }
+
+          // Monitor popup and wait for payment result
+          this.monitorPaymentPopup(paymentWindow, orderId);
+        } else {
+          throw new Error(result.data?.Message || 'Payment creation failed');
+        }
+
+      } catch (e) {
+        console.error('❌ Backend API error:', e);
+
+        // Fallback to demo mode if backend fails
+        const useFallback = confirm(
+          '⚠️ ไม่สามารถเชื่อมต่อ Backend Server\n\n' +
+          'กรุณาตรวจสอบว่า Backend Server รันอยู่ที่:\n' +
+          `${this.chillpay.backendUrl}\n\n` +
+          'ต้องการใช้ Demo Mode แทนหรือไม่?'
+        );
+
+        if (useFallback) {
+          await this.processDemoPayment(orderId, amount, land);
+        } else {
+          this.chillpayProcessing = false;
+          throw new Error('Backend connection failed. Please start the backend server.');
+        }
+      }
+    },
+
+    async processDemoPayment(orderId, amount, land) {
+      console.log('🎯 Using Demo Payment Mode');
+
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Save order
+      this.savePaymentOrder(orderId, land.id);
+
+      // Show demo payment dialog
+      this.showDemoPaymentPage(orderId, amount, land);
+    },
+
+    showDemoPaymentPage(orderId, amount, land) {
+      // ปิด purchase modal
+      this.showPurchaseModal = false;
+      this.chillpayProcessing = false;
+
+      // แสดง demo payment confirmation
+      const confirmed = confirm(
+        `🎯 DEMO PAYMENT MODE\n\n` +
+        `Order: ${orderId}\n` +
+        `Amount: ${amount.toLocaleString()} THB\n` +
+        `Land: ${land.owner || land.agent || 'N/A'}\n\n` +
+        `⚠️ หมายเหตุ: นี่คือโหมดทดสอบ\n` +
+        `ในการใช้งานจริงต้องมี Backend Server\n` +
+        `เพื่อเรียก ChillPay API\n\n` +
+        `คลิก OK เพื่อจำลองการชำระเงินสำเร็จ\n` +
+        `คลิก Cancel เพื่อยกเลิก`
+      );
+
+      if (confirmed) {
+        // จำลองการชำระเงินสำเร็จ
+        setTimeout(() => {
+          this.completePayment(orderId);
+          alert('✅ ชำระเงินสำเร็จ (Demo Mode)\n\nสามารถดูข้อมูลติดต่อได้แล้ว');
+        }, 500);
+      } else {
+        alert('❌ ยกเลิกการชำระเงิน');
+      }
+    },
+
+    async generateMD5(text) {
+      // ใช้ Web Crypto API สำหรับ MD5 (ต้องใช้ library เพิ่มเติม)
+      // สำหรับ sandbox ใช้ค่าตัวอย่าง
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+        const hashBuffer = await crypto.subtle.digest('MD5', data).catch(() => null);
+        if (!hashBuffer) {
+          // Fallback: ใช้ MD5 key ที่ได้มา
+          return 'QafTNUc1ZOHtftrWn1stlFE5JSag7soPziUywFYHumBl2UERl9Op8gzrLnyQfHZgpN8rqjTwLozOv5ppSTh6njC0hEcs6AbICYyT8MqgO1WwNbw5kXd6w1uaAS0KauTYsQeYHqj6SfOyRLj3R8McK9saHGlCAiO23gkawF';
+        }
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      } catch (e) {
+        console.warn('MD5 generation failed, using fallback');
+        return 'QafTNUc1ZOHtftrWn1stlFE5JSag7soPziUywFYHumBl2UERl9Op8gzrLnyQfHZgpN8rqjTwLozOv5ppSTh6njC0hEcs6AbICYyT8MqgO1WwNbw5kXd6w1uaAS0KauTYsQeYHqj6SfOyRLj3R8McK9saHGlCAiO23gkawF';
+      }
+    },
+
+    monitorPaymentPopup(paymentWindow, orderId) {
+      // Check if popup is closed every 500ms
+      const checkInterval = setInterval(() => {
+        if (paymentWindow.closed) {
+          clearInterval(checkInterval);
+          console.log('💳 Payment popup closed');
+
+          // Check if payment was completed
+          setTimeout(() => {
+            const order = this.getPaymentOrder(orderId);
+            if (order && order.status === 'completed') {
+              this.chillpayProcessing = false;
+              this.showPurchaseModal = false;
+              alert('✅ ชำระเงินสำเร็จ!\n\nสามารถดูข้อมูลติดต่อได้แล้ว');
+              const land = this.getLandById(order.landId);
+              if (land) this.showFullDetails(land);
+            } else {
+              this.chillpayProcessing = false;
+              // Don't show error, user might have just closed the popup
+            }
+          }, 500);
+        }
+      }, 500);
+    },
+
+    getPaymentOrder(orderId) {
+      try {
+        const key = 'sqw_chillpay_orders';
+        const orders = JSON.parse(localStorage.getItem(key) || '{}');
+        return orders[orderId] || null;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    savePaymentOrder(orderId, landId) {
+      try {
+        const key = 'sqw_chillpay_orders';
+        let orders = {};
+        try { orders = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) { }
+        orders[orderId] = {
+          landId,
+          userId: this.currentUserId,
+          timestamp: Date.now(),
+          status: 'pending'
+        };
+        localStorage.setItem(key, JSON.stringify(orders));
+      } catch (e) {
+        console.error('Failed to save order:', e);
+      }
+    },
+
+    checkPaymentResponse() {
+      // เช็คว่ามี payment response หรือไม่ (เมื่อ redirect กลับมา)
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const status = urlParams.get('status');
+        const orderId = urlParams.get('orderNo');
+
+        if (status && orderId) {
+          if (status === 'success' || status === '0000') {
+            this.completePayment(orderId);
+            alert('ชำระเงินสำเร็จ!');
+          } else {
+            alert('การชำระเงินล้มเหลว กรุณาลองใหม่อีกครั้ง');
+          }
+          // ลบ query params
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch (e) {
+        console.error('Check payment response error:', e);
+      }
+    },
+
+    setupPaymentMessageListener() {
+      // ฟังข้อความจาก payment popup
+      window.addEventListener('message', (event) => {
+        try {
+          // Security: verify origin if needed
+          // if (event.origin !== 'http://localhost:8080') return;
+
+          if (event.data && event.data.type) {
+            if (event.data.type === 'payment_success') {
+              console.log('✅ Payment success message received:', event.data);
+              this.chillpayProcessing = false;
+              this.showPurchaseModal = false;
+
+              // Complete payment
+              if (event.data.orderId) {
+                this.completePayment(event.data.orderId);
+              }
+
+              alert('✅ ชำระเงินสำเร็จ!\n\nสามารถดูข้อมูลติดต่อได้แล้ว');
+
+            } else if (event.data.type === 'payment_cancel') {
+              console.log('❌ Payment cancelled:', event.data);
+              this.chillpayProcessing = false;
+              // Don't show error message, user cancelled intentionally
+            }
+          }
+        } catch (e) {
+          console.error('Message listener error:', e);
+        }
+      });
+    },
+
+    completePayment(orderId) {
+      try {
+        const key = 'sqw_chillpay_orders';
+        const orders = JSON.parse(localStorage.getItem(key) || '{}');
+        const order = orders[orderId];
+
+        if (order && order.landId) {
+          // บันทึกว่าชำระเงินแล้ว
+          const purchaseKey = 'sqw_purchases_v1';
+          let data = {};
+          try { data = JSON.parse(localStorage.getItem(purchaseKey) || '{}'); } catch (_) { }
+          const arr = Array.isArray(data[order.landId]) ? data[order.landId] : [];
+          if (!arr.includes(order.userId)) arr.push(order.userId);
+          data[order.landId] = arr;
+          localStorage.setItem(purchaseKey, JSON.stringify(data));
+
+          // อัปเดตสถานะ order
+          order.status = 'completed';
+          orders[orderId] = order;
+          localStorage.setItem(key, JSON.stringify(orders));
+
+          // แสดงรายละเอียดเต็ม
+          const land = this.getLandById(order.landId);
+          if (land) this.showFullDetails(land);
+        }
+      } catch (e) {
+        console.error('Complete payment error:', e);
       }
     },
 
@@ -657,8 +995,134 @@ export default {
         size: "", width: "", road: "", price: "", totalPrice: "",
         landFrame: "", deedInformation: "",
         owner: "", agent: "", phone: "", lineId: "", raiModel: "", nganModel: "", wahModel: "",
+        images: [],
       };
       this.clearDrawing(); // เอา polygon highlight จากการเลือกก่อนหน้าออก
+    },
+
+    async handleImageUpload(event) {
+      const files = Array.from(event.target.files);
+      const maxImages = 5;
+      const currentCount = (this.landData.images || []).length;
+      const availableSlots = maxImages - currentCount;
+
+      if (availableSlots <= 0) {
+        alert('สามารถอัปโหลดได้สูงสุด 5 รูปเท่านั้น');
+        return;
+      }
+
+      const filesToProcess = files.slice(0, availableSlots);
+
+      for (const file of filesToProcess) {
+        if (!file.type.startsWith('image/')) continue;
+
+        try {
+          console.log(`📸 Uploading image: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`);
+          // Resize และ compress รูปก่อนเก็บ
+          const compressedBase64 = await this.compressImage(file);
+          if (!this.landData.images) this.landData.images = [];
+          this.landData.images.push({
+            data: compressedBase64,
+            name: file.name,
+            uploadedAt: Date.now()
+          });
+          console.log(`✅ Image added to landData. Total images: ${this.landData.images.length}`);
+        } catch (e) {
+          console.error('Error uploading image:', e);
+          alert('เกิดข้อผิดพลาดในการอัปโหลดรูป: ' + file.name);
+        }
+      }
+
+      // Reset input
+      event.target.value = '';
+    },
+
+    // Compress และ resize รูปให้เล็กที่สุด
+    async compressImage(file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            // คำนวณขนาดใหม่โดยรักษา aspect ratio
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+
+            // สร้าง canvas และ resize
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Convert เป็น JPEG (เล็กกว่า PNG) ยกเว้นไฟล์ที่ต้องการ transparency
+            const outputFormat = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+            const compressedBase64 = canvas.toDataURL(outputFormat, quality);
+
+            // คำนวณขนาดไฟล์
+            const originalSize = (file.size / 1024).toFixed(2);
+            const compressedSize = (compressedBase64.length * 0.75 / 1024).toFixed(2); // base64 ~1.33x larger
+            console.log(`Image compressed: ${originalSize}KB → ${compressedSize}KB (${((compressedSize / originalSize) * 100).toFixed(1)}%)`);
+
+            resolve(compressedBase64);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    },
+
+    fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    },
+
+    removeImage(index) {
+      if (this.landData.images && this.landData.images[index]) {
+        this.landData.images.splice(index, 1);
+      }
+    },
+
+    openImageViewer(images, startIndex = 0) {
+      this.viewerImages = images || [];
+      this.currentImageIndex = startIndex;
+      this.showImageViewer = true;
+    },
+
+    closeImageViewer() {
+      this.showImageViewer = false;
+      this.viewerImages = [];
+      this.currentImageIndex = 0;
+    },
+
+    nextImage() {
+      if (this.currentImageIndex < this.viewerImages.length - 1) {
+        this.currentImageIndex++;
+      }
+    },
+
+    prevImage() {
+      if (this.currentImageIndex > 0) {
+        this.currentImageIndex--;
+      }
     },
 
     // ---- ใช้แทน formatPrice ที่หายไป ----
@@ -1247,6 +1711,20 @@ export default {
               <div style="display:flex;justify-content:space-between"><div>ข้อมูลโฉนด/ระวาง</div><div>${'NaN'}</div></div>
             </div>
 
+            ${item.images && item.images.length > 0 ? `
+            <div style="padding:0 14px 12px 14px;">
+              <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:8px">รูปภาพประกอบ (${item.images.length})</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">
+                ${item.images.map((img, idx) => `
+                  <img src="${img.data}" alt="Image ${idx + 1}" 
+                    style="width:100%;height:80px;object-fit:cover;border-radius:6px;border:2px solid #e5e7eb;cursor:pointer;"
+                    onclick="window.viewLandImages && window.viewLandImages('${jsLandId}', ${idx})"
+                  />
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
+
             <div style="padding:12px;display:flex;gap:8px;justify-content:space-between;">
               ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">แชทผู้ขาย</a>` : ''}
               <a href="javascript:void(0)" onclick="(window.requestPurchase||function(){} )('${jsLandId}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">คลิ้กเพื่อดูปลดล็อคข้อมูล</a>
@@ -1715,6 +2193,15 @@ export default {
         try { window.selectSaleType = this.selectSaleType.bind(this); } catch (e) { }
         try { window.openChatWith = this.openChatWith?.bind(this) || (() => { }); } catch (e) { }
         try { window.requestPurchase = this.requestPurchase?.bind(this) || (() => { }); } catch (e) { }
+        try { window.openImageViewer = this.openImageViewer?.bind(this) || (() => { }); } catch (e) { }
+        try {
+          window.viewLandImages = (landId, startIndex = 0) => {
+            const land = this.getLandById(landId);
+            if (land && land.images && land.images.length > 0) {
+              this.openImageViewer(land.images, startIndex);
+            }
+          };
+        } catch (e) { }
 
         // hide some UI components if available (safe)
         try { this.map.Ui?.Zoombar?.visible(false); this.map.Ui?.DPad?.visible(false); } catch (e) { }
@@ -2552,15 +3039,19 @@ export default {
         lineId: (this.landData.lineId || "").trim(),
         location: markerLoc,
         geometry,
+        images: this.landData.images || [],
 
         id: this.editingLandId || undefined,
       };
+
+      console.log('💾 Saving land data with images:', payload.images?.length || 0, 'images');
 
       try {
         if (!this.currentUserId) { alert("ยังไม่ได้เข้าสู่ระบบ (เปิด anonymous ได้)"); return; }
 
 
         await saveLand(this.currentUserId, payload);
+        console.log('✅ Land saved successfully to Firebase');
         this.landData = {
           size: "",
           width: "",
@@ -2573,6 +3064,7 @@ export default {
           road: "",
           landFrame: "",
           deedInformation: "",
+          images: [],
         };
         this.editingLandId = null;
         this.clearDrawing();
@@ -2831,6 +3323,7 @@ export default {
         agent: land.agent ?? "",
         phone: land.phone ?? "",
         lineId: land.lineId ?? "",
+        images: land.images || [],
       };
 
       // แตก size (ตร.วา) เป็น RNW ให้ช่องด้านขวา
@@ -2838,22 +3331,6 @@ export default {
       this.raiModel = (rai === "" ? "" : String(rai));
       this.nganModel = (ngan === "" ? "" : String(ngan));
       this.wahModel = (wah === "" ? "" : (this.fmt2 ? this.fmt2(wah) : wah.toFixed(2)));
-
-
-      // Map model -> form model
-      this.landData = {
-        size: land.size ?? land.area ?? "",
-        width: land.frontage ?? land.width ?? "",
-        road: land.roadWidth ?? land.road ?? "",
-        price: land.pricePerSqw != null ? this.formatMoney(land.pricePerSqw) : "",
-        totalPrice: land.totalPrice ?? "",
-        landFrame: land.landFrame ?? "",
-        deedInformation: land.deedInformation ?? "",
-        owner: land.owner ?? "",
-        agent: land.agent ?? "",
-        phone: land.phone ?? "",
-        lineId: land.lineId ?? "",
-      };
 
       // Draw selected geometry for visual
       try {

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Payment - ChillPay Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Sarabun', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .payment-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .payment-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .amount {
+            font-size: 28px !important;
+            color: #667eea !important;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            grid-column: 1 / -1;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(17, 153, 142, 0.3);
+        }
+
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #666;
+            grid-column: 1 / -1;
+        }
+
+        .btn-cancel:hover {
+            background: #d0d0d0;
+        }
+
+        .payment-methods {
+            margin-bottom: 20px;
+        }
+
+        .payment-methods h3 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .method-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .method-btn {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 20px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .method-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .method-btn.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+            border-width: 3px;
+        }
+
+        .method-icon {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+
+        .method-name {
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .step {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: #667eea;
+            width: 30px;
+            border-radius: 5px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .qr-section {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+        }
+
+        .payment-instruction {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .note {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff9e6;
+            border-radius: 8px;
+            border: 1px solid #ffe066;
+        }
+
+        .spinner {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner.active {
+            display: block;
+        }
+
+        .spinner::after {
+            content: '';
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="logo">
+            <h1>💳 ChillPay</h1>
+            <p>Mock Payment Gateway (สำหรับทดสอบ)</p>
+        </div>
+
+        <div class="payment-info">
+            <div class="info-row">
+                <span class="info-label">เลขที่คำสั่งซื้อ</span>
+                <span class="info-value" id="orderId">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">รหัสที่ดิน</span>
+                <span class="info-value" id="landId">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">ยอดชำระ</span>
+                <span class="info-value amount" id="amount">-</span>
+            </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step1"></div>
+            <div class="step" id="step2"></div>
+            <div class="step" id="step3"></div>
+        </div>
+
+        <!-- Step 1: Select Payment Method -->
+        <div id="methodSelection" class="payment-methods">
+            <h3>เลือกช่องทางการชำระเงิน</h3>
+            <div class="method-grid">
+                <div class="method-btn" onclick="selectMethod('qr')">
+                    <div class="method-icon">📱</div>
+                    <div class="method-name">QR Code<br>PromptPay</div>
+                </div>
+                <div class="method-btn" onclick="selectMethod('card')">
+                    <div class="method-icon">💳</div>
+                    <div class="method-name">บัตรเครดิต<br>/เดบิต</div>
+                </div>
+                <div class="method-btn" onclick="selectMethod('banking')">
+                    <div class="method-icon">🏦</div>
+                    <div class="method-name">Internet<br>Banking</div>
+                </div>
+                <div class="method-btn" onclick="selectMethod('wallet')">
+                    <div class="method-icon">👛</div>
+                    <div class="method-name">E-Wallet<br>TrueMoney</div>
+                </div>
+                <div class="method-btn" onclick="selectMethod('mobile')">
+                    <div class="method-icon">📲</div>
+                    <div class="method-name">Mobile<br>Banking</div>
+                </div>
+                <div class="method-btn" onclick="selectMethod('installment')">
+                    <div class="method-icon">🔢</div>
+                    <div class="method-name">ผ่อนชำระ<br>0%</div>
+                </div>
+            </div>
+            <div class="buttons">
+                <button class="btn btn-cancel" onclick="simulateCancel()">
+                    ❌ ยกเลิกการชำระ
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Payment Process -->
+        <div id="paymentProcess" class="hidden">
+            <div class="qr-section" id="qrSection" class="hidden">
+                <h3 style="color: #333; margin-bottom: 15px;">สแกน QR Code เพื่อชำระเงิน</h3>
+                <div class="qr-code">📷</div>
+                <p class="payment-instruction">
+                    กรุณาเปิดแอพธนาคาร<br>
+                    และสแกน QR Code เพื่อชำระเงิน<br>
+                    <strong id="qrAmount">0.00 บาท</strong>
+                </p>
+            </div>
+
+            <div id="otherPaymentSection" class="hidden">
+                <h3 style="color: #333; margin-bottom: 15px; text-align: center;" id="paymentTitle">กำลังดำเนินการชำระเงิน</h3>
+                <p class="payment-instruction" id="paymentDesc">
+                    กรุณารอสักครู่...
+                </p>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-success" onclick="simulateSuccess()">
+                    ✅ ชำระเงินสำเร็จ
+                </button>
+                <button class="btn btn-cancel" onclick="goBackToMethods()">
+                    ⬅️ กลับไปเลือกช่องทางใหม่
+                </button>
+            </div>
+        </div>
+
+        <div class="spinner" id="spinner"></div>
+
+        <div class="note">
+            ⚠️ นี่คือหน้า Mock Payment สำหรับทดสอบระบบเท่านั้น<br>
+            ไม่มีการหักเงินจริง
+        </div>
+    </div>
+
+    <script>
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+        const amount = urlParams.get('amount');
+        const landId = urlParams.get('landId');
+
+        let selectedPaymentMethod = null;
+
+        // Display payment info
+        document.getElementById('orderId').textContent = orderId || '-';
+        document.getElementById('landId').textContent = landId || '-';
+        
+        if (amount) {
+            const amountNum = parseFloat(amount);
+            document.getElementById('amount').textContent = 
+                amountNum.toLocaleString('th-TH', { 
+                    style: 'currency', 
+                    currency: 'THB',
+                    minimumFractionDigits: 2 
+                });
+            document.getElementById('qrAmount').textContent = 
+                amountNum.toLocaleString('th-TH') + ' บาท';
+        }
+
+        function selectMethod(method) {
+            selectedPaymentMethod = method;
+
+            // Update step indicator
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step2').classList.add('active');
+
+            // Hide method selection
+            document.getElementById('methodSelection').classList.add('hidden');
+            
+            // Show payment process
+            const processDiv = document.getElementById('paymentProcess');
+            processDiv.classList.remove('hidden');
+
+            // Show appropriate payment UI
+            if (method === 'qr') {
+                document.getElementById('qrSection').classList.remove('hidden');
+                document.getElementById('otherPaymentSection').classList.add('hidden');
+            } else {
+                document.getElementById('qrSection').classList.add('hidden');
+                document.getElementById('otherPaymentSection').classList.remove('hidden');
+                
+                const titles = {
+                    'card': 'ชำระด้วยบัตรเครดิต/เดบิต',
+                    'banking': 'ชำระผ่าน Internet Banking',
+                    'wallet': 'ชำระผ่าน TrueMoney Wallet',
+                    'mobile': 'ชำระผ่าน Mobile Banking',
+                    'installment': 'ผ่อนชำระ 0% นาน 10 เดือน'
+                };
+                
+                const descriptions = {
+                    'card': 'กรุณากรอกข้อมูลบัตรเครดิต/เดบิตของคุณ<br>ข้อมูลของคุณจะถูกเข้ารหัสอย่างปลอดภัย',
+                    'banking': 'เลือกธนาคารของคุณเพื่อเข้าสู่ระบบ Internet Banking<br>และยืนยันการชำระเงิน',
+                    'wallet': 'กรุณาเข้าสู่ระบบ TrueMoney Wallet<br>เพื่อยืนยันการชำระเงิน',
+                    'mobile': 'เลือกธนาคารของคุณเพื่อเข้าสู่ระบบ Mobile Banking<br>และยืนยันการชำระเงิน',
+                    'installment': 'ผ่อนชำระ 0% นาน 10 เดือน<br>กรุณากรอกข้อมูลบัตรเครดิตของคุณ'
+                };
+
+                document.getElementById('paymentTitle').textContent = titles[method] || 'กำลังดำเนินการ';
+                document.getElementById('paymentDesc').innerHTML = descriptions[method] || 'กรุณารอสักครู่...';
+            }
+        }
+
+        function goBackToMethods() {
+            // Update step indicator
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step1').classList.add('active');
+
+            // Show method selection
+            document.getElementById('methodSelection').classList.remove('hidden');
+            
+            // Hide payment process
+            document.getElementById('paymentProcess').classList.add('hidden');
+            
+            selectedPaymentMethod = null;
+        }
+
+        function simulateSuccess() {
+            // Update step indicator
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step3').classList.add('active');
+
+            document.getElementById('spinner').classList.add('active');
+            document.querySelector('.buttons').style.display = 'none';
+
+            // Simulate payment processing delay
+            setTimeout(() => {
+                // Mark payment as completed in localStorage
+                try {
+                    const key = 'sqw_chillpay_orders';
+                    const orders = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (orders[orderId]) {
+                        orders[orderId].status = 'completed';
+                        orders[orderId].paymentMethod = selectedPaymentMethod;
+                        localStorage.setItem(key, JSON.stringify(orders));
+                    }
+
+                    // Save to purchase list
+                    const purchaseKey = 'sqw_purchases_v1';
+                    let data = JSON.parse(localStorage.getItem(purchaseKey) || '{}');
+                    const arr = Array.isArray(data[landId]) ? data[landId] : [];
+                    // Get current user from session
+                    const userKey = 'sqw_user_v1';
+                    const userData = JSON.parse(localStorage.getItem(userKey) || '{}');
+                    const userId = userData.uid;
+                    if (userId && !arr.includes(userId)) {
+                        arr.push(userId);
+                        data[landId] = arr;
+                        localStorage.setItem(purchaseKey, JSON.stringify(data));
+                    }
+                } catch (e) {
+                    console.error('Failed to update payment status:', e);
+                }
+
+                // Close window and notify parent
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'payment_success',
+                        orderId: orderId,
+                        landId: landId,
+                        paymentMethod: selectedPaymentMethod
+                    }, '*');
+                }
+                
+                window.close();
+            }, 2000);
+        }
+
+        function simulateCancel() {
+            // Notify parent about cancellation
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'payment_cancel',
+                    orderId: orderId,
+                    landId: landId
+                }, '*');
+            }
+            
+            window.close();
+        }
+    </script>
+</body>
+</html>

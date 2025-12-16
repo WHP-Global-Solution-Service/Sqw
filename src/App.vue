@@ -31,7 +31,24 @@
       </div>
     </div>
 
-    <!-- Purchase modal (mock) - styled like screenshot -->
+    <!-- Coming Soon modal for pledge mode -->
+    <div v-if="showComingSoonModal" class="mode-disclaimer-overlay">
+      <div class="mode-disclaimer-box" style="max-width: 420px">
+        <div class="mode-disclaimer-icon">🚧</div>
+        <div
+          class="mode-disclaimer-text"
+          style="color: #f59e0b; font-size: 18px"
+        >
+          กำลังพัฒนา<br />
+          พร้อมเปิดใช้บริการเร็วๆนี้
+        </div>
+        <div style="text-align: center; margin-top: 16px">
+          <button class="btn btn-primary" @click="closeComingSoon">ตกลง</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Purchase modal (ChillPay payment) - styled like screenshot -->
     <div v-if="showPurchaseModal" class="purchase-overlay">
       <div class="purchase-box">
         <div class="purchase-icon">💳</div>
@@ -39,14 +56,32 @@
           <div class="purchase-title">
             เพื่อดูรายละเอียดการติดต่อ คุณต้องชำระค่าบริการเล็กน้อย
           </div>
-          <div class="purchase-sub">(ทดสอบแบบจำลอง)</div>
+          <div class="purchase-sub">💎 DEMO MODE - ชำระเงินแบบจำลอง</div>
+          <div class="purchase-note">
+            ⚠️ นี่คือโหมดทดสอบ<br />
+            ระบบจะจำลองการชำระเงินโดยไม่มีการหักเงินจริง
+          </div>
+          <div v-if="chillpayProcessing" class="purchase-processing">
+            <div class="spinner"></div>
+            <span>กำลังประมวลผล...</span>
+          </div>
         </div>
         <div class="purchase-actions">
-          <button class="btn btn-secondary" @click="cancelPurchase">
+          <button
+            class="btn btn-secondary"
+            @click="cancelPurchase"
+            :disabled="chillpayProcessing"
+          >
             ยกเลิก
           </button>
-          <button class="btn btn-primary" @click="confirmPurchase">
-            ชำระและดูรายละเอียด
+          <button
+            class="btn btn-primary"
+            @click="confirmPurchase"
+            :disabled="chillpayProcessing"
+          >
+            {{
+              chillpayProcessing ? "กำลังดำเนินการ..." : "💳 ชำระเงิน (Demo)"
+            }}
           </button>
         </div>
       </div>
@@ -148,6 +183,26 @@
           </div>
         </div>
 
+        <!-- แสดงรูปภาพทั้งหมด -->
+        <div
+          v-if="fullDetailsLand?.images && fullDetailsLand.images.length > 0"
+          style="margin-top: 20px"
+        >
+          <h4 style="margin: 0 0 10px; color: #0b1220">
+            รูปภาพประกอบ ({{ fullDetailsLand.images.length }})
+          </h4>
+          <div class="detail-images-grid">
+            <img
+              v-for="(img, idx) in fullDetailsLand.images"
+              :key="idx"
+              :src="img.data"
+              :alt="'Image ' + (idx + 1)"
+              @click="openImageViewer(fullDetailsLand.images, idx)"
+              class="detail-image-thumb"
+            />
+          </div>
+        </div>
+
         <div style="text-align: right; margin-top: 12px">
           <button
             class="btn btn-secondary"
@@ -158,6 +213,47 @@
         </div>
       </div>
     </div>
+
+    <!-- Image Viewer Modal (LINE-style) -->
+    <div
+      v-if="showImageViewer"
+      class="image-viewer-overlay"
+      @click="closeImageViewer"
+    >
+      <div class="image-viewer-container" @click.stop>
+        <button class="image-viewer-close" @click="closeImageViewer">
+          &times;
+        </button>
+
+        <button
+          v-if="currentImageIndex > 0"
+          class="image-viewer-nav prev"
+          @click="prevImage"
+        >
+          &#8249;
+        </button>
+
+        <div class="image-viewer-content">
+          <img
+            :src="viewerImages[currentImageIndex]?.data"
+            :alt="'Image ' + (currentImageIndex + 1)"
+            class="image-viewer-img"
+          />
+          <div class="image-viewer-counter">
+            {{ currentImageIndex + 1 }} / {{ viewerImages.length }}
+          </div>
+        </div>
+
+        <button
+          v-if="currentImageIndex < viewerImages.length - 1"
+          class="image-viewer-nav next"
+          @click="nextImage"
+        >
+          &#8250;
+        </button>
+      </div>
+    </div>
+
     <div v-if="!currentMode" class="mode-select fullscreen1"></div>
     <div v-if="showModeDisclaimerModal" class="mode-select fullscreen1"></div>
     <!-- หน้าเลือกโหมด (ขึ้นเมื่อเปิดครั้งแรก)-->
@@ -172,91 +268,14 @@
         <button class="mode-btn pledge" @click="selectMode('pledge')">
           ขายฝากที่ดิน
         </button>
+        <button class="mode-btn eia" @click="selectMode('eia')">
+          Future project & Eia Map Base
+        </button>
       </div>
     </div>
 
     <div v-else-if="currentMode === 'sale'">
       <nav class="navbar">
-        <!-- Navigation Buttons -->
-        <!-- Dashboard removed from navbar; moved to floating container -->
-
-        <!-- Dashboard value removed from navbar; moved to floating container -->
-
-        <!-- <div class="btn-stack" style="max-width: 260px; margin: 0 auto">
-        <div class="flood-summary-box">
-          <h3>📊 สรุปแปลงที่ดินในเขตน้ำท่วม</h3>
-          <div class="flood-summary-grid">
-            <div class="summary-card high">
-              <span class="label">น้ำท่วมมาก</span>
-              <span class="count">{{ floodSummary.high }}</span>
-            </div>
-            <div class="summary-card medium">
-              <span class="label">น้ำท่วมกลาง</span>
-              <span class="count">{{ floodSummary.medium }}</span>
-            </div>
-            <div class="summary-card low">
-              <span class="label">น้ำท่วมน้อย</span>
-              <span class="count">{{ floodSummary.low }}</span>
-            </div>
-            <div class="summary-card none">
-              <span class="label">ไม่อยู่ในน้ำท่วม</span>
-              <span class="count">{{ floodSummary.none }}</span>
-            </div>
-          </div>
-        </div> -->
-
-        <!-- เริ่มโหมดน้ำท่วมตามระดับ -->
-        <!-- <div class="flood-btn-grid"> -->
-        <!-- แถวบน: ระดับน้ำ -->
-        <!-- <button
-            class="btn-icon low" 
-            @click="startFloodDrawing('low')"
-            title="น้ำท่วมระดับต่ำ (Low)"
-          >
-            💧<small>L</small>
-          </button>
-          <button
-            class="btn-icon med"
-            @click="startFloodDrawing('medium')"
-            title="น้ำท่วมระดับกลาง (Medium)"
-          >
-            💧<small>M</small>
-          </button>
-          <button
-            class="btn-icon high"
-            @click="startFloodDrawing('high')"
-            title="น้ำท่วมระดับสูง (High)"
-          >
-            💧<small>H</small>
-          </button> -->
-
-        <!-- แถวล่าง: จบ / ยกเลิก / ลบ -->
-        <!-- <button
-            class="btn-icon success"
-            @click="finishFloodDrawing()"
-            :disabled="!floodMode || floodPoints.length < 3"
-            title="จบการวาดน้ำท่วม"
-          >
-            ✅
-          </button>
-          <button
-            class="btn-icon cancel"
-            @click="clearFloodDrawing()"
-            :disabled="!floodMode"
-            title="ยกเลิกที่กำลังวาด"
-          >
-            ❌
-          </button>
-          <button
-            class="btn-icon danger"
-            @click="deleteSelectedFlood()"
-            :disabled="!selectedFlood"
-            title="ลบพื้นที่ที่เลือก"
-          >
-            🗑️
-          </button>
-        </div>
-      </div> -->
         <!-- Form Section -->
         <div class="form-section">
           <h3 @click="isFormOpen = !isFormOpen" style="cursor: pointer">
@@ -465,6 +484,53 @@
                 />
               </div>
 
+              <!-- อัปโหลดรูป (Max 5 รูป) -->
+              <div class="form-group">
+                <label class="form-group">
+                  อัปโหลดรูป Max 5 รูป
+                  <span
+                    v-if="landData.images && landData.images.length > 0"
+                    style="color: #e11d48; font-weight: bold"
+                  >
+                    ({{ landData.images.length }}/5)
+                  </span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  @change="handleImageUpload"
+                  :disabled="landData.images && landData.images.length >= 5"
+                  class="form-input"
+                  style="padding: 8px"
+                />
+
+                <!-- แสดงรูปที่อัปโหลดแล้ว -->
+                <div
+                  v-if="landData.images && landData.images.length > 0"
+                  class="image-preview-grid"
+                >
+                  <div
+                    v-for="(img, idx) in landData.images"
+                    :key="idx"
+                    class="image-preview-item"
+                  >
+                    <img
+                      :src="img.data"
+                      :alt="img.name"
+                      @click="openImageViewer(landData.images, idx)"
+                    />
+                    <button
+                      class="remove-image-btn"
+                      @click="removeImage(idx)"
+                      title="ลบรูป"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <button
                 style="margin-top: 30px"
                 class="btn btn-primary btn-full"
@@ -498,6 +564,20 @@
                 >
                   <div class="land-owner" @click="focusLand(land)">
                     {{ land.owner || land.agent + " (นายหน้า)" || "ไม่ระบุ" }}
+                    <!-- แสดงรูปต่อท้ายชื่อ -->
+                    <div
+                      v-if="land.images && land.images.length > 0"
+                      class="land-images-inline"
+                    >
+                      <img
+                        v-for="(img, imgIdx) in land.images"
+                        :key="imgIdx"
+                        :src="img.data"
+                        :alt="'Image ' + (imgIdx + 1)"
+                        @click.stop="openImageViewer(land.images, imgIdx)"
+                        class="land-thumbnail"
+                      />
+                    </div>
                   </div>
                   <div class="land-details">
                     {{ formatNumber(land.size) }} ตร.วา
@@ -521,6 +601,12 @@
             </div>
           </transition>
         </div>
+      </nav>
+    </div>
+
+    <div v-else-if="currentMode === 'eia'">
+      <nav class="navbar-eia">
+        <EiaForm />
       </nav>
     </div>
 
@@ -633,10 +719,7 @@
       <div
         class="search-panel"
         v-show="showSearch"
-        style="
-          position: fixed;
-          inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
-        "
+        style="position: fixed; top: 160px; right: 80px; z-index: 2100"
       >
         <div class="panel-header">
           <h3>ค้นหา</h3>
@@ -664,10 +747,7 @@
       <div
         class="filters-panel"
         v-show="showFilters"
-        style="
-          position: fixed;
-          inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
-        "
+        style="position: fixed; top: 160px; right: 80px; z-index: 2100"
       >
         <div class="panel-header">
           <h3>ตัวกรอง</h3>
@@ -814,7 +894,7 @@
       <div
         class="layers-panel"
         v-show="showLayers"
-        style="position: fixed; z-index: 2100; top: 100px; right: 80px"
+        style="position: fixed; z-index: 2100; top: 160px; right: 80px"
       >
         <div class="panel-header">
           <h3>Layers</h3>
@@ -894,7 +974,7 @@
       <div
         class="chat-popup"
         v-show="showChat"
-        style="position: fixed; inset: 957px auto auto 1616px"
+        style="position: fixed; bottom: 8px; right: 8px; z-index: 2100"
       >
         <div class="chat-header">
           <div class="chat-title">
@@ -1022,10 +1102,7 @@
       ref="drawPanel"
       class="draw-panel floating-draw"
       v-show="showDrawMenu"
-      style="
-        position: fixed;
-        inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
-      "
+      style="position: fixed; top: 160px; right: 80px; z-index: 2100"
     >
       <div class="panel-header">
         <h3>วาดพื้นที่</h3>
@@ -1262,17 +1339,55 @@
   margin-bottom: 6px;
 }
 .purchase-text .purchase-sub {
-  color: #334155;
-  font-size: 13px;
-  margin-bottom: 12px;
+  color: #3b82f6;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.purchase-note {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+.purchase-processing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: #3b82f6;
+  font-size: 14px;
+}
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .purchase-actions {
   display: flex;
   justify-content: center;
   gap: 12px;
+  margin-top: 12px;
 }
 .purchase-actions .btn {
   min-width: 120px;
+}
+.purchase-actions .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 /* Floating dashboard (center bottom) */
 .floating-dashboard {
@@ -1289,10 +1404,225 @@
 
 /* Floating draw panel: prefer fixed positioning and let JS place it */
 .floating-draw {
-  position: fixed !important;
-  inset: calc(50vh - 100px) auto auto calc(50vw - 100px);
-  z-index: 2000;
   background: rgba(6, 10, 15, 0.95);
+}
+
+/* Image upload preview grid */
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.image-preview-item {
+  position: relative;
+  width: 100%;
+  padding-top: 100%; /* Square aspect ratio */
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #334155;
+  cursor: pointer;
+}
+
+.image-preview-item img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.image-preview-item:hover img {
+  transform: scale(1.05);
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.remove-image-btn:hover {
+  background: rgba(220, 38, 38, 1);
+}
+
+/* Land list inline images */
+.land-images-inline {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.land-thumbnail {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 2px solid #475569;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.land-thumbnail:hover {
+  transform: scale(1.1);
+  border-color: #e11d48;
+}
+
+/* Image Viewer Modal (LINE-style) */
+.image-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.image-viewer-container {
+  position: relative;
+  width: 90vw;
+  height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-viewer-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.image-viewer-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.image-viewer-content {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-viewer-img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.image-viewer-counter {
+  position: absolute;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.image-viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  font-size: 48px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.image-viewer-nav:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.image-viewer-nav.prev {
+  left: 20px;
+}
+
+.image-viewer-nav.next {
+  right: 20px;
+}
+
+@media (max-width: 768px) {
+  .image-viewer-nav {
+    width: 40px;
+    height: 40px;
+    font-size: 36px;
+  }
+
+  .image-viewer-nav.prev {
+    left: 10px;
+  }
+
+  .image-viewer-nav.next {
+    right: 10px;
+  }
+
+  .image-viewer-close {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    font-size: 28px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1307,6 +1637,28 @@
     padding: 12px 10px;
     min-width: 92px;
   }
+}
+
+/* Detail modal images grid */
+.detail-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.detail-image-thumb {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #cbd5e1;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.detail-image-thumb:hover {
+  transform: scale(1.05);
+  border-color: #e11d48;
 }
 
 /* Download link blink animation */

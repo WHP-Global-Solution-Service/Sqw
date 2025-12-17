@@ -503,5 +503,51 @@ export function subscribeFloodZonesAll(cb) {
   });
 }
 
+// ========================
+// EIA PROJECTS
+// ========================
+export async function saveEiaProject(uid, projectData) {
+  if (!uid) throw new Error("saveEiaProject: need uid");
+  const now = serverTimestamp();
+
+  const payload = {
+    ...projectData,
+    ownerUid: uid,
+    updatedAt: now,
+  };
+
+  if (projectData.id) {
+    await update(ref(db, `eiaProjects/${uid}/${projectData.id}`), payload);
+    await update(ref(db, `eiaProjectsPublic/${projectData.id}`), payload);
+    return projectData.id;
+  } else {
+    const newRef = push(ref(db, `eiaProjects/${uid}`));
+    const id = newRef.key;
+    const newPayload = {
+      ...payload,
+      id,
+      createdAt: now,
+    };
+    await update(newRef, newPayload);
+    await update(ref(db, `eiaProjectsPublic/${id}`), newPayload);
+    return id;
+  }
+}
+
+export async function deleteEiaProject(uid, projectId) {
+  if (!uid || !projectId) throw new Error("deleteEiaProject: need uid & projectId");
+  await remove(ref(db, `eiaProjects/${uid}/${projectId}`));
+  await remove(ref(db, `eiaProjectsPublic/${projectId}`));
+}
+
+export function subscribeEiaProjectsAll(cb) {
+  const projectsRef = ref(db, `eiaProjectsPublic`);
+  return onValue(projectsRef, (snap) => {
+    const obj = snap.val() || {};
+    const list = Object.entries(obj).map(([id, v]) => ({ id, ...v }));
+    cb(list);
+  });
+}
+
 
 export { app, analytics, auth, db };

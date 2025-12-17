@@ -1,0 +1,50 @@
+{
+    "rules": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "markers": {
+            "$uid": {
+                ".read": true,
+                ".write": "auth != null && auth.uid == $uid"
+            }
+        },
+        "markersPublic": {
+            ".read": true,
+            ".write": "auth != null"
+        },
+        "eiaProjects": {
+            "$uid": {
+                ".read": "auth != null",
+                ".write": "auth != null && auth.uid == $uid"
+            }
+        },
+        "eiaProjectsPublic": {
+            ".read": true,
+            ".write": "auth != null"
+        },
+        "profiles": {
+            "$uid": {
+                ".read": "auth != null",
+                ".write": "auth != null && auth.uid == $uid"
+            }
+        },
+        "presence": {
+            "$uid": {
+                ".read": true,
+                ".write": "auth != null && auth.uid == $uid"
+            }
+        },
+        "orders": {
+            "$orderId": {
+                ".read": "auth != null",
+                ".write": "auth != null"
+            }
+        },
+        "unlocks": {
+            "$uid": {
+                ".read": "auth != null && auth.uid == $uid",
+                ".write": "auth != null && auth.uid == $uid"
+            }
+        }
+    }
+}

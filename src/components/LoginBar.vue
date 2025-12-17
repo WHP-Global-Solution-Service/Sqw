@@ -123,7 +123,9 @@ const props = defineProps({
 // คำนวณข้อความที่จะแสดง
 const displayMode = computed(() => {
   if (!props.currentMode) return "";
-  return props.currentMode === "sale" ? "ซื้อขายที่ดิน" : "ขายฝากที่ดิน";
+  if (props.currentMode === "sale") return "ซื้อขายที่ดิน";
+  if (props.currentMode === "eia") return "Future project & Eia Map Base";
+  return "ขายฝากที่ดิน";
 });
 
 // Emit สำหรับเปลี่ยนโหมด

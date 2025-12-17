@@ -14,6 +14,9 @@ import {
   saveFloodZone,
   deleteFloodZone,
   subscribeFloodZonesAll,
+  saveEiaProject,
+  deleteEiaProject,
+  subscribeEiaProjectsAll,
   getUserProfile,
 } from "./firebase";
 
@@ -41,6 +44,38 @@ export default {
       floodSummary: { low: 0, medium: 0, high: 0, none: 0 },
       _floodPolysCache: [],   // แคช polygon ของน้ำท่วม
 
+      // --- EIA Projects ---
+      eiaMode: false,
+      eiaDrawMode: false,
+      eiaDrawPoints: [],
+      eiaDrawPolyline: null,
+      eiaDrawPolygon: null,
+      eiaOverlays: [],
+      savedEiaProjects: [],
+      eiaProjectsUnsub: null,
+      selectedEiaProject: null,
+      showEiaPopup: false,
+      eiaProjectData: {
+        projectStartDate: '',
+        ownerNameTo: '',
+        projectName: '',
+        projectOwner: '',
+        reportNumber: '',
+        engineerNumber: '',
+        approvalDate: '',
+        approvalNumber: '',
+        projectType: '',
+        projectSubType: '',
+        reviewStatus: '',
+        projectStatus: '',
+        region: '',
+        province: '',
+        district: '',
+        subdistrict: '',
+        projectLink: '',
+        lastUpdated: null,
+      },
+      editingEiaId: null,
 
       currentMode: null,
       n_mode: "กรุณาเลือกโหมด", // 'sale' | 'pledge'
@@ -62,6 +97,8 @@ export default {
       mapMarkers: [], // Store actual marker objects
       showMarkerInfo: false,
       selectedMarker: null,
+      showEiaInfo: false,
+      selectedEiaForInfo: null,
       markerInfoPosition: { x: 0, y: 0 },
       map: null,
       selectedMapType: "hybrid",
@@ -258,6 +295,21 @@ export default {
           }
         });
         this.renderLandsOnMap();
+      });
+
+      // === subscribe EIA projects ===
+      this.eiaProjectsUnsub = subscribeEiaProjectsAll((list) => {
+        this.savedEiaProjects = Array.isArray(list) ? list : [];
+        console.log('🏗️ EIA Projects loaded:', this.savedEiaProjects.length, 'projects');
+
+        // Debug each project
+        this.savedEiaProjects.forEach((proj, i) => {
+          console.log(`  EIA ${i + 1}:`, proj.projectName, '- has geometry:', !!proj.geometry);
+        });
+
+        // Render if in EIA mode OR just render anyway (will check mode inside)
+        this.renderEiaProjectsOnMap();
+
         this.$nextTick(() => this.checkLandsFloodStatus());
       });
     });
@@ -350,6 +402,9 @@ export default {
     if (this.onlineStatusInterval) clearInterval(this.onlineStatusInterval);
     if (this.typingTimer) clearTimeout(this.typingTimer);
     if (this.authUnsubscribe) this.authUnsubscribe();
+    if (this.landsUnsub) this.landsUnsub();
+    if (this.floodsUnsub) this.floodsUnsub();
+    if (this.eiaProjectsUnsub) this.eiaProjectsUnsub();
     // cleanup draw panel listeners
     try {
       if (this._positionDrawPanel) {
@@ -582,7 +637,7 @@ export default {
 
     selectMode(mode) {
       // ถ้าเป็นโหมด pledge ให้แสดง coming soon popup แทน
-      if (mode === 'pledge' || mode === 'eia') {
+      if (mode === 'pledge' /* ||mode==='eia' */) {
         this.showComingSoonModal = true;
         return;
       }
@@ -592,6 +647,17 @@ export default {
       this.showModeDisclaimerModal = true;
 
       this.n_mode = mode;
+
+      // Refresh map overlays based on mode
+      setTimeout(() => {
+        if (mode === 'sale') {
+          this.renderLandsOnMap();
+          this.renderEiaProjectsOnMap(); // ลบ EIA overlays
+        } else if (mode === 'eia') {
+          this.renderEiaProjectsOnMap();
+          this.renderLandsOnMap(); // ลบ land overlays
+        }
+      }, 100);
     },
     acceptModeDisclaimer() {
       // Dismiss the modal; user has acknowledged the notice
@@ -1515,6 +1581,81 @@ export default {
       }
     },
 
+    makeEiaMarkerDetailHtml(project = {}) {
+      try {
+        const esc = (v) =>
+          v == null
+            ? ""
+            : String(v)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+
+        const displayDate = (() => {
+          try {
+            if (!project.lastUpdated) return '-';
+            const d = new Date(project.lastUpdated);
+            if (Number.isNaN(d.getTime())) return '-';
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = String(d.getFullYear());
+            return `${dd}/${mm}/${yyyy}`;
+          } catch (e) {
+            return '-';
+          }
+        })();
+
+        const html = `
+          <div style="font-family: Inter, Arial, Helvetica, sans-serif; background:#ffffff; color:#111; width:100%; max-width: 400px;">
+            <div style="padding:8px 14px 0 14px; display:flex;align-items:center;gap:8px;color:#666;font-size:12px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="11" stroke="#666" stroke-width="1" fill="#fff" />
+                <path d="M11.25 7.5h1.5v1.5h-1.5V7.5zM12 10.5c-.414 0-.75.336-.75.75v3c0 .414.336.75.75.75s.75-.336.75-.75v-3c0-.414-.336-.75-.75-.75z" fill="#666" />
+              </svg>
+              <div>วันที่อัพเดตล่าสุด ${esc(displayDate)}</div>
+            </div>
+            <div style="padding:6px 14px 0 14px;">
+              <div style="font-weight:800;font-size:18px;line-height:1.2;color:#8b008b">${esc(project.projectName || 'โครงการ EIA')}</div>
+            </div>
+
+            <hr style="border:none;border-top:1px solid #eee;margin:8px 0;">
+
+            <div style="padding:0 14px 12px 14px; font-size:13px; color:#333;">
+              ${project.projectStartDate ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">วันที่เริ่มโครงการ:</div><div>${esc(project.projectStartDate)}</div></div>` : ''}
+              ${project.ownerNameTo ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ถึงวันที่:</div><div>${esc(project.ownerNameTo)}</div></div>` : ''}
+              ${project.projectOwner ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ชื่อเจ้าของโครงการ:</div><div>${esc(project.projectOwner)}</div></div>` : ''}
+              ${project.reportNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่รายงาน:</div><div>${esc(project.reportNumber)}</div></div>` : ''}
+              ${project.engineerNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่เอ็นจิเนีย:</div><div>${esc(project.engineerNumber)}</div></div>` : ''}
+              ${project.approvalDate ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">วันที่อนุมัติ:</div><div>${esc(project.approvalDate)}</div></div>` : ''}
+              ${project.approvalNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่หนังสือ:</div><div>${esc(project.approvalNumber)}</div></div>` : ''}
+              ${project.projectType ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ประเภทโครงการ:</div><div>${esc(project.projectType)}</div></div>` : ''}
+              ${project.projectSubType ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ประเภทรอง:</div><div>${esc(project.projectSubType)}</div></div>` : ''}
+              ${project.reviewStatus ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">สถานะพิจารณา:</div><div>${esc(project.reviewStatus)}</div></div>` : ''}
+              ${project.projectStatus ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">สถานะโครงการ:</div><div>${esc(project.projectStatus)}</div></div>` : ''}
+              ${project.region ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ภาค:</div><div>${esc(project.region)}</div></div>` : ''}
+              ${project.province ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">จังหวัด:</div><div>${esc(project.province)}</div></div>` : ''}
+              ${project.district ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เขต/อำเภอ:</div><div>${esc(project.district)}</div></div>` : ''}
+              ${project.subdistrict ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">แขวง/ตำบล:</div><div>${esc(project.subdistrict)}</div></div>` : ''}
+            </div>
+
+            ${project.projectLink ? `
+            <div style="padding:0 14px 12px 14px;">
+              <a href="${esc(project.projectLink)}" target="_blank" rel="noopener noreferrer" 
+                style="display:inline-block;background:#8b008b;color:#fff;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;">
+                📄 ดูเอกสาร EIA
+              </a>
+            </div>
+            ` : ''}
+          </div>
+        `.trim();
+
+        return html;
+      } catch (e) {
+        console.error('makeEiaMarkerDetailHtml error:', e);
+        return `<div style="padding:14px;color:#666;">ไม่สามารถแสดงข้อมูลได้</div>`;
+      }
+    },
+
     makeMarkerDetailHtml(item = {}) {
       try {
         const esc = (v) =>
@@ -1748,6 +1889,15 @@ export default {
 
     renderLandsOnMap() {
       if (!this.map) return;
+
+      // แสดงเฉพาะในโหมดซื้อขายที่ดิน
+      if (this.currentMode !== 'sale') {
+        // ล้าง overlay ถ้าอยู่ใน mode อื่น
+        try { this.landOverlays.forEach(o => this.map.Overlays.remove(o)); }
+        catch (e) { }
+        this.landOverlays = [];
+        return;
+      }
 
       // ล้าง overlay เดิม
       try { this.landOverlays.forEach(o => this.map.Overlays.remove(o)); }
@@ -2167,8 +2317,14 @@ export default {
               if (this.__isDragging) return;
 
               this.showMarkerInfo = false;
+
               if (!this.drawMode && !this.floodMode) {
                 this.clearSelectedLand();
+                // ล้างฟอร์ม EIA เมื่อคลิกพื้นที่อื่น
+                if (this.currentMode === 'eia' && !this.eiaDrawMode) {
+                  this.clearEiaForm();
+                  this.closeEiaInfo();
+                }
                 return;
               }
               const p = this.getClickLocation ? this.getClickLocation(ev) : null;
@@ -2294,8 +2450,14 @@ export default {
             return;
           }
           if (overlay && overlay.__isFlood) {
-            if (!this.drawMode && !this.floodMode) {
+            if (!this.drawMode && !this.floodMode && !this.eiaMode) {
               this.selectFloodPolygon(overlay);
+            }
+            return;
+          }
+          if (overlay && overlay.__isEiaProject) {
+            if (!this.drawMode && !this.floodMode) {
+              this.onEiaProjectClick(overlay.__eiaProject);
             }
             return;
           }
@@ -2499,6 +2661,18 @@ export default {
       return date.toLocaleDateString("th-TH", {
         month: "short",
         day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    },
+
+    formatDateTime(timestamp) {
+      if (!timestamp) return "";
+      const date = new Date(timestamp);
+      return date.toLocaleString("th-TH", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
       });
@@ -2794,11 +2968,35 @@ export default {
       if (this.drawPoints.length < 3) { alert("ต้องคลิกอย่างน้อย 3 จุด"); return; }
       try { if (this.drawPolyline) this.map.Overlays.remove(this.drawPolyline); } catch (e) { }
       try { if (this.drawPolygon) this.map.Overlays.remove(this.drawPolygon); } catch (e) { }
+
+      // สีต่างกันตาม mode
+      const isEiaMode = this.currentMode === 'eia';
+      const lineColor = isEiaMode ? "rgba(139,0,139,0.9)" : "rgba(30,144,255,0.9)";
+      const fillColor = isEiaMode ? "rgba(139,0,139,0.25)" : "rgba(30,144,255,0.25)";
+
       this.drawPolygon = new window.longdo.Polygon(this.drawPoints, {
-        lineWidth: 2, lineColor: "rgba(30,144,255,0.9)", fillColor: "rgba(30,144,255,0.25)",
+        lineWidth: 2,
+        lineColor: lineColor,
+        fillColor: fillColor,
       });
       this.map.Overlays.add(this.drawPolygon);
       this.drawMode = false;
+
+      // ถ้าเป็น EIA mode ให้เตรียมฟอร์ม
+      if (isEiaMode) {
+        this.isFormOpen = true;
+        this.eiaProjectData = {
+          projectName: '',
+          projectLink: '',
+          tempLocation: this.drawPoints[0],
+          geometry: {
+            type: "Polygon",
+            coordinates: this.drawPoints.map(p => [p.lon, p.lat])
+          }
+        };
+        this.editingEiaId = null;
+      }
+
       this.updateSnapPoints();
       try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
     },
@@ -2809,10 +3007,353 @@ export default {
       try { if (this.drawPolygon) this.map.Overlays.remove(this.drawPolygon); } catch (e) { }
       this.drawPolyline = null;
       this.drawPolygon = null;
+
       this.updateSnapPoints();
       try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
     },
 
+    // ========== EIA Project Methods (uses shared drawing functions) ==========
+
+    async saveEiaProjectData(data) {
+      if (!data.projectName?.trim() && !data.projectLink?.trim()) {
+        alert("กรุณากรอก Project Name หรือ Link อย่างน้อย 1 ช่อง");
+        return;
+      }
+
+      // ใช้ geometry ถ้ามี หรือ location จากการแก้ไข
+      const geometry = data.geometry ||
+        (this.selectedEiaProject && this.selectedEiaProject.geometry) ||
+        null;
+
+      const markerLoc = data.tempLocation ||
+        (this.selectedEiaProject && this.selectedEiaProject.location) ||
+        { lon: this.currentLocation.lon, lat: this.currentLocation.lat };
+
+      const payload = {
+        projectStartDate: (data.projectStartDate || "").trim(),
+        ownerNameTo: (data.ownerNameTo || "").trim(),
+        projectName: (data.projectName || "").trim(),
+        projectOwner: (data.projectOwner || "").trim(),
+        reportNumber: (data.reportNumber || "").trim(),
+        engineerNumber: (data.engineerNumber || "").trim(),
+        approvalDate: (data.approvalDate || "").trim(),
+        approvalNumber: (data.approvalNumber || "").trim(),
+        projectType: (data.projectType || "").trim(),
+        projectSubType: (data.projectSubType || "").trim(),
+        reviewStatus: (data.reviewStatus || "").trim(),
+        projectStatus: (data.projectStatus || "").trim(),
+        region: (data.region || "").trim(),
+        province: (data.province || "").trim(),
+        district: (data.district || "").trim(),
+        subdistrict: (data.subdistrict || "").trim(),
+        projectLink: (data.projectLink || "").trim(),
+        location: markerLoc,
+        geometry: geometry,
+        lastUpdated: new Date().toISOString(),
+        id: this.editingEiaId || undefined,
+      };
+
+      try {
+        if (!this.currentUserId) {
+          alert("ยังไม่ได้เข้าสู่ระบบ");
+          return;
+        }
+
+        await saveEiaProject(this.currentUserId, payload);
+        console.log('✅ EIA Project saved successfully');
+
+        // Clear form and drawing
+        this.clearEiaForm();
+        this.clearDrawing();
+        alert("บันทึกเรียบร้อย");
+      } catch (e) {
+        console.error("saveEiaProject failed:", e);
+        alert("บันทึกไม่สำเร็จ: " + (e?.message || e));
+      }
+    },
+
+    async deleteEiaProjectData(projectId) {
+      if (!confirm("ยืนยันการลบโครงการนี้?")) return;
+
+      try {
+        if (!this.currentUserId) {
+          alert("ยังไม่ได้เข้าสู่ระบบ");
+          return;
+        }
+
+        await deleteEiaProject(this.currentUserId, projectId);
+        console.log('✅ EIA Project deleted successfully');
+
+        // Clear form
+        this.clearEiaForm();
+        alert("ลบเรียบร้อย");
+      } catch (e) {
+        console.error("deleteEiaProject failed:", e);
+        alert("ลบไม่สำเร็จ: " + (e?.message || e));
+      }
+    },
+
+    renderEiaProjectsOnMap() {
+      if (!this.map) return;
+
+      console.log('🔍 renderEiaProjectsOnMap called');
+      console.log('  - savedEiaProjects:', this.savedEiaProjects.length);
+      console.log('  - currentMode:', this.currentMode);
+
+      // แสดงเฉพาะในโหมด EIA
+      if (this.currentMode !== 'eia') {
+        // ล้าง overlay ถ้าอยู่ใน mode อื่น
+        this.eiaOverlays.forEach(overlay => {
+          try { this.map.Overlays.remove(overlay); } catch (e) { }
+        });
+        this.eiaOverlays = [];
+        return;
+      }
+
+      // Remove old overlays
+      this.eiaOverlays.forEach(overlay => {
+        try { this.map.Overlays.remove(overlay); } catch (e) { }
+      });
+      this.eiaOverlays = [];
+
+      // Render new overlays
+      this.savedEiaProjects.forEach((project, idx) => {
+        console.log(`  Project ${idx + 1}:`, {
+          name: project.projectName,
+          hasGeometry: !!project.geometry,
+          geometryType: project.geometry?.type,
+          coordsCount: project.geometry?.coordinates?.length
+        });
+
+        if (!project.geometry || project.geometry.type !== 'Polygon') {
+          console.warn(`    ⚠️ Skipping project ${idx + 1} - no valid geometry`);
+          return;
+        }
+
+        const coords = project.geometry.coordinates.map(c => ({ lon: c[0], lat: c[1] }));
+        console.log(`    ✅ Creating polygon with ${coords.length} points`);
+
+        // --- Calculate centroid for marker ---
+        let markerLoc = null;
+        try {
+          const pts = coords;
+          if (pts.length >= 3) {
+            let area = 0, cx = 0, cy = 0;
+            for (let i = 0; i < pts.length; i++) {
+              const a = pts[i], b = pts[(i + 1) % pts.length];
+              const f = (a.lon * b.lat - b.lon * a.lat);
+              area += f;
+              cx += (a.lon + b.lon) * f;
+              cy += (a.lat + b.lat) * f;
+            }
+            area *= 0.5;
+            markerLoc = area ? { lon: cx / (6 * area), lat: cy / (6 * area) } : pts[0];
+          }
+        } catch (e) {
+          console.warn('    ⚠️ Centroid calculation failed, using first point');
+          markerLoc = coords[0];
+        }
+
+        // Fallback to saved location
+        if (!markerLoc && project.location) {
+          markerLoc = project.location;
+        }
+
+        // --- Create marker at centroid ---
+        if (markerLoc) {
+          const marker = new window.longdo.Marker(markerLoc, {
+            visibleRange: { min: 7, max: 20 },
+            icon: {
+              url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'><path d='M12 2C7.58 2 4 5.58 4 10c0 5.25 5.4 10.58 7.2 12.19a1.2 1.2 0 0 0 1.6 0C14.6 20.58 20 15.25 20 10c0-4.42-3.58-8-8-8z' fill='rgba(139,0,139,0.9)' stroke='%238b008b' stroke-width='1.5'/><circle cx='12' cy='10' r='3' fill='white'/></svg>",
+              size: { width: 28, height: 28 },
+              offset: { x: 14, y: 28 }
+            },
+            detail: this.makeEiaMarkerDetailHtml(project),
+          });
+          marker.__isEiaProject = true;
+          marker.__eiaProject = project;
+
+          this.map.Overlays.add(marker);
+          this.eiaOverlays.push(marker);
+        }
+
+        // --- Create polygon ---
+        const polygon = new window.longdo.Polygon(coords, {
+          lineWidth: 2,
+          lineColor: "rgba(139,0,139,0.9)",
+          fillColor: "rgba(139,0,139,0.25)",
+          title: project.projectName || 'EIA Project',
+          weight: window.longdo.OverlayWeight.Top
+        });
+
+        // Add flags for identification
+        polygon.__isEiaProject = true;
+        polygon.__eiaProject = project;
+
+        this.map.Overlays.add(polygon);
+        this.eiaOverlays.push(polygon);
+      });
+    },
+
+    onEiaProjectClick(project) {
+      console.log('EIA Project clicked:', project);
+
+      // แสดงข้อมูลในช่องซ้าย (ฟอร์ม)
+      this.editEiaProject(project);
+
+      // แสดง info popup ด้วย
+      this.selectedEiaForInfo = project;
+      this.showEiaInfo = true;
+
+      // Center map on project
+      if (project.location) {
+        this.map.location(project.location, true);
+      }
+    },
+
+    closeEiaInfo() {
+      this.showEiaInfo = false;
+      this.selectedEiaForInfo = null;
+    },
+
+    addEiaMarkerAtLocation(location) {
+      // ไม่เปิด popup แต่ใส่ข้อมูลลงฟอร์ม navbar
+      this.selectedEiaProject = null;
+      this.eiaProjectData = {
+        projectName: '',
+        projectLink: '',
+        tempLocation: location // เก็บตำแหน่งชั่วคราว
+      };
+      this.editingEiaId = null;
+
+      // เปิดฟอร์มถ้าปิดอยู่
+      this.isFormOpen = true;
+
+      // Focus ไปที่ฟอร์ม
+      setTimeout(() => {
+        const input = document.querySelector('.form-section input[type="text"]');
+        if (input) input.focus();
+      }, 100);
+    },
+
+    saveEiaProjectFromForm() {
+      // บันทึกจากฟอร์มใน navbar
+      if (!this.eiaProjectData.projectName?.trim() && !this.eiaProjectData.projectLink?.trim()) {
+        alert("กรุณากรอก Project Name หรือ Link อย่างน้อย 1 ช่อง");
+        return;
+      }
+
+      // ต้องมี geometry จากการวาด หรือจากข้อมูลเดิม (กรณีแก้ไข)
+      const geometry = this.eiaProjectData.geometry ||
+        (this.selectedEiaProject && this.selectedEiaProject.geometry);
+
+      if (!geometry) {
+        alert("กรุณาวาดพื้นที่บนแผนที่ก่อนบันทึก");
+        return;
+      }
+
+      // ถ้าไม่มี tempLocation (กรณีแก้ไข) ให้ใช้ของเดิม
+      let markerLoc = this.eiaProjectData.tempLocation;
+      if (!markerLoc && this.selectedEiaProject) {
+        markerLoc = this.selectedEiaProject.location;
+      }
+      if (!markerLoc && geometry && geometry.coordinates && geometry.coordinates.length > 0) {
+        // ใช้จุดแรกของ polygon เป็น location
+        markerLoc = { lon: geometry.coordinates[0][0], lat: geometry.coordinates[0][1] };
+      }
+      if (!markerLoc) {
+        alert("ไม่พบตำแหน่งโครงการ");
+        return;
+      }
+
+      this.saveEiaProjectData({
+        projectStartDate: this.eiaProjectData.projectStartDate,
+        ownerNameTo: this.eiaProjectData.ownerNameTo,
+        projectName: this.eiaProjectData.projectName,
+        projectOwner: this.eiaProjectData.projectOwner,
+        reportNumber: this.eiaProjectData.reportNumber,
+        engineerNumber: this.eiaProjectData.engineerNumber,
+        approvalDate: this.eiaProjectData.approvalDate,
+        approvalNumber: this.eiaProjectData.approvalNumber,
+        projectType: this.eiaProjectData.projectType,
+        projectSubType: this.eiaProjectData.projectSubType,
+        reviewStatus: this.eiaProjectData.reviewStatus,
+        projectStatus: this.eiaProjectData.projectStatus,
+        region: this.eiaProjectData.region,
+        province: this.eiaProjectData.province,
+        district: this.eiaProjectData.district,
+        subdistrict: this.eiaProjectData.subdistrict,
+        projectLink: this.eiaProjectData.projectLink,
+        tempLocation: markerLoc,
+        geometry: geometry
+      });
+    },
+
+    editEiaProject(project) {
+      this.selectedEiaProject = project;
+      this.eiaProjectData = {
+        projectStartDate: project.projectStartDate || '',
+        ownerNameTo: project.ownerNameTo || '',
+        projectName: project.projectName || '',
+        projectOwner: project.projectOwner || '',
+        reportNumber: project.reportNumber || '',
+        engineerNumber: project.engineerNumber || '',
+        approvalDate: project.approvalDate || '',
+        approvalNumber: project.approvalNumber || '',
+        projectType: project.projectType || '',
+        projectSubType: project.projectSubType || '',
+        reviewStatus: project.reviewStatus || '',
+        projectStatus: project.projectStatus || '',
+        region: project.region || '',
+        province: project.province || '',
+        district: project.district || '',
+        subdistrict: project.subdistrict || '',
+        projectLink: project.projectLink || '',
+        lastUpdated: project.lastUpdated || null,
+        tempLocation: project.location,
+        geometry: project.geometry
+      };
+      this.editingEiaId = project.id;
+
+      // เปิดฟอร์ม
+      this.isFormOpen = true;
+
+      // Center map on project
+      if (project.location && this.map) {
+        this.map.location({ lon: project.location.lon, lat: project.location.lat }, true);
+      }
+    },
+
+    editEiaProjectFromCard(project) {
+      // เรียกจาก card popup
+      this.closeEiaInfo();
+      this.editEiaProject(project);
+    },
+
+    clearEiaForm() {
+      this.selectedEiaProject = null;
+      this.eiaProjectData = {
+        projectStartDate: '',
+        ownerNameTo: '',
+        projectName: '',
+        projectOwner: '',
+        reportNumber: '',
+        engineerNumber: '',
+        approvalDate: '',
+        approvalNumber: '',
+        projectType: '',
+        projectSubType: '',
+        reviewStatus: '',
+        projectStatus: '',
+        region: '',
+        province: '',
+        district: '',
+        subdistrict: '',
+        projectLink: '',
+        lastUpdated: null,
+      };
+      this.editingEiaId = null;
+    },
 
     applyFilters() {
       console.log(this.filters);
@@ -3676,7 +4217,7 @@ export default {
       });
 
       return res;
-    },
+    }
   },
   watch: {
     availableLayers: {

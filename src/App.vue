@@ -605,8 +605,309 @@
     </div>
 
     <div v-else-if="currentMode === 'eia'">
-      <nav class="navbar-eia">
-        <EiaForm />
+      <nav class="navbar">
+        <!-- Form Section -->
+        <div class="form-section">
+          <h3 @click="isFormOpen = !isFormOpen" style="cursor: pointer">
+            ข้อมูลโครงการ EIA
+            <span v-if="isFormOpen">▲</span>
+            <span v-else>▼</span>
+          </h3>
+
+          <transition name="fade">
+            <div v-show="isFormOpen">
+              <div class="form-subtitle">ข้อมูลโครงการและ EIA</div>
+              <div class="form-subtitle">วาดพื้นที่แล้วกรอกข้อมูล</div>
+
+              <!-- แถวที่ 1: วันที่เริ่มโครงการ + ถึงวันที่ -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>วันที่เริ่มโครงการ</label>
+                  <input
+                    type="date"
+                    v-model="eiaProjectData.projectStartDate"
+                    class="form-input"
+                  />
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>ถึงวันที่</label>
+                  <input
+                    type="date"
+                    v-model="eiaProjectData.ownerNameTo"
+                    class="form-input"
+                  />
+                </div>
+              </div>
+
+              <!-- แถวที่ 2: ชื่อโครงการ + ชื่อเจ้าของโครงการ -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>ชื่อโครงการ</label>
+                  <input
+                    type="text"
+                    v-model="eiaProjectData.projectName"
+                    class="form-input"
+                    placeholder="ชื่อโครงการ"
+                  />
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>ชื่อเจ้าของโครงการ</label>
+                  <input
+                    type="text"
+                    v-model="eiaProjectData.projectOwner"
+                    class="form-input"
+                    placeholder="ชื่อเจ้าของโครงการ"
+                  />
+                </div>
+              </div>
+
+              <!-- แถวที่ 3: เลขที่รายงาน + เลขที่เอ็นจิเนียของโครงการ -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>เลขที่รายงาน</label>
+                  <input
+                    type="text"
+                    v-model="eiaProjectData.reportNumber"
+                    class="form-input"
+                    placeholder="เลขที่รายงาน"
+                  />
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>เลขที่เอ็นจิเนียของโครงการ</label>
+                  <input
+                    type="text"
+                    v-model="eiaProjectData.engineerNumber"
+                    class="form-input"
+                    placeholder="เลขที่เอ็นจิเนียของโครงการ"
+                  />
+                </div>
+              </div>
+
+              <!-- แถวที่ 4: วันที่ออกหนังสือเห็นชอบ + เลขที่หนังสือเห็นชอบ -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>วันที่ออกหนังสือเห็นชอบ</label>
+                  <input
+                    type="date"
+                    v-model="eiaProjectData.approvalDate"
+                    class="form-input"
+                  />
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>เลขที่หนังสือเห็นชอบ</label>
+                  <input
+                    type="text"
+                    v-model="eiaProjectData.approvalNumber"
+                    class="form-input"
+                    placeholder="เลขที่หนังสือเห็นชอบ"
+                  />
+                </div>
+              </div>
+
+              <!-- แถวที่ 5: ทุกประเภทโครงการ + ทุกประเภทโครงการรอง -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกประเภทโครงการ</label>
+                  <select
+                    v-model="eiaProjectData.projectType"
+                    class="form-input"
+                  >
+                    <option value="">ทุกประเภทโครงการ</option>
+                    <option value="อุตสาหกรรม">อุตสาหกรรม</option>
+                    <option value="พลังงาน">พลังงาน</option>
+                    <option value="คมนาคม">คมนาคม</option>
+                    <option value="สาธารณูปโภค">สาธารณูปโภค</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกประเภทโครงการรอง</label>
+                  <select
+                    v-model="eiaProjectData.projectSubType"
+                    class="form-input"
+                  >
+                    <option value="">ทุกประเภทโครงการรอง</option>
+                    <option value="ประเภท 1">ประเภท 1</option>
+                    <option value="ประเภท 2">ประเภท 2</option>
+                    <option value="ประเภท 3">ประเภท 3</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- แถวที่ 6: ทุกสถานะการพิจารณา + ทุกสถานภาพโครงการ -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกสถานะการพิจารณา</label>
+                  <select
+                    v-model="eiaProjectData.reviewStatus"
+                    class="form-input"
+                  >
+                    <option value="">ทุกสถานะการพิจารณา</option>
+                    <option value="กำลังพิจารณา">กำลังพิจารณา</option>
+                    <option value="อนุมัติ">อนุมัติ</option>
+                    <option value="ไม่อนุมัติ">ไม่อนุมัติ</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกสถานภาพโครงการ</label>
+                  <select
+                    v-model="eiaProjectData.projectStatus"
+                    class="form-input"
+                  >
+                    <option value="">ทุกสถานภาพโครงการ</option>
+                    <option value="เริ่มก่อสร้าง">เริ่มก่อสร้าง</option>
+                    <option value="ดำเนินการแล้วเสร็จ">
+                      ดำเนินการแล้วเสร็จ
+                    </option>
+                    <option value="ยังไม่เริ่ม">ยังไม่เริ่ม</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- แถวที่ 7: ทุกภาค + ทุกจังหวัด -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกภาค</label>
+                  <select v-model="eiaProjectData.region" class="form-input">
+                    <option value="">ทุกภาค</option>
+                    <option value="กรุงเทพและปริมณฑล">กรุงเทพและปริมณฑล</option>
+                    <option value="ภาคกลาง">ภาคกลาง</option>
+                    <option value="ภาคเหนือ">ภาคเหนือ</option>
+                    <option value="ภาคตะวันออกเฉียงเหนือ">
+                      ภาคตะวันออกเฉียงเหนือ
+                    </option>
+                    <option value="ภาคตะวันออก">ภาคตะวันออก</option>
+                    <option value="ภาคใต้">ภาคใต้</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกจังหวัด</label>
+                  <select v-model="eiaProjectData.province" class="form-input">
+                    <option value="">ทุกจังหวัด</option>
+                    <option value="กรุงเทพมหานคร">กรุงเทพมหานคร</option>
+                    <option value="นนทบุรี">นนทบุรี</option>
+                    <option value="ปทุมธานี">ปทุมธานี</option>
+                    <option value="สมุทรปราการ">สมุทรปราการ</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- แถวที่ 8: ทุกเขต/อำเภอ + ทุกแขวง/ตำบล -->
+              <div class="form-row" style="display: flex; gap: 10px">
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกเขต/อำเภอ</label>
+                  <select v-model="eiaProjectData.district" class="form-input">
+                    <option value="">ทุกเขต/อำเภอ</option>
+                    <option value="เขต 1">เขต 1</option>
+                    <option value="เขต 2">เขต 2</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>ทุกแขวง/ตำบล</label>
+                  <select
+                    v-model="eiaProjectData.subdistrict"
+                    class="form-input"
+                  >
+                    <option value="">ทุกแขวง/ตำบล</option>
+                    <option value="แขวง 1">แขวง 1</option>
+                    <option value="แขวง 2">แขวง 2</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Link เอกสาร -->
+              <div class="form-group">
+                <label>Link (PDF/GDrive)</label>
+                <input
+                  type="text"
+                  v-model="eiaProjectData.projectLink"
+                  class="form-input"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <!-- วันที่อัพเดตล่าสุด (อ่านอย่างเดียว) -->
+              <div class="form-group" v-if="eiaProjectData.lastUpdated">
+                <label>วันที่อัพเดตล่าสุด</label>
+                <input
+                  type="text"
+                  :value="formatDateTime(eiaProjectData.lastUpdated)"
+                  class="form-input"
+                  readonly
+                  style="
+                    background-color: #1a2332;
+                    color: #9ca3af;
+                    cursor: not-allowed;
+                  "
+                />
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 16px">
+                <button
+                  v-if="!editingEiaId"
+                  class="btn btn-success"
+                  @click="saveEiaProjectFromForm"
+                  style="flex: 1"
+                >
+                  💾
+                </button>
+                <button
+                  v-if="editingEiaId"
+                  class="btn btn-success"
+                  @click="saveEiaProjectFromForm"
+                  style="flex: 1"
+                >
+                  💾
+                </button>
+                <button
+                  v-if="editingEiaId"
+                  class="btn btn-danger"
+                  @click="deleteEiaProjectData(editingEiaId)"
+                  style="flex: 1"
+                >
+                  🗑️
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  @click="clearEiaForm"
+                  style="flex: 1"
+                >
+                  ❌
+                </button>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <!-- List Section -->
+        <div class="list-section" style="margin-top: 20px; color: #ffffff">
+          <h3 @click="isListOpen = !isListOpen" style="cursor: pointer">
+            รายการโครงการ ({{ savedEiaProjects.length }})
+            <span v-if="isListOpen">▲</span>
+            <span v-else>▼</span>
+          </h3>
+
+          <transition name="fade">
+            <div v-show="isListOpen">
+              <div v-if="savedEiaProjects.length > 0" class="land-list">
+                <div
+                  v-for="project in savedEiaProjects"
+                  :key="project.id"
+                  class="land-item"
+                  @click="editEiaProject(project)"
+                  :class="{ active: editingEiaId === project.id }"
+                >
+                  <div class="land-info">
+                    <div class="land-owner">
+                      {{ project.projectName || "ไม่มีชื่อ" }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="no-data">ยังไม่มีข้อมูลโครงการ</div>
+            </div>
+          </transition>
+        </div>
       </nav>
     </div>
 
@@ -1097,8 +1398,9 @@
       </div>
     </section>
 
-    <!-- Floating Draw Panel (popup, not embedded) -->
+    <!-- Floating Draw Panel (popup, not embedded) - Sale Mode Only -->
     <div
+      v-if="currentMode === 'sale'"
       ref="drawPanel"
       class="draw-panel floating-draw"
       v-show="showDrawMenu"
@@ -1106,6 +1408,28 @@
     >
       <div class="panel-header">
         <h3>วาดพื้นที่</h3>
+        <button @click="showDrawMenu = false" class="close-btn">×</button>
+      </div>
+
+      <div style="display: flex; gap: 8px; padding: 12px">
+        <button class="btn btn-info" @click="startDrawing">
+          เริ่มวาดขอบเขต
+        </button>
+        <button class="btn btn-success" @click="finishDrawing">Finish</button>
+        <button class="btn btn-danger" @click="clearDrawing">Clear</button>
+      </div>
+    </div>
+
+    <!-- Floating Draw Panel for EIA Mode -->
+    <div
+      v-if="currentMode === 'eia'"
+      ref="drawPanelEia"
+      class="draw-panel floating-draw"
+      v-show="showDrawMenu"
+      style="position: fixed; top: 160px; right: 80px; z-index: 2100"
+    >
+      <div class="panel-header">
+        <h3>วาดพื้นที่ EIA</h3>
         <button @click="showDrawMenu = false" class="close-btn">×</button>
       </div>
 
@@ -1496,6 +1820,236 @@
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.2s ease;
+}
+
+/* Land/EIA Info Popup Card */
+.land-info-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  animation: fadeIn 0.2s ease;
+  padding: 20px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.land-info-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.land-info-close:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.land-info-header {
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.info-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.info-date::before {
+  content: "🕒";
+  font-size: 14px;
+}
+
+.info-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.land-info-body {
+  padding: 24px;
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  min-width: 100px;
+}
+
+.info-value {
+  flex: 1;
+  text-align: right;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.info-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.link-button {
+  color: #8b008b !important;
+  text-decoration: underline !important;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: #6b0069 !important;
+}
+
+/* Info Cards Grid (for EIA and Land info) */
+.info-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-card {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.info-card-label {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.info-card-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  word-break: break-word;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.contact-row:last-child {
+  border-bottom: none;
+}
+
+.contact-label {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.contact-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  text-align: right;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-action {
+  flex: 1;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-action.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-action.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-action.btn-secondary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-action.btn-secondary:hover {
+  background: #2563eb;
+}
+
+.btn-action.btn-primary-full {
+  flex: 1;
+  width: 100%;
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-action.btn-primary-full:hover {
+  background: #2563eb;
 }
 
 @keyframes fadeIn {

@@ -22,6 +22,7 @@ import {
 
 import LoginBar from "./components/LoginBar.vue";
 import * as turf from "@turf/turf";
+import { thailandLocations } from "./data/thailand-locations.js";
 /* eslint-disable no-empty */
 export default {
   name: "App",
@@ -59,7 +60,13 @@ export default {
         projectStartDate: '',
         ownerNameTo: '',
         projectName: '',
-        projectOwner: '',
+        projectValue: '',        // มูลค่าโครงการ (ล้านบาท)
+        projectImage: '',        // รูปภาพโครงการ (base64)
+        projectImageName: '',    // ชื่อไฟล์รูปภาพ
+        landSizeRai: '',         // ขนาดที่ดิน (ไร่)
+        landSizeNgan: '',        // ขนาดที่ดิน (งาน)
+        landSizeWah: '',         // ขนาดที่ดิน (วา)
+        usableArea: '',          // พื้นที่ใช้สอย (ตร.ม.)
         reportNumber: '',
         engineerNumber: '',
         approvalDate: '',
@@ -76,6 +83,31 @@ export default {
         lastUpdated: null,
       },
       editingEiaId: null,
+
+      // สีสำหรับ EIA Projects
+      eiaColor: '#39ff14',
+      eiaColorRgb: '57,255,20',
+      eiaColorUrlEncoded: '%2339ff14',
+
+      // EIA Filters
+      eiaFilters: {
+        projectValueMin: '',
+        projectValueMax: '',
+        landSizeRaiMin: '',
+        landSizeRaiMax: '',
+        usableAreaMin: '',
+        usableAreaMax: '',
+        region: '',
+        province: '',
+        projectStatus: '',
+      },
+
+      // EIA Filter Panel Draggable
+      eiaFilterPanelX: window.innerWidth - 400,
+      eiaFilterPanelY: 160,
+      isDraggingEiaFilter: false,
+      dragStartX: 0,
+      dragStartY: 0,
 
       currentMode: null,
       n_mode: "กรุณาเลือกโหมด", // 'sale' | 'pledge'
@@ -548,9 +580,202 @@ export default {
         totalValueMillion: totalValue / 1e6,
       };
     },
+
+    // Available districts based on selected province
+    availableDistricts() {
+      const province = this.eiaProjectData.province?.trim();
+      if (!province || !thailandLocations[province]) {
+        return [];
+      }
+      return Object.keys(thailandLocations[province]).sort();
+    },
+
+    // Available subdistricts based on selected province and district
+    availableSubdistricts() {
+      const province = this.eiaProjectData.province?.trim();
+      const district = this.eiaProjectData.district?.trim();
+      if (!province || !district || !thailandLocations[province] || !thailandLocations[province][district]) {
+        return [];
+      }
+      return thailandLocations[province][district].sort();
+    },
+
+    // Filtered EIA Projects
+    filteredEiaProjects() {
+      const projects = this.savedEiaProjects || [];
+      const filters = this.eiaFilters;
+
+      const toNum = (v) => (v === '' || v == null ? null : Number(String(v).replace(/,/g, '')));
+
+      const valueMin = toNum(filters.projectValueMin);
+      const valueMax = toNum(filters.projectValueMax);
+      const raiMin = toNum(filters.landSizeRaiMin);
+      const raiMax = toNum(filters.landSizeRaiMax);
+      const areaMin = toNum(filters.usableAreaMin);
+      const areaMax = toNum(filters.usableAreaMax);
+
+      return projects.filter((p) => {
+        // กรองมูลค่าโครงการ (ล้านบาท)
+        const projectValue = Number(p.projectValue);
+        const valueOK =
+          (valueMin == null || (Number.isFinite(projectValue) && projectValue >= valueMin)) &&
+          (valueMax == null || (Number.isFinite(projectValue) && projectValue <= valueMax));
+
+        // กรองขนาดที่ดิน (ไร่)
+        const landRai = Number(p.landSizeRai) || 0;
+        const raiOK =
+          (raiMin == null || landRai >= raiMin) &&
+          (raiMax == null || landRai <= raiMax);
+
+        // กรองพื้นที่ใช้สอย (ตร.ม.)
+        const usableArea = Number(p.usableArea) || 0;
+        const areaOK =
+          (areaMin == null || usableArea >= areaMin) &&
+          (areaMax == null || usableArea <= areaMax);
+
+        // กรองภูมิภาค
+        const regionOK = !filters.region || p.region === filters.region;
+
+        // กรองจังหวัด
+        const provinceOK = !filters.province || p.province === filters.province;
+
+        // กรองสถานะโครงการ
+        const statusOK = !filters.projectStatus || p.projectStatus === filters.projectStatus;
+
+        return valueOK && raiOK && areaOK && regionOK && provinceOK && statusOK;
+      });
+    },
+
+    // EIA Statistics
+    eiaStatistics() {
+      // ใช้ข้อมูลที่กรองแล้วเสมอ (filteredEiaProjects จะกรองตาม filter หรือคืนค่าทั้งหมดถ้าไม่มี filter)
+      const projects = this.filteredEiaProjects || [];
+
+      // จำนวนโครงการ
+      const totalProjects = projects.length;
+
+      // มูลค่าโครงการรวม (ล้านบาท)
+      const totalValue = projects.reduce((sum, project) => {
+        const value = Number(project.projectValue);
+        return sum + (Number.isFinite(value) && value > 0 ? value : 0);
+      }, 0);
+
+      return {
+        totalProjects,
+        totalValue,
+        totalValueFormatted: this.formatProjectValue(totalValue),
+      };
+    },
   },
 
   methods: {
+
+    // Format project value with comma and 2 decimals
+    formatProjectValue(value) {
+      if (!value || isNaN(value)) return '0.00';
+      const num = Number(value);
+      return num.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    },
+
+    // Format input value for display with comma (while typing)
+    formatProjectValueInput(value) {
+      if (!value) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle project value input (remove commas and store raw number)
+    handleProjectValueInput(event) {
+      const input = event.target.value;
+      // Remove commas and parse
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.projectValue = num;
+      } else if (cleaned === '' || cleaned === '.') {
+        this.eiaProjectData.projectValue = '';
+      }
+    },
+
+    // Handle wah input - auto convert to ngan if over 99
+    handleWahInput() {
+      let wah = Number(this.eiaProjectData.landSizeWah) || 0;
+
+      if (wah > 99) {
+        const extraNgan = Math.floor(wah / 100);
+        const remainingWah = wah % 100;
+
+        this.eiaProjectData.landSizeWah = remainingWah;
+
+        const currentNgan = Number(this.eiaProjectData.landSizeNgan) || 0;
+        this.eiaProjectData.landSizeNgan = currentNgan + extraNgan;
+
+        // Trigger ngan check
+        this.handleNganInput();
+      }
+    },
+
+    // Handle ngan input - auto convert to rai if over 3
+    handleNganInput() {
+      let ngan = Number(this.eiaProjectData.landSizeNgan) || 0;
+
+      if (ngan > 3) {
+        const extraRai = Math.floor(ngan / 4);
+        const remainingNgan = ngan % 4;
+
+        this.eiaProjectData.landSizeNgan = remainingNgan;
+
+        const currentRai = Number(this.eiaProjectData.landSizeRai) || 0;
+        this.eiaProjectData.landSizeRai = currentRai + extraRai;
+      }
+    },
+
+    // Format number input for display (rai field)
+    formatNumberInput(value) {
+      if (!value) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle rai input
+    handleRaiInput(event) {
+      const input = event.target.value;
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.landSizeRai = num;
+      } else if (cleaned === '') {
+        this.eiaProjectData.landSizeRai = '';
+      }
+    },
+
+    // Format number input with decimal for display (usable area field)
+    formatNumberInputWithDecimal(value) {
+      if (!value) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle usable area input
+    handleUsableAreaInput(event) {
+      const input = event.target.value;
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.usableArea = num;
+      } else if (cleaned === '' || cleaned === '.') {
+        this.eiaProjectData.usableArea = '';
+      }
+    },
 
     // Make popup panels draggable by their header. Applies to common popup selectors.
     enableDraggables() {
@@ -1167,6 +1392,30 @@ export default {
       }
     },
 
+    async handleEiaImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+        return;
+      }
+
+      try {
+        console.log(`📸 Uploading EIA image: ${file.name}`);
+        const compressedBase64 = await this.compressImage(file);
+        this.eiaProjectData.projectImage = compressedBase64;
+        this.eiaProjectData.projectImageName = file.name;
+        console.log('✅ EIA Image uploaded successfully');
+      } catch (e) {
+        console.error('Error uploading EIA image:', e);
+        alert('เกิดข้อผิดพลาดในการอัปโหลดรูป');
+      }
+
+      // Reset input
+      event.target.value = '';
+    },
+
     openImageViewer(images, startIndex = 0) {
       this.viewerImages = images || [];
       this.currentImageIndex = startIndex;
@@ -1605,25 +1854,78 @@ export default {
           }
         })();
 
+        // Format land size
+        const landSize = (() => {
+          const r = project.landSizeRai || '';
+          const n = project.landSizeNgan || '';
+          const w = project.landSizeWah || '';
+          if (!r && !n && !w) return '';
+
+          // Format rai with comma
+          const formattedRai = r ? Number(r).toLocaleString('en-US') : '0';
+          return `${formattedRai}-${n || '0'}-${w || '0'}`;
+        })();
+
+        // Format project value
+        const formattedValue = project.projectValue ? this.formatProjectValue(project.projectValue) : '';
+
+        // Format usable area with comma
+        const formattedUsableArea = project.usableArea ? Number(project.usableArea).toLocaleString('en-US') : '';
+
         const html = `
-          <div style="font-family: Inter, Arial, Helvetica, sans-serif; background:#ffffff; color:#111; width:100%; max-width: 400px;">
+          <div style="font-family: Inter, Arial, Helvetica, sans-serif; background:#ffffff; color:#111; width:100%; max-width: 1500px !important;">
             <div style="padding:8px 14px 0 14px; display:flex;align-items:center;gap:8px;color:#666;font-size:12px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <circle cx="12" cy="12" r="11" stroke="#666" stroke-width="1" fill="#fff" />
                 <path d="M11.25 7.5h1.5v1.5h-1.5V7.5zM12 10.5c-.414 0-.75.336-.75.75v3c0 .414.336.75.75.75s.75-.336.75-.75v-3c0-.414-.336-.75-.75-.75z" fill="#666" />
               </svg>
-              <div>วันที่อัพเดตล่าสุด ${esc(displayDate)}</div>
+              <div>ข้อมูลวันที่ ${esc(displayDate)}</div>
             </div>
             <div style="padding:6px 14px 0 14px;">
-              <div style="font-weight:800;font-size:18px;line-height:1.2;color:#8b008b">${esc(project.projectName || 'โครงการ EIA')}</div>
+              <div style="font-weight:800;font-size:18px;line-height:1.2;color:#000000">${esc(project.projectName || 'โครงการ EIA')}</div>
             </div>
+
+            ${project.projectValue ? `
+            <div style="padding:8px 14px;display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-weight:600;color:#666;">มูลค่าโครงการ</div>
+              <div style="font-size:20px;font-weight:800;color:#000;">${formattedValue} <span style="font-size:14px">ล้านบาท</span></div>
+            </div>
+            ` : ''}
+
+            ${project.projectImage ? `
+            <div style="padding:0 14px 8px 14px;">
+              <img src="${esc(project.projectImage)}" alt="Project" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;" />
+            </div>
+            ` : ''}
+
+            ${(landSize || project.usableArea) ? `
+            <div style="padding:0 14px 8px 14px;display:flex;gap:10px;">
+              ${landSize ? `
+              <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px;text-align:center;">
+                <div style="font-size:11px;color:#666;margin-bottom:4px;">ขนาดที่ดิน</div>
+                <div style="font-weight:800;font-size:16px;color:#111;">${esc(landSize)}<br/><span style="font-size:11px;font-weight:400;">ไร่</span></div>
+              </div>
+              ` : ''}
+              ${project.usableArea ? `
+              <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px;text-align:center;">
+                <div style="font-size:11px;color:#666;margin-bottom:4px;">พื้นที่ใช้สอย</div>
+                <div style="font-weight:800;font-size:16px;color:#111;">${formattedUsableArea}<br/><span style="font-size:11px;font-weight:400;">ตร.ม.</span></div>
+              </div>
+              ` : ''}
+            </div>
+            ` : ''}
+
+            ${project.projectStatus ? `
+            <div style="padding:0 14px 8px 14px;">
+              <div style="text-align:center;background:#f0f0f0;padding:8px;border-radius:6px;font-size:11px;font-weight:600;color:#666;">สถานภาพโครงการ<br/><span style="color:#000;font-size:12px;">${esc(project.projectStatus)}</span></div>
+            </div>
+            ` : ''}
 
             <hr style="border:none;border-top:1px solid #eee;margin:8px 0;">
 
             <div style="padding:0 14px 12px 14px; font-size:13px; color:#333;">
               ${project.projectStartDate ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">วันที่เริ่มโครงการ:</div><div>${esc(project.projectStartDate)}</div></div>` : ''}
               ${project.ownerNameTo ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ถึงวันที่:</div><div>${esc(project.ownerNameTo)}</div></div>` : ''}
-              ${project.projectOwner ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ชื่อเจ้าของโครงการ:</div><div>${esc(project.projectOwner)}</div></div>` : ''}
               ${project.reportNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่รายงาน:</div><div>${esc(project.reportNumber)}</div></div>` : ''}
               ${project.engineerNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่เอ็นจิเนีย:</div><div>${esc(project.engineerNumber)}</div></div>` : ''}
               ${project.approvalDate ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">วันที่อนุมัติ:</div><div>${esc(project.approvalDate)}</div></div>` : ''}
@@ -1641,8 +1943,8 @@ export default {
             ${project.projectLink ? `
             <div style="padding:0 14px 12px 14px;">
               <a href="${esc(project.projectLink)}" target="_blank" rel="noopener noreferrer" 
-                style="display:inline-block;background:#8b008b;color:#fff;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;">
-                📄 ดูเอกสาร EIA
+                style="display:inline-block;background:${this.eiaColor};color:#000;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;">
+                ดูเอกสาร
               </a>
             </div>
             ` : ''}
@@ -2971,8 +3273,8 @@ export default {
 
       // สีต่างกันตาม mode
       const isEiaMode = this.currentMode === 'eia';
-      const lineColor = isEiaMode ? "rgba(139,0,139,0.9)" : "rgba(30,144,255,0.9)";
-      const fillColor = isEiaMode ? "rgba(139,0,139,0.25)" : "rgba(30,144,255,0.25)";
+      const lineColor = isEiaMode ? `rgba(${this.eiaColorRgb},0.9)` : "rgba(30,144,255,0.9)";
+      const fillColor = isEiaMode ? `rgba(${this.eiaColorRgb},0.25)` : "rgba(30,144,255,0.25)";
 
       this.drawPolygon = new window.longdo.Polygon(this.drawPoints, {
         lineWidth: 2,
@@ -3033,7 +3335,13 @@ export default {
         projectStartDate: (data.projectStartDate || "").trim(),
         ownerNameTo: (data.ownerNameTo || "").trim(),
         projectName: (data.projectName || "").trim(),
-        projectOwner: (data.projectOwner || "").trim(),
+        projectValue: data.projectValue || "",
+        projectImage: data.projectImage || "",
+        projectImageName: data.projectImageName || "",
+        landSizeRai: data.landSizeRai || "",
+        landSizeNgan: data.landSizeNgan || "",
+        landSizeWah: data.landSizeWah || "",
+        usableArea: data.usableArea || "",
         reportNumber: (data.reportNumber || "").trim(),
         engineerNumber: (data.engineerNumber || "").trim(),
         approvalDate: (data.approvalDate || "").trim(),
@@ -3164,7 +3472,7 @@ export default {
           const marker = new window.longdo.Marker(markerLoc, {
             visibleRange: { min: 7, max: 20 },
             icon: {
-              url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'><path d='M12 2C7.58 2 4 5.58 4 10c0 5.25 5.4 10.58 7.2 12.19a1.2 1.2 0 0 0 1.6 0C14.6 20.58 20 15.25 20 10c0-4.42-3.58-8-8-8z' fill='rgba(139,0,139,0.9)' stroke='%238b008b' stroke-width='1.5'/><circle cx='12' cy='10' r='3' fill='white'/></svg>",
+              url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'><path d='M12 2C7.58 2 4 5.58 4 10c0 5.25 5.4 10.58 7.2 12.19a1.2 1.2 0 0 0 1.6 0C14.6 20.58 20 15.25 20 10c0-4.42-3.58-8-8-8z' fill='rgba(${this.eiaColorRgb},0.9)' stroke='${this.eiaColorUrlEncoded}' stroke-width='1.5'/><circle cx='12' cy='10' r='3' fill='white'/></svg>`,
               size: { width: 28, height: 28 },
               offset: { x: 14, y: 28 }
             },
@@ -3180,8 +3488,8 @@ export default {
         // --- Create polygon ---
         const polygon = new window.longdo.Polygon(coords, {
           lineWidth: 2,
-          lineColor: "rgba(139,0,139,0.9)",
-          fillColor: "rgba(139,0,139,0.25)",
+          lineColor: `rgba(${this.eiaColorRgb},0.9)`,
+          fillColor: `rgba(${this.eiaColorRgb},0.25)`,
           title: project.projectName || 'EIA Project',
           weight: window.longdo.OverlayWeight.Top
         });
@@ -3270,7 +3578,13 @@ export default {
         projectStartDate: this.eiaProjectData.projectStartDate,
         ownerNameTo: this.eiaProjectData.ownerNameTo,
         projectName: this.eiaProjectData.projectName,
-        projectOwner: this.eiaProjectData.projectOwner,
+        projectValue: this.eiaProjectData.projectValue,
+        projectImage: this.eiaProjectData.projectImage,
+        projectImageName: this.eiaProjectData.projectImageName,
+        landSizeRai: this.eiaProjectData.landSizeRai,
+        landSizeNgan: this.eiaProjectData.landSizeNgan,
+        landSizeWah: this.eiaProjectData.landSizeWah,
+        usableArea: this.eiaProjectData.usableArea,
         reportNumber: this.eiaProjectData.reportNumber,
         engineerNumber: this.eiaProjectData.engineerNumber,
         approvalDate: this.eiaProjectData.approvalDate,
@@ -3295,7 +3609,13 @@ export default {
         projectStartDate: project.projectStartDate || '',
         ownerNameTo: project.ownerNameTo || '',
         projectName: project.projectName || '',
-        projectOwner: project.projectOwner || '',
+        projectValue: project.projectValue || '',
+        projectImage: project.projectImage || '',
+        projectImageName: project.projectImageName || '',
+        landSizeRai: project.landSizeRai || '',
+        landSizeNgan: project.landSizeNgan || '',
+        landSizeWah: project.landSizeWah || '',
+        usableArea: project.usableArea || '',
         reportNumber: project.reportNumber || '',
         engineerNumber: project.engineerNumber || '',
         approvalDate: project.approvalDate || '',
@@ -3336,7 +3656,13 @@ export default {
         projectStartDate: '',
         ownerNameTo: '',
         projectName: '',
-        projectOwner: '',
+        projectValue: '',
+        projectImage: '',
+        projectImageName: '',
+        landSizeRai: '',
+        landSizeNgan: '',
+        landSizeWah: '',
+        usableArea: '',
         reportNumber: '',
         engineerNumber: '',
         approvalDate: '',
@@ -3519,6 +3845,61 @@ export default {
       this.filteredLands = [];
       this.addMarkersToMap();
       this.renderLandsOnMap();
+    },
+
+    resetEiaFilters() {
+      this.eiaFilters = {
+        projectValueMin: '',
+        projectValueMax: '',
+        landSizeRaiMin: '',
+        landSizeRaiMax: '',
+        usableAreaMin: '',
+        usableAreaMax: '',
+        region: '',
+        province: '',
+        projectStatus: '',
+      };
+    },
+
+    startDragEiaFilter(event) {
+      // เฉพาะคลิกที่ปุ่มปิดเท่านั้น
+      if (event.target.classList.contains('close-btn') ||
+        event.target.tagName === 'INPUT' ||
+        event.target.tagName === 'SELECT' ||
+        event.target.tagName === 'BUTTON') {
+        return;
+      }
+
+      this.isDraggingEiaFilter = true;
+      this.dragStartX = event.clientX - this.eiaFilterPanelX;
+      this.dragStartY = event.clientY - this.eiaFilterPanelY;
+
+      document.addEventListener('mousemove', this.dragEiaFilter);
+      document.addEventListener('mouseup', this.stopDragEiaFilter);
+      event.preventDefault();
+    },
+
+    dragEiaFilter(event) {
+      if (!this.isDraggingEiaFilter) return;
+
+      this.eiaFilterPanelX = event.clientX - this.dragStartX;
+      this.eiaFilterPanelY = event.clientY - this.dragStartY;
+
+      // จำกัดไม่ให้ panel ออกนอกหน้าจอ
+      if (this.eiaFilterPanelX < 0) this.eiaFilterPanelX = 0;
+      if (this.eiaFilterPanelY < 0) this.eiaFilterPanelY = 0;
+      if (this.eiaFilterPanelX > window.innerWidth - 100) {
+        this.eiaFilterPanelX = window.innerWidth - 100;
+      }
+      if (this.eiaFilterPanelY > window.innerHeight - 50) {
+        this.eiaFilterPanelY = window.innerHeight - 50;
+      }
+    },
+
+    stopDragEiaFilter() {
+      this.isDraggingEiaFilter = false;
+      document.removeEventListener('mousemove', this.dragEiaFilter);
+      document.removeEventListener('mouseup', this.stopDragEiaFilter);
     },
 
     getClickLocation(ev) {
@@ -4241,6 +4622,21 @@ export default {
     },
     'landData.agent'(val) {
       if (val && val.trim() !== '') this.landData.owner = '';
+    },
+
+    // Reset district and subdistrict when province changes
+    'eiaProjectData.province'(newVal, oldVal) {
+      if (newVal !== oldVal) {
+        this.eiaProjectData.district = '';
+        this.eiaProjectData.subdistrict = '';
+      }
+    },
+
+    // Reset subdistrict when district changes
+    'eiaProjectData.district'(newVal, oldVal) {
+      if (newVal !== oldVal) {
+        this.eiaProjectData.subdistrict = '';
+      }
     },
 
     // ล็อก scroll ตอน popup เปิด

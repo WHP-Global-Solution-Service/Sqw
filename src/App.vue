@@ -617,18 +617,8 @@
           <transition name="fade">
             <div v-show="isFormOpen">
               <div class="form-subtitle">ข้อมูลโครงการและ EIA</div>
-              <div class="form-subtitle">วาดพื้นที่แล้วกรอกข้อมูล</div>
 
-              <!-- แถวที่ 1: วันที่เริ่มโครงการ + ถึงวันที่ -->
               <div class="form-row" style="display: flex; gap: 10px">
-                <div class="form-group" style="flex: 1">
-                  <label>วันที่เริ่มโครงการ</label>
-                  <input
-                    type="date"
-                    v-model="eiaProjectData.projectStartDate"
-                    class="form-input"
-                  />
-                </div>
                 <div class="form-group" style="flex: 1">
                   <label>ถึงวันที่</label>
                   <input
@@ -637,10 +627,6 @@
                     class="form-input"
                   />
                 </div>
-              </div>
-
-              <!-- แถวที่ 2: ชื่อโครงการ + ชื่อเจ้าของโครงการ -->
-              <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
                   <label>ชื่อโครงการ</label>
                   <input
@@ -650,124 +636,117 @@
                     placeholder="ชื่อโครงการ"
                   />
                 </div>
+              </div>
+              <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
-                  <label>ชื่อเจ้าของโครงการ</label>
+                  <label>มูลค่าโครงการ (ล้านบาท)</label>
                   <input
                     type="text"
-                    v-model="eiaProjectData.projectOwner"
+                    :value="
+                      formatProjectValueInput(eiaProjectData.projectValue)
+                    "
+                    @input="handleProjectValueInput"
                     class="form-input"
-                    placeholder="ชื่อเจ้าของโครงการ"
+                    placeholder="มูลค่าโครงการ"
                   />
                 </div>
               </div>
 
-              <!-- แถวที่ 3: เลขที่รายงาน + เลขที่เอ็นจิเนียของโครงการ -->
-              <div class="form-row" style="display: flex; gap: 10px">
-                <div class="form-group" style="flex: 1">
-                  <label>เลขที่รายงาน</label>
-                  <input
-                    type="text"
-                    v-model="eiaProjectData.reportNumber"
-                    class="form-input"
-                    placeholder="เลขที่รายงาน"
-                  />
-                </div>
-                <div class="form-group" style="flex: 1">
-                  <label>เลขที่เอ็นจิเนียของโครงการ</label>
-                  <input
-                    type="text"
-                    v-model="eiaProjectData.engineerNumber"
-                    class="form-input"
-                    placeholder="เลขที่เอ็นจิเนียของโครงการ"
-                  />
-                </div>
-              </div>
-
-              <!-- แถวที่ 4: วันที่ออกหนังสือเห็นชอบ + เลขที่หนังสือเห็นชอบ -->
-              <div class="form-row" style="display: flex; gap: 10px">
-                <div class="form-group" style="flex: 1">
-                  <label>วันที่ออกหนังสือเห็นชอบ</label>
-                  <input
-                    type="date"
-                    v-model="eiaProjectData.approvalDate"
-                    class="form-input"
-                  />
-                </div>
-                <div class="form-group" style="flex: 1">
-                  <label>เลขที่หนังสือเห็นชอบ</label>
-                  <input
-                    type="text"
-                    v-model="eiaProjectData.approvalNumber"
-                    class="form-input"
-                    placeholder="เลขที่หนังสือเห็นชอบ"
-                  />
-                </div>
-              </div>
-
-              <!-- แถวที่ 5: ทุกประเภทโครงการ + ทุกประเภทโครงการรอง -->
-              <div class="form-row" style="display: flex; gap: 10px">
-                <div class="form-group" style="flex: 1">
-                  <label>ทุกประเภทโครงการ</label>
-                  <select
-                    v-model="eiaProjectData.projectType"
-                    class="form-input"
+              <!-- รูปภาพโครงการ -->
+              <div class="form-group">
+                <label>รูปภาพโครงการ</label>
+                <input
+                  type="file"
+                  @change="handleEiaImageUpload"
+                  accept="image/*"
+                  class="form-input"
+                />
+                <div
+                  v-if="eiaProjectData.projectImageName"
+                  style="margin-top: 8px; font-size: 13px; color: #666"
+                >
+                  📎 {{ eiaProjectData.projectImageName }}
+                  <button
+                    @click="
+                      eiaProjectData.projectImage = '';
+                      eiaProjectData.projectImageName = '';
+                    "
+                    class="btn btn-danger"
+                    style="margin-left: 10px; padding: 4px 8px; font-size: 12px"
                   >
-                    <option value="">ทุกประเภทโครงการ</option>
-                    <option value="อุตสาหกรรม">อุตสาหกรรม</option>
-                    <option value="พลังงาน">พลังงาน</option>
-                    <option value="คมนาคม">คมนาคม</option>
-                    <option value="สาธารณูปโภค">สาธารณูปโภค</option>
-                    <option value="อื่นๆ">อื่นๆ</option>
-                  </select>
-                </div>
-                <div class="form-group" style="flex: 1">
-                  <label>ทุกประเภทโครงการรอง</label>
-                  <select
-                    v-model="eiaProjectData.projectSubType"
-                    class="form-input"
-                  >
-                    <option value="">ทุกประเภทโครงการรอง</option>
-                    <option value="ประเภท 1">ประเภท 1</option>
-                    <option value="ประเภท 2">ประเภท 2</option>
-                    <option value="ประเภท 3">ประเภท 3</option>
-                  </select>
+                    ลบรูป
+                  </button>
                 </div>
               </div>
-
-              <!-- แถวที่ 6: ทุกสถานะการพิจารณา + ทุกสถานภาพโครงการ -->
               <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
-                  <label>ทุกสถานะการพิจารณา</label>
-                  <select
-                    v-model="eiaProjectData.reviewStatus"
-                    class="form-input"
-                  >
-                    <option value="">ทุกสถานะการพิจารณา</option>
-                    <option value="กำลังพิจารณา">กำลังพิจารณา</option>
-                    <option value="อนุมัติ">อนุมัติ</option>
-                    <option value="ไม่อนุมัติ">ไม่อนุมัติ</option>
-                  </select>
+                  <label>ขนาดที่ดิน (ไร่-งาน-วา)</label>
+                  <div style="display: flex; gap: 5px">
+                    <input
+                      type="text"
+                      :value="formatNumberInput(eiaProjectData.landSizeRai)"
+                      @input="handleRaiInput"
+                      class="form-input"
+                      placeholder="ไร่"
+                      style="flex: 1"
+                    />
+                    <input
+                      type="number"
+                      v-model="eiaProjectData.landSizeNgan"
+                      @input="handleNganInput"
+                      class="form-input"
+                      placeholder="งาน"
+                      min="0"
+                      step="1"
+                      style="flex: 1"
+                    />
+                    <input
+                      type="number"
+                      v-model="eiaProjectData.landSizeWah"
+                      @input="handleWahInput"
+                      class="form-input"
+                      placeholder="วา"
+                      min="0"
+                      step="0.01"
+                      style="flex: 1"
+                    />
+                  </div>
                 </div>
+              </div>
+              <!-- พื้นที่ใช้สอย -->
+              <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
-                  <label>ทุกสถานภาพโครงการ</label>
+                  <label>พื้นที่ใช้สอย (ตร.ม.)</label>
+                  <input
+                    type="text"
+                    :value="
+                      formatNumberInputWithDecimal(eiaProjectData.usableArea)
+                    "
+                    @input="handleUsableAreaInput"
+                    class="form-input"
+                    placeholder="พื้นที่ใช้สอย"
+                  />
+                </div>
+                <!-- สถานะโครงการ -->
+                <div class="form-group">
+                  <label>สถานภาพโครงการ</label>
                   <select
                     v-model="eiaProjectData.projectStatus"
                     class="form-input"
                   >
-                    <option value="">ทุกสถานภาพโครงการ</option>
-                    <option value="เริ่มก่อสร้าง">เริ่มก่อสร้าง</option>
-                    <option value="ดำเนินการแล้วเสร็จ">
-                      ดำเนินการแล้วเสร็จ
-                    </option>
+                    <option value="">เลือกสถานะ</option>
                     <option value="ยังไม่เริ่ม">ยังไม่เริ่ม</option>
+                    <option value="อยู่ระหว่างขอEIA">ขอEIA</option>
+                    <option value="ได้EIAรอก่อสร้าง">รอก่อสร้าง</option>
+                    <option value="เริ่มก่อสร้าง">เริ่มก่อสร้าง</option>
+                    <option value="ดำเนินการแล้วเสร็จ">แล้วเสร็จ</option>
                   </select>
                 </div>
               </div>
-
               <!-- แถวที่ 7: ทุกภาค + ทุกจังหวัด -->
               <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
-                  <label>ทุกภาค</label>
+                  <label>ภูมิภาค</label>
                   <select v-model="eiaProjectData.region" class="form-input">
                     <option value="">ทุกภาค</option>
                     <option value="กรุงเทพและปริมณฑล">กรุงเทพและปริมณฑล</option>
@@ -780,15 +759,94 @@
                     <option value="ภาคใต้">ภาคใต้</option>
                   </select>
                 </div>
+                <!--menu เลือกจังหวัด-->
                 <div class="form-group" style="flex: 1">
                   <label>ทุกจังหวัด</label>
-                  <select v-model="eiaProjectData.province" class="form-input">
-                    <option value="">ทุกจังหวัด</option>
+                  <input
+                    list="provinces"
+                    v-model="eiaProjectData.province"
+                    class="form-input"
+                    placeholder="พิมพ์หรือเลือกจังหวัด"
+                  />
+                  <datalist id="provinces">
+                    <option value="กระบี่">กระบี่</option>
                     <option value="กรุงเทพมหานคร">กรุงเทพมหานคร</option>
+                    <option value="กาญจนบุรี">กาญจนบุรี</option>
+                    <option value="กาฬสินธุ์">กาฬสินธุ์</option>
+                    <option value="กำแพงเพชร">กำแพงเพชร</option>
+                    <option value="ขอนแก่น">ขอนแก่น</option>
+                    <option value="จันทบุรี">จันทบุรี</option>
+                    <option value="ฉะเชิงเทรา">ฉะเชิงเทรา</option>
+                    <option value="ชลบุรี">ชลบุรี</option>
+                    <option value="ชัยนาท">ชัยนาท</option>
+                    <option value="ชัยภูมิ">ชัยภูมิ</option>
+                    <option value="ชุมพร">ชุมพร</option>
+                    <option value="เชียงราย">เชียงราย</option>
+                    <option value="เชียงใหม่">เชียงใหม่</option>
+                    <option value="ตรัง">ตรัง</option>
+                    <option value="ตราด">ตราด</option>
+                    <option value="ตาก">ตาก</option>
+                    <option value="นครนายก">นครนายก</option>
+                    <option value="นครปฐม">นครปฐม</option>
+                    <option value="นครพนม">นครพนม</option>
+                    <option value="นครราชสีมา">นครราชสีมา</option>
+                    <option value="นครศรีธรรมราช">นครศรีธรรมราช</option>
+                    <option value="นครสวรรค์">นครสวรรค์</option>
                     <option value="นนทบุรี">นนทบุรี</option>
+                    <option value="นราธิวาส">นราธิวาส</option>
+                    <option value="น่าน">น่าน</option>
+                    <option value="บึงกาฬ">บึงกาฬ</option>
+                    <option value="บุรีรัมย์">บุรีรัมย์</option>
                     <option value="ปทุมธานี">ปทุมธานี</option>
+                    <option value="ประจวบคีรีขันธ์">ประจวบคีรีขันธ์</option>
+                    <option value="ปราจีนบุรี">ปราจีนบุรี</option>
+                    <option value="ปัตตานี">ปัตตานี</option>
+                    <option value="พระนครศรีอยุธยา">พระนครศรีอยุธยา</option>
+                    <option value="พังงา">พังงา</option>
+                    <option value="พัทลุง">พัทลุง</option>
+                    <option value="พิจิตร">พิจิตร</option>
+                    <option value="พิษณุโลก">พิษณุโลก</option>
+                    <option value="เพชรบุรี">เพชรบุรี</option>
+                    <option value="เพชรบูรณ์">เพชรบูรณ์</option>
+                    <option value="แพร่">แพร่</option>
+                    <option value="พะเยา">พะเยา</option>
+                    <option value="ภูเก็ต">ภูเก็ต</option>
+                    <option value="มหาสารคาม">มหาสารคาม</option>
+                    <option value="มุกดาหาร">มุกดาหาร</option>
+                    <option value="แม่ฮ่องสอน">แม่ฮ่องสอน</option>
+                    <option value="ยโสธร">ยโสธร</option>
+                    <option value="ยะลา">ยะลา</option>
+                    <option value="ร้อยเอ็ด">ร้อยเอ็ด</option>
+                    <option value="ระนอง">ระนอง</option>
+                    <option value="ระยอง">ระยอง</option>
+                    <option value="ราชบุรี">ราชบุรี</option>
+                    <option value="ลพบุรี">ลพบุรี</option>
+                    <option value="ลำปาง">ลำปาง</option>
+                    <option value="ลำพูน">ลำพูน</option>
+                    <option value="เลย">เลย</option>
+                    <option value="ศรีสะเกษ">ศรีสะเกษ</option>
+                    <option value="สกลนคร">สกลนคร</option>
+                    <option value="สงขลา">สงขลา</option>
+                    <option value="สตูล">สตูล</option>
                     <option value="สมุทรปราการ">สมุทรปราการ</option>
-                  </select>
+                    <option value="สมุทรสงคราม">สมุทรสงคราม</option>
+                    <option value="สมุทรสาคร">สมุทรสาคร</option>
+                    <option value="สระแก้ว">สระแก้ว</option>
+                    <option value="สระบุรี">สระบุรี</option>
+                    <option value="สิงห์บุรี">สิงห์บุรี</option>
+                    <option value="สุโขทัย">สุโขทัย</option>
+                    <option value="สุพรรณบุรี">สุพรรณบุรี</option>
+                    <option value="สุราษฎร์ธานี">สุราษฎร์ธานี</option>
+                    <option value="สุรินทร์">สุรินทร์</option>
+                    <option value="หนองคาย">หนองคาย</option>
+                    <option value="หนองบัวลำภู">หนองบัวลำภู</option>
+                    <option value="อ่างทอง">อ่างทอง</option>
+                    <option value="อุดรธานี">อุดรธานี</option>
+                    <option value="อุทัยธานี">อุทัยธานี</option>
+                    <option value="อุตรดิตถ์">อุตรดิตถ์</option>
+                    <option value="อุบลราชธานี">อุบลราชธานี</option>
+                    <option value="อำนาจเจริญ">อำนาจเจริญ</option>
+                  </datalist>
                 </div>
               </div>
 
@@ -796,22 +854,39 @@
               <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
                   <label>ทุกเขต/อำเภอ</label>
-                  <select v-model="eiaProjectData.district" class="form-input">
-                    <option value="">ทุกเขต/อำเภอ</option>
-                    <option value="เขต 1">เขต 1</option>
-                    <option value="เขต 2">เขต 2</option>
-                  </select>
+                  <input
+                    type="text"
+                    v-model="eiaProjectData.district"
+                    class="form-input"
+                    list="district-list"
+                    placeholder="เลือกหรือพิมพ์อำเภอ"
+                    :disabled="!eiaProjectData.province"
+                  />
+                  <datalist id="district-list">
+                    <option
+                      v-for="district in availableDistricts"
+                      :key="district"
+                      :value="district"
+                    />
+                  </datalist>
                 </div>
                 <div class="form-group" style="flex: 1">
                   <label>ทุกแขวง/ตำบล</label>
-                  <select
+                  <input
+                    type="text"
                     v-model="eiaProjectData.subdistrict"
                     class="form-input"
-                  >
-                    <option value="">ทุกแขวง/ตำบล</option>
-                    <option value="แขวง 1">แขวง 1</option>
-                    <option value="แขวง 2">แขวง 2</option>
-                  </select>
+                    list="subdistrict-list"
+                    placeholder="เลือกหรือพิมพ์ตำบล"
+                    :disabled="!eiaProjectData.district"
+                  />
+                  <datalist id="subdistrict-list">
+                    <option
+                      v-for="subdistrict in availableSubdistricts"
+                      :key="subdistrict"
+                      :value="subdistrict"
+                    />
+                  </datalist>
                 </div>
               </div>
 
@@ -882,16 +957,16 @@
         <!-- List Section -->
         <div class="list-section" style="margin-top: 20px; color: #ffffff">
           <h3 @click="isListOpen = !isListOpen" style="cursor: pointer">
-            รายการโครงการ ({{ savedEiaProjects.length }})
+            รายการโครงการ ({{ filteredEiaProjects.length }})
             <span v-if="isListOpen">▲</span>
             <span v-else>▼</span>
           </h3>
 
           <transition name="fade">
             <div v-show="isListOpen">
-              <div v-if="savedEiaProjects.length > 0" class="land-list">
+              <div v-if="filteredEiaProjects.length > 0" class="land-list">
                 <div
-                  v-for="project in savedEiaProjects"
+                  v-for="project in filteredEiaProjects"
                   :key="project.id"
                   class="land-item"
                   @click="editEiaProject(project)"
@@ -1044,8 +1119,9 @@
         </button>
       </div>
 
-      <!-- Filters Panel -->
+      <!-- Filters Panel for Land Mode -->
       <div
+        v-if="currentMode !== 'eia'"
         class="filters-panel"
         v-show="showFilters"
         style="position: fixed; top: 160px; right: 80px; z-index: 2100"
@@ -1188,6 +1264,233 @@
             ใช้ตัวกรอง
           </button>
           <button class="btn btn-secondary" @click="resetFilters">ล้าง</button>
+        </div>
+      </div>
+
+      <!-- Filters Panel for EIA Mode -->
+      <div
+        ref="eiaFilterPanel"
+        v-if="currentMode === 'eia'"
+        class="filters-panel"
+        v-show="showFilters"
+        :style="{
+          position: 'fixed',
+          top: eiaFilterPanelY + 'px',
+          left: eiaFilterPanelX + 'px',
+          zIndex: 2100,
+          cursor: isDraggingEiaFilter ? 'grabbing' : 'grab'
+        }"
+        @mousedown="startDragEiaFilter"
+      >
+        <div class="panel-header" style="cursor: grab">
+          <h3>ตัวกรอง EIA</h3>
+          <button @click="showFilters = false" class="close-btn">×</button>
+        </div>
+
+        <!-- มูลค่าโครงการ (ล้านบาท) -->
+        <div class="filter-group">
+          <label>มูลค่าโครงการ (ล้านบาท)</label>
+          <div class="price-range" style="display: flex; gap: 10px">
+            <input
+              type="text"
+              :value="formatNumber(eiaFilters.projectValueMin)"
+              @input="
+                eiaFilters.projectValueMin = unformatNumber($event.target.value)
+              "
+              placeholder="ต่ำสุด"
+              class="price-input"
+              style="width: 50%"
+            />
+            <input
+              type="text"
+              :value="formatNumber(eiaFilters.projectValueMax)"
+              @input="
+                eiaFilters.projectValueMax = unformatNumber($event.target.value)
+              "
+              placeholder="สูงสุด"
+              class="price-input"
+              style="width: 50%"
+            />
+          </div>
+        </div>
+
+        <!-- ขนาดที่ดิน (ไร่) -->
+        <div class="filter-group">
+          <label>ขนาดที่ดิน (ไร่)</label>
+          <div class="price-range" style="display: flex; gap: 10px">
+            <input
+              type="text"
+              :value="formatNumber(eiaFilters.landSizeRaiMin)"
+              @input="
+                eiaFilters.landSizeRaiMin = unformatNumber($event.target.value)
+              "
+              placeholder="ต่ำสุด"
+              class="price-input"
+              style="width: 50%"
+            />
+            <input
+              type="text"
+              :value="formatNumber(eiaFilters.landSizeRaiMax)"
+              @input="
+                eiaFilters.landSizeRaiMax = unformatNumber($event.target.value)
+              "
+              placeholder="สูงสุด"
+              class="price-input"
+              style="width: 50%"
+            />
+          </div>
+        </div>
+
+        <!-- พื้นที่ใช้สอย (ตร.ม.) -->
+        <div class="filter-group">
+          <label>พื้นที่ใช้สอย (ตร.ม.)</label>
+          <div class="price-range" style="display: flex; gap: 10px">
+            <input
+              type="text"
+              :value="formatNumber(eiaFilters.usableAreaMin)"
+              @input="
+                eiaFilters.usableAreaMin = unformatNumber($event.target.value)
+              "
+              placeholder="ต่ำสุด"
+              class="price-input"
+              style="width: 50%"
+            />
+            <input
+              type="text"
+              :value="formatNumber(eiaFilters.usableAreaMax)"
+              @input="
+                eiaFilters.usableAreaMax = unformatNumber($event.target.value)
+              "
+              placeholder="สูงสุด"
+              class="price-input"
+              style="width: 50%"
+            />
+          </div>
+        </div>
+
+        <!-- ภูมิภาค -->
+        <div class="filter-group">
+          <label>ภูมิภาค</label>
+          <select v-model="eiaFilters.region" class="form-select">
+            <option value="">ทุกภาค</option>
+            <option value="กรุงเทพและปริมณฑล">กรุงเทพและปริมณฑล</option>
+            <option value="ภาคกลาง">ภาคกลาง</option>
+            <option value="ภาคเหนือ">ภาคเหนือ</option>
+            <option value="ภาคตะวันออกเฉียงเหนือ">ภาคตะวันออกเฉียงเหนือ</option>
+            <option value="ภาคตะวันออก">ภาคตะวันออก</option>
+            <option value="ภาคใต้">ภาคใต้</option>
+          </select>
+        </div>
+
+        <!-- จังหวัด -->
+        <div class="filter-group">
+          <label>จังหวัด</label>
+          <input
+            list="filter-provinces"
+            v-model="eiaFilters.province"
+            class="form-input"
+            placeholder="เลือกจังหวัด"
+          />
+          <datalist id="filter-provinces">
+            <option value="กระบี่">กระบี่</option>
+            <option value="กรุงเทพมหานคร">กรุงเทพมหานคร</option>
+            <option value="กาญจนบุรี">กาญจนบุรี</option>
+            <option value="กาฬสินธุ์">กาฬสินธุ์</option>
+            <option value="กำแพงเพชร">กำแพงเพชร</option>
+            <option value="ขอนแก่น">ขอนแก่น</option>
+            <option value="จันทบุรี">จันทบุรี</option>
+            <option value="ฉะเชิงเทรา">ฉะเชิงเทรา</option>
+            <option value="ชลบุรี">ชลบุรี</option>
+            <option value="ชัยนาท">ชัยนาท</option>
+            <option value="ชัยภูมิ">ชัยภูมิ</option>
+            <option value="ชุมพร">ชุมพร</option>
+            <option value="เชียงราย">เชียงราย</option>
+            <option value="เชียงใหม่">เชียงใหม่</option>
+            <option value="ตรัง">ตรัง</option>
+            <option value="ตราด">ตราด</option>
+            <option value="ตาก">ตาก</option>
+            <option value="นครนายก">นครนายก</option>
+            <option value="นครปฐม">นครปฐม</option>
+            <option value="นครพนม">นครพนม</option>
+            <option value="นครราชสีมา">นครราชสีมา</option>
+            <option value="นครศรีธรรมราช">นครศรีธรรมราช</option>
+            <option value="นครสวรรค์">นครสวรรค์</option>
+            <option value="นนทบุรี">นนทบุรี</option>
+            <option value="นราธิวาส">นราธิวาส</option>
+            <option value="น่าน">น่าน</option>
+            <option value="บึงกาฬ">บึงกาฬ</option>
+            <option value="บุรีรัมย์">บุรีรัมย์</option>
+            <option value="ปทุมธานี">ปทุมธานี</option>
+            <option value="ประจวบคีรีขันธ์">ประจวบคีรีขันธ์</option>
+            <option value="ปราจีนบุรี">ปราจีนบุรี</option>
+            <option value="ปัตตานี">ปัตตานี</option>
+            <option value="พระนครศรีอยุธยา">พระนครศรีอยุธยา</option>
+            <option value="พังงา">พังงา</option>
+            <option value="พัทลุง">พัทลุง</option>
+            <option value="พิจิตร">พิจิตร</option>
+            <option value="พิษณุโลก">พิษณุโลก</option>
+            <option value="เพชรบุรี">เพชรบุรี</option>
+            <option value="เพชรบูรณ์">เพชรบูรณ์</option>
+            <option value="แพร่">แพร่</option>
+            <option value="พะเยา">พะเยา</option>
+            <option value="ภูเก็ต">ภูเก็ต</option>
+            <option value="มหาสารคาม">มหาสารคาม</option>
+            <option value="มุกดาหาร">มุกดาหาร</option>
+            <option value="แม่ฮ่องสอน">แม่ฮ่องสอน</option>
+            <option value="ยโสธร">ยโสธร</option>
+            <option value="ยะลา">ยะลา</option>
+            <option value="ร้อยเอ็ด">ร้อยเอ็ด</option>
+            <option value="ระนอง">ระนอง</option>
+            <option value="ระยอง">ระยอง</option>
+            <option value="ราชบุรี">ราชบุรี</option>
+            <option value="ลพบุรี">ลพบุรี</option>
+            <option value="ลำปาง">ลำปาง</option>
+            <option value="ลำพูน">ลำพูน</option>
+            <option value="เลย">เลย</option>
+            <option value="ศรีสะเกษ">ศรีสะเกษ</option>
+            <option value="สกลนคร">สกลนคร</option>
+            <option value="สงขลา">สงขลา</option>
+            <option value="สตูล">สตูล</option>
+            <option value="สมุทรปราการ">สมุทรปราการ</option>
+            <option value="สมุทรสงคราม">สมุทรสงคราม</option>
+            <option value="สมุทรสาคร">สมุทรสาคร</option>
+            <option value="สระแก้ว">สระแก้ว</option>
+            <option value="สระบุรี">สระบุรี</option>
+            <option value="สิงห์บุรี">สิงห์บุรี</option>
+            <option value="สุโขทัย">สุโขทัย</option>
+            <option value="สุพรรณบุรี">สุพรรณบุรี</option>
+            <option value="สุราษฎร์ธานี">สุราษฎร์ธานี</option>
+            <option value="สุรินทร์">สุรินทร์</option>
+            <option value="หนองคาย">หนองคาย</option>
+            <option value="หนองบัวลำภู">หนองบัวลำภู</option>
+            <option value="อ่างทอง">อ่างทอง</option>
+            <option value="อุดรธานี">อุดรธานี</option>
+            <option value="อุทัยธานี">อุทัยธานี</option>
+            <option value="อุตรดิตถ์">อุตรดิตถ์</option>
+            <option value="อุบลราชธานี">อุบลราชธานี</option>
+            <option value="อำนาจเจริญ">อำนาจเจริญ</option>
+          </datalist>
+        </div>
+
+        <!-- สถานะโครงการ -->
+        <div class="filter-group">
+          <label>สถานภาพโครงการ</label>
+          <select v-model="eiaFilters.projectStatus" class="form-select">
+            <option value="">ทั้งหมด</option>
+            <option value="ยังไม่เริ่ม">ยังไม่เริ่ม</option>
+            <option value="อยู่ระหว่างขอEIA">ขอEIA</option>
+            <option value="ได้EIAรอก่อสร้าง">รอก่อสร้าง</option>
+            <option value="เริ่มก่อสร้าง">เริ่มก่อสร้าง</option>
+            <option value="ดำเนินการแล้วเสร็จ">แล้วเสร็จ</option>
+          </select>
+        </div>
+
+        <!-- สถานะพิจารณา -->
+
+        <div class="flex gap-2">
+          <button class="btn btn-secondary" @click="resetEiaFilters">
+            ล้างตัวกรอง
+          </button>
         </div>
       </div>
 
@@ -1445,25 +1748,46 @@
 
   <!-- Floating dashboard: centered at bottom of viewport -->
   <div id="floating-dashboard" class="floating-dashboard" aria-hidden="false">
-    <div class="dashboard land-plots">
-      <div class="dashboard-label">ที่ดินทั้งหมด</div>
-      <span class="dashboard-number"
-        >{{ dashboard.plots.toLocaleString() }}
-      </span>
-      <span class="highlight">ประกาศ</span>
-    </div>
-    <div class="dashboard area">
-      <div class="dashboard-label">จำนวนรวม</div>
-      <span class="dashboard-number">{{ fmt(dashboard.areaRai) }} </span>
-      <span class="highlight"> ไร่</span>
-    </div>
-    <div class="dashboard value">
-      <div class="dashboard-label">มูลค่าที่ดินรวม</div>
-      <span class="dashboard-number">{{
-        fmt(dashboard.totalValueMillion)
-      }}</span>
-      <span class="highlight">ล้านบาท</span>
-    </div>
+    <!-- แสดงสถิติที่ดินเมื่ออยู่ในโหมดที่ดิน -->
+    <template v-if="currentMode !== 'eia'">
+      <div class="dashboard land-plots">
+        <div class="dashboard-label">ที่ดินทั้งหมด</div>
+        <span class="dashboard-number"
+          >{{ dashboard.plots.toLocaleString() }}
+        </span>
+        <span class="highlight">ประกาศ</span>
+      </div>
+      <div class="dashboard area">
+        <div class="dashboard-label">จำนวนรวม</div>
+        <span class="dashboard-number">{{ fmt(dashboard.areaRai) }} </span>
+        <span class="highlight"> ไร่</span>
+      </div>
+      <div class="dashboard value">
+        <div class="dashboard-label">มูลค่าที่ดินรวม</div>
+        <span class="dashboard-number">{{
+          fmt(dashboard.totalValueMillion)
+        }}</span>
+        <span class="highlight">ล้านบาท</span>
+      </div>
+    </template>
+
+    <!-- แสดงสถิติ EIA เมื่ออยู่ในโหมด EIA -->
+    <template v-else>
+      <div class="dashboard land-plots">
+        <div class="dashboard-label">โครงการทั้งหมด</div>
+        <span class="dashboard-number"
+          >{{ eiaStatistics.totalProjects.toLocaleString() }}
+        </span>
+        <span class="highlight">โครงการ</span>
+      </div>
+      <div class="dashboard value">
+        <div class="dashboard-label">มูลค่าโครงการรวม</div>
+        <span class="dashboard-number">{{
+          eiaStatistics.totalValueFormatted
+        }}</span>
+        <span class="highlight">ล้านบาท</span>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1938,7 +2262,7 @@
 }
 
 .link-button {
-  color: #8b008b !important;
+  color: #39ff14 !important;
   text-decoration: underline !important;
   cursor: pointer;
 }

@@ -70,7 +70,7 @@
 }
 
 .ldmap_placeholder .ldmap_frame .ldmap_popup_detail {
-  min-width: 250px !important;
+  min-width: 300px !important;
   max-height: fit-content !important;
 }
 

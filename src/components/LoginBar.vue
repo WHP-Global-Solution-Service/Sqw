@@ -124,7 +124,7 @@ const props = defineProps({
 const displayMode = computed(() => {
   if (!props.currentMode) return "";
   if (props.currentMode === "sale") return "ซื้อขายที่ดิน";
-  if (props.currentMode === "eia") return "Future project & Eia Map Base";
+  if (props.currentMode === "eia") return "Future project & EIA Map Base";
   return "ขายฝากที่ดิน";
 });
 

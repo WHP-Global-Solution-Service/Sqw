@@ -269,7 +269,7 @@
           ขายฝากที่ดิน
         </button>
         <button class="mode-btn eia" @click="selectMode('eia')">
-          Future project & Eia Map Base
+          Future project & EIA Map Base
         </button>
       </div>
     </div>
@@ -609,7 +609,7 @@
         <!-- Form Section -->
         <div class="form-section">
           <h3 @click="isFormOpen = !isFormOpen" style="cursor: pointer">
-            ข้อมูลโครงการ EIA
+            Future Project Data
             <span v-if="isFormOpen">▲</span>
             <span v-else>▼</span>
           </h3>
@@ -620,7 +620,7 @@
 
               <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
-                  <label>ถึงวันที่</label>
+                  <label>วันสิ้นสุดโครงการ</label>
                   <input
                     type="date"
                     v-model="eiaProjectData.ownerNameTo"
@@ -639,7 +639,7 @@
               </div>
               <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
-                  <label>มูลค่าโครงการ (ล้านบาท)</label>
+                  <label>Project Value (M)</label>
                   <input
                     type="text"
                     :value="
@@ -647,7 +647,17 @@
                     "
                     @input="handleProjectValueInput"
                     class="form-input"
-                    placeholder="มูลค่าโครงการ"
+                    placeholder="Project Value"
+                  />
+                </div>
+                <div class="form-group" style="flex: 1">
+                  <label>เงินลงทุน (M)</label>
+                  <input
+                    type="text"
+                    :value="formatInvestmentInput(eiaProjectData.investment)"
+                    @input="handleInvestmentInput"
+                    class="form-input"
+                    placeholder="Investment"
                   />
                 </div>
               </div>
@@ -748,7 +758,7 @@
                 <div class="form-group" style="flex: 1">
                   <label>ภูมิภาค</label>
                   <select v-model="eiaProjectData.region" class="form-input">
-                    <option value="">ทุกภาค</option>
+                    <option value="">ภาค</option>
                     <option value="กรุงเทพและปริมณฑล">กรุงเทพและปริมณฑล</option>
                     <option value="ภาคกลาง">ภาคกลาง</option>
                     <option value="ภาคเหนือ">ภาคเหนือ</option>
@@ -761,7 +771,7 @@
                 </div>
                 <!--menu เลือกจังหวัด-->
                 <div class="form-group" style="flex: 1">
-                  <label>ทุกจังหวัด</label>
+                  <label>จังหวัด</label>
                   <input
                     list="provinces"
                     v-model="eiaProjectData.province"
@@ -850,10 +860,10 @@
                 </div>
               </div>
 
-              <!-- แถวที่ 8: ทุกเขต/อำเภอ + ทุกแขวง/ตำบล -->
+              <!-- แถวที่ 8: เขต/อำเภอ + แขวง/ตำบล -->
               <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
-                  <label>ทุกเขต/อำเภอ</label>
+                  <label>เขต/อำเภอ</label>
                   <input
                     type="text"
                     v-model="eiaProjectData.district"
@@ -871,7 +881,7 @@
                   </datalist>
                 </div>
                 <div class="form-group" style="flex: 1">
-                  <label>ทุกแขวง/ตำบล</label>
+                  <label>แขวง/ตำบล</label>
                   <input
                     type="text"
                     v-model="eiaProjectData.subdistrict"
@@ -892,10 +902,21 @@
 
               <!-- Link เอกสาร -->
               <div class="form-group">
-                <label>Link (PDF/GDrive)</label>
+                <label>Link เอกสาร EIA</label>
                 <input
                   type="text"
                   v-model="eiaProjectData.projectLink"
+                  class="form-input"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <!-- Link เอกสาร ช่องที่ 2 -->
+              <div class="form-group">
+                <label>Link ข่าวสาร/ข้อมูล</label>
+                <input
+                  type="text"
+                  v-model="eiaProjectData.projectLink2"
                   class="form-input"
                   placeholder="https://..."
                 />
@@ -1278,7 +1299,7 @@
           top: eiaFilterPanelY + 'px',
           left: eiaFilterPanelX + 'px',
           zIndex: 2100,
-          cursor: isDraggingEiaFilter ? 'grabbing' : 'grab'
+          cursor: isDraggingEiaFilter ? 'grabbing' : 'grab',
         }"
         @mousedown="startDragEiaFilter"
       >
@@ -1289,7 +1310,7 @@
 
         <!-- มูลค่าโครงการ (ล้านบาท) -->
         <div class="filter-group">
-          <label>มูลค่าโครงการ (ล้านบาท)</label>
+          <label>Project Value (ล้านบาท)</label>
           <div class="price-range" style="display: flex; gap: 10px">
             <input
               type="text"
@@ -1372,7 +1393,7 @@
         <div class="filter-group">
           <label>ภูมิภาค</label>
           <select v-model="eiaFilters.region" class="form-select">
-            <option value="">ทุกภาค</option>
+            <option value="">ภาค</option>
             <option value="กรุงเทพและปริมณฑล">กรุงเทพและปริมณฑล</option>
             <option value="ภาคกลาง">ภาคกลาง</option>
             <option value="ภาคเหนือ">ภาคเหนือ</option>
@@ -1488,6 +1509,9 @@
         <!-- สถานะพิจารณา -->
 
         <div class="flex gap-2">
+          <button class="btn btn-primary" @click="applyEiaFilters">
+            ใช้ตัวกรอง
+          </button>
           <button class="btn btn-secondary" @click="resetEiaFilters">
             ล้างตัวกรอง
           </button>
@@ -1732,7 +1756,7 @@
       style="position: fixed; top: 160px; right: 80px; z-index: 2100"
     >
       <div class="panel-header">
-        <h3>วาดพื้นที่ EIA</h3>
+        <h3>วาดขอบเขต Project</h3>
         <button @click="showDrawMenu = false" class="close-btn">×</button>
       </div>
 
@@ -1781,7 +1805,7 @@
         <span class="highlight">โครงการ</span>
       </div>
       <div class="dashboard value">
-        <div class="dashboard-label">มูลค่าโครงการรวม</div>
+        <div class="dashboard-label">Project Value Total</div>
         <span class="dashboard-number">{{
           eiaStatistics.totalValueFormatted
         }}</span>

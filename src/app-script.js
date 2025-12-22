@@ -80,6 +80,7 @@ export default {
         district: '',
         subdistrict: '',
         projectLink: '',
+        projectLink2: '',
         lastUpdated: null,
       },
       editingEiaId: null,
@@ -101,6 +102,7 @@ export default {
         province: '',
         projectStatus: '',
       },
+      hasAppliedEiaFilters: false, // flag ว่าเคยกด filter EIA หรือไม่
 
       // EIA Filter Panel Draggable
       eiaFilterPanelX: window.innerWidth - 400,
@@ -162,6 +164,7 @@ export default {
 
       savedLands: [],
       filteredLands: [],
+      hasAppliedFilters: false, // flag ว่าเคยกด filter หรือไม่
 
       currentLocation: {
         lat: 13.7563,
@@ -670,13 +673,13 @@ export default {
 
   methods: {
 
-    // Format project value with comma and 2 decimals
+    // Format project value with comma (no decimals)
     formatProjectValue(value) {
-      if (!value || isNaN(value)) return '0.00';
+      if (!value || isNaN(value)) return '0';
       const num = Number(value);
       return num.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
       });
     },
 
@@ -699,6 +702,27 @@ export default {
         this.eiaProjectData.projectValue = num;
       } else if (cleaned === '' || cleaned === '.') {
         this.eiaProjectData.projectValue = '';
+      }
+    },
+
+    // Format investment input for display with comma (while typing)
+    formatInvestmentInput(value) {
+      if (!value && value !== 0) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle investment input (remove commas and store raw number)
+    handleInvestmentInput(event) {
+      const input = event.target.value;
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.investment = num;
+      } else if (cleaned === '' || cleaned === '.') {
+        this.eiaProjectData.investment = '';
       }
     },
 
@@ -1840,6 +1864,11 @@ export default {
               .replace(/</g, "&lt;")
               .replace(/>/g, "&gt;");
 
+        const escOrNA = (v) => {
+          if (v == null || v === "" || (Array.isArray(v) && v.length === 0)) return 'N/A';
+          return esc(v);
+        };
+
         const displayDate = (() => {
           try {
             if (!project.lastUpdated) return '-';
@@ -1868,6 +1897,8 @@ export default {
 
         // Format project value
         const formattedValue = project.projectValue ? this.formatProjectValue(project.projectValue) : '';
+        // Format investment
+        const formattedInvestment = project.investment ? this.formatProjectValue(project.investment) : '';
 
         // Format usable area with comma
         const formattedUsableArea = project.usableArea ? Number(project.usableArea).toLocaleString('en-US') : '';
@@ -1879,75 +1910,55 @@ export default {
                 <circle cx="12" cy="12" r="11" stroke="#666" stroke-width="1" fill="#fff" />
                 <path d="M11.25 7.5h1.5v1.5h-1.5V7.5zM12 10.5c-.414 0-.75.336-.75.75v3c0 .414.336.75.75.75s.75-.336.75-.75v-3c0-.414-.336-.75-.75-.75z" fill="#666" />
               </svg>
-              <div>ข้อมูลวันที่ ${esc(displayDate)}</div>
+              <div>ข้อมูลวันที่ ${escOrNA(displayDate)}</div>
             </div>
             <div style="padding:6px 14px 0 14px;">
-              <div style="font-weight:800;font-size:18px;line-height:1.2;color:#000000">${esc(project.projectName || 'โครงการ EIA')}</div>
+              <div style="font-weight:800;font-size:22px;line-height:1.3;color:#ffffff;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);padding:12px 16px;border-radius:8px;box-shadow:0 2px 8px rgba(102,126,234,0.3);">${escOrNA(project.projectName)}</div>
             </div>
-
-            ${project.projectValue ? `
+            
             <div style="padding:8px 14px;display:flex;justify-content:space-between;align-items:center;">
-              <div style="font-weight:600;color:#666;">มูลค่าโครงการ</div>
-              <div style="font-size:20px;font-weight:800;color:#000;">${formattedValue} <span style="font-size:14px">ล้านบาท</span></div>
+              <div style="font-weight:600;color:#666;">Project Value</div>
+              <div style="font-size:20px;font-weight:800;color:#000;">${project.projectValue ? formattedValue : 'N/A'} <span style="font-size:14px">ล้านบาท</span></div>
             </div>
-            ` : ''}
 
-            ${project.projectImage ? `
+            <div style="padding:8px 14px;display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-weight:600;color:#666;">เงินลงทุน</div>
+              <div style="font-size:16px;font-weight:700;color:#000;">${project.investment ? formattedInvestment : 'N/A'} <span style="font-size:12px">ล้านบาท</span></div>
+            </div>
+
             <div style="padding:0 14px 8px 14px;">
-              <img src="${esc(project.projectImage)}" alt="Project" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;" />
+              ${project.projectImage ? (`<img src="${esc(project.projectImage)}" alt="Project" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;" />`) : `<div style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;background:#f3f4f6;color:#777;display:flex;align-items:center;justify-content:center;padding:24px;">N/A</div>`}
             </div>
-            ` : ''}
 
-            ${(landSize || project.usableArea) ? `
             <div style="padding:0 14px 8px 14px;display:flex;gap:10px;">
-              ${landSize ? `
               <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px;text-align:center;">
                 <div style="font-size:11px;color:#666;margin-bottom:4px;">ขนาดที่ดิน</div>
-                <div style="font-weight:800;font-size:16px;color:#111;">${esc(landSize)}<br/><span style="font-size:11px;font-weight:400;">ไร่</span></div>
+                <div style="font-weight:800;font-size:16px;color:#111;">${landSize || 'N/A'}<br/><span style="font-size:11px;font-weight:400;">ไร่</span></div>
               </div>
-              ` : ''}
-              ${project.usableArea ? `
               <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px;text-align:center;">
                 <div style="font-size:11px;color:#666;margin-bottom:4px;">พื้นที่ใช้สอย</div>
-                <div style="font-weight:800;font-size:16px;color:#111;">${formattedUsableArea}<br/><span style="font-size:11px;font-weight:400;">ตร.ม.</span></div>
+                <div style="font-weight:800;font-size:16px;color:#111;">${project.usableArea ? formattedUsableArea : 'N/A'}<br/><span style="font-size:11px;font-weight:400;">ตร.ม.</span></div>
               </div>
-              ` : ''}
             </div>
-            ` : ''}
 
-            ${project.projectStatus ? `
             <div style="padding:0 14px 8px 14px;">
-              <div style="text-align:center;background:#f0f0f0;padding:8px;border-radius:6px;font-size:11px;font-weight:600;color:#666;">สถานภาพโครงการ<br/><span style="color:#000;font-size:12px;">${esc(project.projectStatus)}</span></div>
+              <div style="text-align:center;background:#f0f0f0;padding:8px;border-radius:6px;font-size:11px;font-weight:600;color:#666;">สถานภาพโครงการ<br/><span style="color:#000;font-size:12px;">${escOrNA(project.projectStatus)}</span></div>
             </div>
-            ` : ''}
 
             <hr style="border:none;border-top:1px solid #eee;margin:8px 0;">
 
             <div style="padding:0 14px 12px 14px; font-size:13px; color:#333;">
-              ${project.projectStartDate ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">วันที่เริ่มโครงการ:</div><div>${esc(project.projectStartDate)}</div></div>` : ''}
-              ${project.ownerNameTo ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ถึงวันที่:</div><div>${esc(project.ownerNameTo)}</div></div>` : ''}
-              ${project.reportNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่รายงาน:</div><div>${esc(project.reportNumber)}</div></div>` : ''}
-              ${project.engineerNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่เอ็นจิเนีย:</div><div>${esc(project.engineerNumber)}</div></div>` : ''}
-              ${project.approvalDate ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">วันที่อนุมัติ:</div><div>${esc(project.approvalDate)}</div></div>` : ''}
-              ${project.approvalNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เลขที่หนังสือ:</div><div>${esc(project.approvalNumber)}</div></div>` : ''}
-              ${project.projectType ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ประเภทโครงการ:</div><div>${esc(project.projectType)}</div></div>` : ''}
-              ${project.projectSubType ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ประเภทรอง:</div><div>${esc(project.projectSubType)}</div></div>` : ''}
-              ${project.reviewStatus ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">สถานะพิจารณา:</div><div>${esc(project.reviewStatus)}</div></div>` : ''}
-              ${project.projectStatus ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">สถานะโครงการ:</div><div>${esc(project.projectStatus)}</div></div>` : ''}
-              ${project.region ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ภาค:</div><div>${esc(project.region)}</div></div>` : ''}
-              ${project.province ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">จังหวัด:</div><div>${esc(project.province)}</div></div>` : ''}
-              ${project.district ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เขต/อำเภอ:</div><div>${esc(project.district)}</div></div>` : ''}
-              ${project.subdistrict ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">แขวง/ตำบล:</div><div>${esc(project.subdistrict)}</div></div>` : ''}
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">วันสิ้นสุดโครงการ:</div><div>${escOrNA(project.ownerNameTo)}</div></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">ภาค:</div><div>${escOrNA(project.region)}</div></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">จังหวัด:</div><div>${escOrNA(project.province)}</div></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">เขต/อำเภอ:</div><div>${escOrNA(project.district)}</div></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="font-weight:600">แขวง/ตำบล:</div><div>${escOrNA(project.subdistrict)}</div></div>
             </div>
 
-            ${project.projectLink ? `
-            <div style="padding:0 14px 12px 14px;">
-              <a href="${esc(project.projectLink)}" target="_blank" rel="noopener noreferrer" 
-                style="display:inline-block;background:${this.eiaColor};color:#000;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;">
-                ดูเอกสาร
-              </a>
+            <div style="padding:0 14px 12px 14px;display:flex;gap:8px;">
+              ${project.projectLink ? (`<a href="${esc(project.projectLink)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${this.eiaColor};color:#000;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;flex:1;">Link เอกสาร EIA</a>`) : `<div style="flex:1;background:#fafafa;border-radius:8px;padding:10px;text-align:center;color:#777;">N/A</div>`}
+              ${project.projectLink2 ? (`<a href="${esc(project.projectLink2)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${this.eiaColor};color:#000;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;flex:1;">Link ข่าวสาร/ข้อมูล</a>`) : `<div style="flex:1;background:#fafafa;border-radius:8px;padding:10px;text-align:center;color:#777;">N/A</div>`}
             </div>
-            ` : ''}
           </div>
         `.trim();
 
@@ -2206,11 +2217,9 @@ export default {
       catch (e) { console.debug("renderLandsOnMap: remove overlays failed:", e); }
       this.landOverlays = [];
 
-      // ใช้ผลกรองถ้ามี ไม่งั้นใช้ทั้งหมด
-      const lands =
-        (this.filteredLands && this.filteredLands.length
-          ? this.filteredLands
-          : this.savedLands) || [];
+      // ถ้าเคยกด filter แล้ว ให้ใช้ filteredLands (แม้จะว่างก็แสดงหมุดตามนั้น)
+      // ถ้ายังไม่เคยกด filter ให้แสดงทั้งหมดจาก savedLands
+      const lands = this.hasAppliedFilters ? this.filteredLands : this.savedLands;
 
       // ปักหมุด + วาด polygon ของทุกแปลง
       lands.forEach((land) => {
@@ -2613,6 +2622,31 @@ export default {
 
         // Click handler (defensive)
         try {
+          // Overlay click handler: ensure EIA marker clicks open the EIA form/popup
+          try {
+            this.map.Event.bind("overlayClick", (overlay) => {
+              try {
+                if (!overlay) return;
+                if (overlay.__isEiaProject) {
+                  if (!this.drawMode && !this.floodMode) {
+                    try { this.currentMode = 'eia'; this.isFormOpen = true; } catch (_) { }
+                    this.editEiaProject(overlay.__eiaProject);
+                    this.selectedEiaForInfo = overlay.__eiaProject;
+                    this.showEiaInfo = true;
+                    try {
+                      if (overlay.__eiaProject && overlay.__eiaProject.location && this.map) {
+                        this.map.location({ lon: overlay.__eiaProject.location.lon, lat: overlay.__eiaProject.location.lat }, true);
+                      }
+                    } catch (_) { }
+                  }
+                  return;
+                }
+              } catch (e) {
+                console.error('overlayClick (initMap) error:', e);
+              }
+            });
+          } catch (e) { console.warn('binding overlayClick in initMap failed', e); }
+
           this.map.Event.bind("click", (ev) => {
             try {
               // If a UI panel is being dragged, ignore map clicks
@@ -2708,6 +2742,11 @@ export default {
 
     addMarkersToMap() {
       if (!this.map) return;
+
+      // ถ้าไม่มี markers array หรือว่าง ให้ข้ามการทำงาน
+      if (!this.markers || !Array.isArray(this.markers) || this.markers.length === 0) {
+        return;
+      }
 
       // เคลียร์หมุดเดิม
       this.clearAllMarkers();
@@ -3290,6 +3329,7 @@ export default {
         this.eiaProjectData = {
           projectName: '',
           projectLink: '',
+          investment: '',
           tempLocation: this.drawPoints[0],
           geometry: {
             type: "Polygon",
@@ -3335,6 +3375,7 @@ export default {
         projectStartDate: (data.projectStartDate || "").trim(),
         ownerNameTo: (data.ownerNameTo || "").trim(),
         projectName: (data.projectName || "").trim(),
+        investment: data.investment || "",
         projectValue: data.projectValue || "",
         projectImage: data.projectImage || "",
         projectImageName: data.projectImageName || "",
@@ -3355,6 +3396,7 @@ export default {
         district: (data.district || "").trim(),
         subdistrict: (data.subdistrict || "").trim(),
         projectLink: (data.projectLink || "").trim(),
+        projectLink2: (data.projectLink2 || "").trim(),
         location: markerLoc,
         geometry: geometry,
         lastUpdated: new Date().toISOString(),
@@ -3424,8 +3466,13 @@ export default {
       });
       this.eiaOverlays = [];
 
+      // ถ้าเคยกด filter แล้ว ใช้ filteredEiaProjects (แม้จะว่างก็แสดงตามนั้น)
+      // ถ้ายังไม่เคยกด filter ให้แสดงทั้งหมดจาก savedEiaProjects
+      const projects = this.hasAppliedEiaFilters ? this.filteredEiaProjects : this.savedEiaProjects;
+      console.log('  - Using projects:', projects.length, '(hasAppliedEiaFilters:', this.hasAppliedEiaFilters, ')');
+
       // Render new overlays
-      this.savedEiaProjects.forEach((project, idx) => {
+      projects.forEach((project, idx) => {
         console.log(`  Project ${idx + 1}:`, {
           name: project.projectName,
           hasGeometry: !!project.geometry,
@@ -3506,6 +3553,13 @@ export default {
     onEiaProjectClick(project) {
       console.log('EIA Project clicked:', project);
 
+      // Ensure app is in EIA mode and the left form is open,
+      // then load project data into the form.
+      try {
+        this.currentMode = 'eia';
+        this.isFormOpen = true;
+      } catch (e) { /* ignore */ }
+
       // แสดงข้อมูลในช่องซ้าย (ฟอร์ม)
       this.editEiaProject(project);
 
@@ -3530,6 +3584,7 @@ export default {
       this.eiaProjectData = {
         projectName: '',
         projectLink: '',
+        investment: '',
         tempLocation: location // เก็บตำแหน่งชั่วคราว
       };
       this.editingEiaId = null;
@@ -3578,6 +3633,7 @@ export default {
         projectStartDate: this.eiaProjectData.projectStartDate,
         ownerNameTo: this.eiaProjectData.ownerNameTo,
         projectName: this.eiaProjectData.projectName,
+        investment: this.eiaProjectData.investment,
         projectValue: this.eiaProjectData.projectValue,
         projectImage: this.eiaProjectData.projectImage,
         projectImageName: this.eiaProjectData.projectImageName,
@@ -3598,6 +3654,7 @@ export default {
         district: this.eiaProjectData.district,
         subdistrict: this.eiaProjectData.subdistrict,
         projectLink: this.eiaProjectData.projectLink,
+        projectLink2: this.eiaProjectData.projectLink2,
         tempLocation: markerLoc,
         geometry: geometry
       });
@@ -3609,6 +3666,7 @@ export default {
         projectStartDate: project.projectStartDate || '',
         ownerNameTo: project.ownerNameTo || '',
         projectName: project.projectName || '',
+        investment: project.investment || '',
         projectValue: project.projectValue || '',
         projectImage: project.projectImage || '',
         projectImageName: project.projectImageName || '',
@@ -3629,6 +3687,7 @@ export default {
         district: project.district || '',
         subdistrict: project.subdistrict || '',
         projectLink: project.projectLink || '',
+        projectLink2: project.projectLink2 || '',
         lastUpdated: project.lastUpdated || null,
         tempLocation: project.location,
         geometry: project.geometry
@@ -3656,6 +3715,7 @@ export default {
         projectStartDate: '',
         ownerNameTo: '',
         projectName: '',
+        investment: '',
         projectValue: '',
         projectImage: '',
         projectImageName: '',
@@ -3676,6 +3736,7 @@ export default {
         district: '',
         subdistrict: '',
         projectLink: '',
+        projectLink2: '',
         lastUpdated: null,
       };
       this.editingEiaId = null;
@@ -3684,6 +3745,7 @@ export default {
     applyFilters() {
       console.log(this.filters);
       this.showFilters = false;
+      this.hasAppliedFilters = true; // บันทึกว่าได้กด filter แล้ว
       const {
         roadWidth, areaMin, areaMax, areaMinRai, areaMaxRai, priceMin, totalPriceMin, totalPriceMax, priceMax, frontMin, frontMax,
       } = this.filters;
@@ -3760,6 +3822,12 @@ export default {
       this.addMarkersToMap(); // รีเรนเดอร์หมุดตามเงื่อนไขใหม่
       this.renderLandsOnMap();
       this.applyKmlFiltersUsingUI();
+    },
+
+    applyEiaFilters() {
+      console.log('Applying EIA filters:', this.eiaFilters);
+      this.hasAppliedEiaFilters = true; // บันทึกว่าได้กด filter แล้ว
+      this.renderEiaProjectsOnMap();
     },
 
     applyKmlFiltersUsingUI() {
@@ -3843,6 +3911,7 @@ export default {
         frontMin: "", frontMax: "",
       };
       this.filteredLands = [];
+      this.hasAppliedFilters = false; // รีเซ็ต flag
       this.addMarkersToMap();
       this.renderLandsOnMap();
     },
@@ -3859,6 +3928,8 @@ export default {
         province: '',
         projectStatus: '',
       };
+      this.hasAppliedEiaFilters = false; // รีเซ็ต flag
+      this.renderEiaProjectsOnMap();
     },
 
     startDragEiaFilter(event) {

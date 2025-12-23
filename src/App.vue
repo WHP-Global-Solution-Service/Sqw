@@ -5,6 +5,16 @@
       <RouterView v-if="false" />
     </header>
 
+    <!-- Global loading overlay for details -->
+    <div v-if="isLoadingDetails" class="global-loading-overlay">
+      <div class="global-loading-box">
+        <div class="spinner"></div>
+        <div style="margin-top: 8px; font-weight: 600; color: #fff">
+          กำลังโหลดข้อมูลที่ดิน...
+        </div>
+      </div>
+    </div>
+
     <!-- Mode disclaimer modal (centered) -->
     <div v-if="showModeDisclaimerModal" class="mode-disclaimer-overlay">
       <div class="mode-disclaimer-box">
@@ -1904,6 +1914,26 @@
   font-weight: 700;
   line-height: 1.45;
   color: #b91c1c;
+}
+
+/* Global loading overlay used while loading full details */
+.global-loading-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2300;
+}
+.global-loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 22px;
+  border-radius: 10px;
 }
 
 .chat-subheader {

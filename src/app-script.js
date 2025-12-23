@@ -112,6 +112,7 @@ export default {
       dragStartY: 0,
 
       currentMode: null,
+      isLoadingDetails: false,
       n_mode: "กรุณาเลือกโหมด", // 'sale' | 'pledge'
       raiModel: "",
       nganModel: "",
@@ -1297,11 +1298,45 @@ export default {
       return null;
     },
 
-    showFullDetails(land) {
+    async showFullDetails(land) {
       try {
+        // แสดงหน้าโหลดก่อน แล้ว preload รูปทั้งหมด (ถ้ามี) ก่อนแสดง modal
+        this.isLoadingDetails = true;
+        this.showFullDetailsModal = false;
+
+        // helper: preload one image (data URL or url)
+        const preloadImage = (src, timeout = 5000) => new Promise((resolve) => {
+          if (!src) return resolve();
+          const img = new Image();
+          let done = false;
+          const t = setTimeout(() => { if (!done) { done = true; resolve(); } }, timeout);
+          img.onload = () => { if (!done) { done = true; clearTimeout(t); resolve(); } };
+          img.onerror = () => { if (!done) { done = true; clearTimeout(t); resolve(); } };
+          img.src = src;
+        });
+
+        if (land && Array.isArray(land.images) && land.images.length) {
+          // preload all images but don't wait forever
+          const loaders = land.images.map((i) => preloadImage(i.data));
+          try {
+            await Promise.race([
+              Promise.all(loaders),
+              new Promise((res) => setTimeout(res, 6000)),
+            ]);
+          } catch (e) {
+            // ignore preload errors
+            console.warn('Image preload warning', e);
+          }
+        }
+
+        // เมื่อ preload เสร็จ (หรือ timeout) ให้แสดงรายละเอียด
         this.fullDetailsLand = land;
         this.showFullDetailsModal = true;
-      } catch (e) { console.error('showFullDetails error', e); }
+      } catch (e) {
+        console.error('showFullDetails error', e);
+      } finally {
+        this.isLoadingDetails = false;
+      }
     },
 
     clearSelectedLand() {
@@ -1352,51 +1387,122 @@ export default {
       event.target.value = '';
     },
 
-    // Compress และ resize รูปให้เล็กที่สุด
+    // Compress และ resize รูปให้เล็กที่สุด (พยายามให้ไม่เกิน 1MB)
     async compressImage(file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) {
+      const targetBytes = 1024 * 1024; // 1MB
+
+      function canvasToBlob(canvas, type, q) {
+        return new Promise((res) => canvas.toBlob(res, type, q));
+      }
+
+      function blobToDataURL(blob) {
+        return new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = rej;
+          r.readAsDataURL(blob);
+        });
+      }
+
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const img = new Image();
-          img.onload = () => {
-            // คำนวณขนาดใหม่โดยรักษา aspect ratio
-            let width = img.width;
-            let height = img.height;
+          img.onload = async () => {
+            try {
+              // คำนวณขนาดเริ่มต้นโดยรักษา aspect ratio
+              let width = img.width;
+              let height = img.height;
 
-            if (width > height) {
-              if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width);
-                width = maxWidth;
+              if (width > height) {
+                if (width > maxWidth) {
+                  height = Math.round((height * maxWidth) / width);
+                  width = maxWidth;
+                }
+              } else {
+                if (height > maxHeight) {
+                  width = Math.round((width * maxHeight) / height);
+                  height = maxHeight;
+                }
               }
-            } else {
-              if (height > maxHeight) {
-                width = Math.round((width * maxHeight) / height);
-                height = maxHeight;
+
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+
+              // Loop: ลด quality ก่อน ถ้ายังไม่พอ ลดขนาดมิติแล้วลองอีกครั้ง
+              let outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+              let q = quality;
+              let lastBlob = null;
+              let attempts = 0;
+
+              // Limits to avoid infinite loop
+              const minQuality = 0.12;
+              const minWidth = 200;
+              const reductionFactor = 0.85;
+
+              while (attempts < 20) {
+                attempts++;
+
+                canvas.width = Math.max(1, Math.round(width));
+                canvas.height = Math.max(1, Math.round(height));
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // If PNG and very large, try converting to JPEG to save size (lossy)
+                let tryType = outputType;
+                if (outputType === 'image/png' && attempts > 2) tryType = 'image/jpeg';
+
+                // await blob from canvas
+                // Note: toBlob ignores quality for PNG
+                const blob = await canvasToBlob(canvas, tryType, q);
+                if (!blob) break;
+
+                lastBlob = blob;
+                // If within target, return dataURL
+                if (blob.size <= targetBytes) {
+                  const dataUrl = await blobToDataURL(blob);
+                  console.log(`Image compressed to ${(blob.size / 1024).toFixed(2)}KB after ${attempts} attempts`);
+                  resolve(dataUrl);
+                  return;
+                }
+
+                // Not small enough: try reduce quality first (only for JPEG)
+                if (tryType === 'image/jpeg' && q > minQuality) {
+                  q = Math.max(minQuality, q * reductionFactor);
+                  // try again with same dimensions
+                  continue;
+                }
+
+                // If quality is already low or PNG, downscale dimensions and retry
+                if (width > minWidth && height > minWidth) {
+                  width = Math.round(width * reductionFactor);
+                  height = Math.round(height * reductionFactor);
+                  // reset quality to a reasonable mid value when downscaling
+                  q = Math.min(0.9, Math.max(minQuality, q));
+                  continue;
+                }
+
+                // If we've exhausted attempts and still too big, break and return best-effort (lastBlob)
+                break;
               }
+
+              // Fallback: return last blob as dataURL (even if >1MB)
+              if (lastBlob) {
+                const dataUrl = await blobToDataURL(lastBlob);
+                console.warn('compressImage: reached max attempts, returning best-effort image');
+                resolve(dataUrl);
+                return;
+              }
+
+              reject(new Error('compressImage: failed to generate image'));
+            } catch (err) {
+              reject(err);
             }
-
-            // สร้าง canvas และ resize
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // Convert เป็น JPEG (เล็กกว่า PNG) ยกเว้นไฟล์ที่ต้องการ transparency
-            const outputFormat = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-            const compressedBase64 = canvas.toDataURL(outputFormat, quality);
-
-            // คำนวณขนาดไฟล์
-            const originalSize = (file.size / 1024).toFixed(2);
-            const compressedSize = (compressedBase64.length * 0.75 / 1024).toFixed(2); // base64 ~1.33x larger
-            console.log(`Image compressed: ${originalSize}KB → ${compressedSize}KB (${((compressedSize / originalSize) * 100).toFixed(1)}%)`);
-
-            resolve(compressedBase64);
           };
-          img.onerror = reject;
+          img.onerror = (ev) => reject(new Error('Image load error'));
           img.src = e.target.result;
         };
-        reader.onerror = reject;
+        reader.onerror = (e) => reject(e);
         reader.readAsDataURL(file);
       });
     },
@@ -1956,8 +2062,8 @@ export default {
             </div>
 
             <div style="padding:0 14px 12px 14px;display:flex;gap:8px;">
-              ${project.projectLink ? (`<a href="${esc(project.projectLink)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${this.eiaColor};color:#000;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;flex:1;">Link เอกสาร EIA</a>`) : `<div style="flex:1;background:#fafafa;border-radius:8px;padding:10px;text-align:center;color:#777;">N/A</div>`}
               ${project.projectLink2 ? (`<a href="${esc(project.projectLink2)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${this.eiaColor};color:#000;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;flex:1;">Link ข่าวสาร/ข้อมูล</a>`) : `<div style="flex:1;background:#fafafa;border-radius:8px;padding:10px;text-align:center;color:#777;">N/A</div>`}
+              ${project.projectLink ? (`<a href="${esc(project.projectLink)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${this.eiaColor};color:#000;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;text-align:center;flex:1;">Link เอกสาร EIA</a>`) : `<div style="flex:1;background:#fafafa;border-radius:8px;padding:10px;text-align:center;color:#777;">N/A</div>`}
             </div>
           </div>
         `.trim();

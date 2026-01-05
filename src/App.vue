@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :class="{ 'mode-sale': currentMode === 'sale' }">
     <header class="app-header">
       <LoginBar :current-mode="currentMode" @change-mode="backToModeSelect" />
       <RouterView v-if="false" />
@@ -11,6 +11,16 @@
         <div class="spinner"></div>
         <div style="margin-top: 8px; font-weight: 600; color: #fff">
           กำลังโหลดข้อมูลที่ดิน...
+        </div>
+      </div>
+    </div>
+
+    <!-- Global loading overlay for projects (shown during login) -->
+    <div v-if="isLoadingProjects" class="global-loading-overlay">
+      <div class="global-loading-box">
+        <div class="spinner"></div>
+        <div style="margin-top: 8px; font-weight: 600; color: #fff">
+          กำลังโหลดข้อมูลโครงการ... กรุณารอสักครู่
         </div>
       </div>
     </div>
@@ -215,8 +225,10 @@
 
         <div style="text-align: right; margin-top: 12px">
           <button
+            type="button"
             class="btn btn-secondary"
             @click="showFullDetailsModal = false"
+            @touchstart.prevent="showFullDetailsModal = false"
           >
             ปิด
           </button>
@@ -231,7 +243,12 @@
       @click="closeImageViewer"
     >
       <div class="image-viewer-container" @click.stop>
-        <button class="image-viewer-close" @click="closeImageViewer">
+        <button
+          type="button"
+          class="image-viewer-close"
+          @click="closeImageViewer"
+          @touchstart.prevent="closeImageViewer"
+        >
           &times;
         </button>
 
@@ -281,6 +298,54 @@
         <button class="mode-btn eia" @click="selectMode('eia')">
           Future project & EIA Map Base
         </button>
+      </div>
+    </div>
+
+    <!-- Login modal shown after selecting a mode when not authenticated -->
+    <div v-if="showLoginModalAfterMode" class="mode-disclaimer-overlay">
+      <div
+        class="mode-select fullscreen"
+        style="max-width: 500px; text-align: left"
+      >
+        <div style="text-align: center; margin-top: 8px">
+          <h1 style="color: black">Login with Gmail</h1>
+          <h1 style="color: black">เพื่อเข้าใช้งาน (Free)</h1>
+          <button
+            class="google-btn"
+            @click="loginWithGoogleFromModal"
+            style="
+              border: 1px solid black;
+              border-radius: 20px;
+              padding: 10px;
+              margin-top: 20px;
+            "
+          >
+            <svg
+              class="google-icon"
+              viewBox="0 0 24 24"
+              width="80px"
+              height="80px"
+              aria-hidden
+            >
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -531,8 +596,10 @@
                       @click="openImageViewer(landData.images, idx)"
                     />
                     <button
+                      type="button"
                       class="remove-image-btn"
                       @click="removeImage(idx)"
+                      @touchstart.prevent="removeImage(idx)"
                       title="ลบรูป"
                     >
                       ×
@@ -541,13 +608,32 @@
                 </div>
               </div>
 
-              <button
-                style="margin-top: 30px"
-                class="btn btn-primary btn-full"
-                @click="saveLandData"
-              >
-                บันทึกและปิด
-              </button>
+              <div style="display: flex; gap: 10px; margin-top: 30px">
+                <button
+                  class="btn btn-primary btn-full"
+                  @click="saveLandData"
+                  style="flex: 1"
+                >
+                  บันทึกและปิด
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-danger"
+                  @click="deleteLandItem(editingLandId)"
+                  :disabled="!editingLandId"
+                  style="
+                    padding: 10px 14px;
+                    background: #e11d48;
+                    color: #fff;
+                    border: 0;
+                    border-radius: 6px;
+                  "
+                  title="ลบแปลงนี้"
+                >
+                  ลบแปลง
+                </button>
+              </div>
             </div>
           </transition>
 
@@ -1022,6 +1108,7 @@
         <div id="map" style="width: 100%; height: 100%"></div>
       </aside>
     </main>
+
     <section class="right-panel">
       <!-- Map Control Buttons -->
       <div class="map-controls">
@@ -1080,8 +1167,12 @@
         <button
           class="control-btn p2p-btn"
           :class="{ 'has-notification': hasNewMessage }"
-          @click="toggleP2P"
-          title="P2P Chat"
+          @click="toggleChat"
+          :title="
+            hasNewMessage
+              ? unreadFromUsers.join(', ') + ' ส่งข้อความมา'
+              : 'P2P Chat'
+          "
         >
           <svg
             viewBox="0 0 24 24"
@@ -1130,7 +1221,14 @@
       >
         <div class="panel-header">
           <h3>ค้นหา</h3>
-          <button @click="showSearch = false" class="close-btn">×</button>
+          <button
+            type="button"
+            @click="showSearch = false"
+            @touchstart.prevent="showSearch = false"
+            class="close-btn"
+          >
+            ×
+          </button>
         </div>
         <input
           type="text"
@@ -1153,13 +1251,19 @@
       <!-- Filters Panel for Land Mode -->
       <div
         v-if="currentMode !== 'eia'"
-        class="filters-panel"
+        class="filters-panel filters-panel-land"
         v-show="showFilters"
-        style="position: fixed; top: 160px; right: 80px; z-index: 2100"
       >
         <div class="panel-header">
           <h3>ตัวกรอง</h3>
-          <button @click="showFilters = false" class="close-btn">×</button>
+          <button
+            type="button"
+            @click="showFilters = false"
+            @touchstart.prevent="showFilters = false"
+            class="close-btn"
+          >
+            ×
+          </button>
         </div>
         <div class="filter-group">
           <label>ขนาดถนน</label>
@@ -1302,20 +1406,25 @@
       <div
         ref="eiaFilterPanel"
         v-if="currentMode === 'eia'"
-        class="filters-panel"
+        class="filters-panel filters-panel-eia"
         v-show="showFilters"
         :style="{
           position: 'fixed',
-          top: eiaFilterPanelY + 'px',
-          left: eiaFilterPanelX + 'px',
           zIndex: 2100,
           cursor: isDraggingEiaFilter ? 'grabbing' : 'grab',
         }"
         @mousedown="startDragEiaFilter"
       >
         <div class="panel-header" style="cursor: grab">
-          <h3>ตัวกรอง EIA</h3>
-          <button @click="showFilters = false" class="close-btn">×</button>
+          <h3>ตัวกรอง Project</h3>
+          <button
+            type="button"
+            @click="showFilters = false"
+            @touchstart.prevent="showFilters = false"
+            class="close-btn"
+          >
+            ×
+          </button>
         </div>
 
         <!-- มูลค่าโครงการ (ล้านบาท) -->
@@ -1532,11 +1641,18 @@
       <div
         class="layers-panel"
         v-show="showLayers"
-        style="position: fixed; z-index: 2100; top: 160px; right: 80px"
+        style="position: fixed; z-index: 2100"
       >
         <div class="panel-header">
           <h3>Layers</h3>
-          <button @click="showLayers = false" class="close-btn">×</button>
+          <button
+            type="button"
+            @click="showLayers = false"
+            @touchstart.prevent="showLayers = false"
+            class="close-btn"
+          >
+            ×
+          </button>
         </div>
 
         <div class="layer-section">
@@ -1593,7 +1709,7 @@
       <!-- <div class="layers-panel" v-show="showLayers">
           <div class="panel-header">
             <h3>Layers</h3>
-            <button @click="showLayers = false" class="close-btn">×</button>
+            <button type="button" @click="showLayers = false" @touchstart.prevent="showLayers = false" class="close-btn">×</button>
           </div>
           <div
             class="layer-item"
@@ -1612,7 +1728,7 @@
       <div
         class="chat-popup"
         v-show="showChat"
-        style="position: fixed; bottom: 8px; right: 8px; z-index: 2100"
+        style="position: fixed; inset: auto 10px 10px auto; z-index: 9999"
       >
         <div class="chat-header">
           <div class="chat-title">
@@ -1624,7 +1740,14 @@
               }}
             </div>
           </div>
-          <button @click="showChat = false" class="close-btn">×</button>
+          <button
+            type="button"
+            @click="showChat = false"
+            @touchstart.prevent="showChat = false"
+            class="close-btn"
+          >
+            ×
+          </button>
         </div>
 
         <!-- ตั้งชื่อ (ครั้งแรก) -->
@@ -1641,19 +1764,76 @@
           </button>
         </div>
 
-        <!-- โหมด รายชื่อ (rooms) -->
-        <div v-if="chatMode === 'rooms'" class="rooms-pane">
-          <div class="rooms-head">
-            <div class="rooms-title">คนออนไลน์ (คลิกเพื่อคุย):</div>
-            <span class="badge">{{ onlineUsers.length }}</span>
-          </div>
-
-          <div v-if="onlineUsers.length === 0" class="empty-state">
-            ยังไม่มีใครออนไลน์
-          </div>
-
-          <div v-else class="user-list">
+        <!-- โหมด รายชื่อ (rooms) - แบบ Messenger -->
+        <div v-if="chatMode === 'rooms'" class="rooms-pane messenger-style">
+          <!-- แท็บเลือก -->
+          <div class="messenger-tabs">
             <button
+              class="tab-btn"
+              :class="{ active: chatTabMode === 'recent' }"
+              @click="chatTabMode = 'recent'"
+            >
+              แชทล่าสุด
+              <span v-if="unreadCount > 0" class="tab-badge">{{
+                unreadCount
+              }}</span>
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: chatTabMode === 'online' }"
+              @click="chatTabMode = 'online'"
+            >
+              ออนไลน์
+              <span class="tab-badge">{{ onlineUsers.length }}</span>
+            </button>
+          </div>
+
+          <!-- รายการแชทล่าสุด (คนที่เคยคุย) -->
+          <div v-if="chatTabMode === 'recent'" class="chat-list">
+            <div v-if="chatRooms.length === 0" class="empty-state">
+              ยังไม่มีการสนทนา<br />
+              <small>คลิกแท็บ "ออนไลน์" เพื่อเริ่มคุย</small>
+            </div>
+            <div
+              v-else
+              v-for="room in chatRooms"
+              :key="room.roomId"
+              class="chat-room-item"
+              :class="{ unread: room.unreadCount > 0 }"
+              @click="openChatRoom(room)"
+            >
+              <div class="room-avatar">
+                {{ (room.otherName || "U").charAt(0).toUpperCase() }}
+              </div>
+              <div class="room-info">
+                <div class="room-name">{{ room.otherName }}</div>
+                <div class="room-preview">
+                  {{ room.lastText || "เริ่มการสนทนา..." }}
+                </div>
+              </div>
+              <div class="room-meta">
+                <div class="room-time">{{ formatTimeAgo(room.lastAt) }}</div>
+                <span v-if="room.unreadCount > 0" class="unread-badge">{{
+                  room.unreadCount
+                }}</span>
+              </div>
+              <button
+                class="delete-chat-btn"
+                @click.stop="confirmDeleteChat(room)"
+                title="ลบการสนทนา"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+
+          <!-- รายการคนออนไลน์ -->
+          <div v-else class="user-list">
+            <div v-if="onlineUsers.length === 0" class="empty-state">
+              ยังไม่มีใครออนไลน์
+            </div>
+            <button
+              v-else
               v-for="u in onlineUsers"
               :key="u.uid"
               class="user-pill"
@@ -1745,7 +1925,14 @@
     >
       <div class="panel-header">
         <h3>วาดพื้นที่</h3>
-        <button @click="showDrawMenu = false" class="close-btn">×</button>
+        <button
+          type="button"
+          @click="showDrawMenu = false"
+          @touchstart.prevent="showDrawMenu = false"
+          class="close-btn"
+        >
+          ×
+        </button>
       </div>
 
       <div style="display: flex; gap: 8px; padding: 12px">
@@ -1767,7 +1954,14 @@
     >
       <div class="panel-header">
         <h3>วาดขอบเขต Project</h3>
-        <button @click="showDrawMenu = false" class="close-btn">×</button>
+        <button
+          type="button"
+          @click="showDrawMenu = false"
+          @touchstart.prevent="showDrawMenu = false"
+          class="close-btn"
+        >
+          ×
+        </button>
       </div>
 
       <div style="display: flex; gap: 8px; padding: 12px">
@@ -1897,18 +2091,78 @@
   z-index: 2200;
 }
 .mode-disclaimer-box {
-  background: #fff;
-  color: #b91c1c;
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  color: #0b1220;
   padding: 20px 22px;
-  border-radius: 12px;
+  border-radius: 14px;
   width: 460px;
   max-width: 94%;
   text-align: center;
-  box-shadow: 0 12px 40px rgba(2, 6, 23, 0.65);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.18);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  transform-origin: center;
+  animation: pop-in 180ms ease-out;
 }
 .mode-disclaimer-icon {
   font-size: 46px;
   margin-bottom: 8px;
+}
+
+@keyframes pop-in {
+  from {
+    transform: scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Buttons used in modals */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: #f59e0b;
+  color: #fff;
+  border-color: rgba(0, 0, 0, 0.05);
+}
+.btn-primary:hover {
+  filter: brightness(0.98);
+}
+.btn-secondary {
+  background: #f3f4f6;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.04);
+}
+
+/* Login modal specific */
+.login-modal .form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e6e9ef;
+  box-sizing: border-box;
+}
+.mode-disclaimer-box .google-btn {
+  background: transparent;
+  border: 1px solid #e6e9ef;
+  color: #0b1220;
+  padding: 8px 12px;
+  border-radius: 8px;
 }
 .mode-disclaimer-text {
   font-weight: 700;

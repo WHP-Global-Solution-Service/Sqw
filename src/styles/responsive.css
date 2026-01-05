@@ -40,10 +40,28 @@
   }
 
   .search-panel,
-  .filters-panel,
   .layers-panel {
-    right: 60px;
-    width: 250px;
+    left: auto !important;
+    right: 60px !important;
+    width: 70vw !important;
+    top: 120px !important;
+  }
+
+  .filters-panel {
+    right: 70px;
+    width: 80vw;
+    top: 120px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+  }
+
+  .filters-panel-eia {
+    right: 70px !important;
+    width: calc(100vw - 140px) !important;
+    max-width: 350px !important;
+    max-height: calc(100vh - 140px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .dashboard-number {
@@ -69,6 +87,12 @@
     font-weight: 700;
     text-align: center;
     display: block;
+  }
+
+  .ldmap_placeholder .ldmap_frame .ldmap_popup_detail {
+    width: 300px !important;
+    min-width: 300px !important;
+    max-height: fit-content !important;
   }
 }
 
@@ -101,7 +125,6 @@
   .map-controls {
     right: 5px;
     top: auto;
-    bottom: 20px;
     transform: none;
     flex-direction: row;
     justify-content: center;
@@ -125,5 +148,49 @@
     left: 10px;
     width: auto;
     top: 10px;
+  }
+
+  .filters-panel {
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filters-panel-eia {
+    top: 120px !important;
+    left: 20px !important;
+    right: 60px !important;
+    width: calc(100vw - 80px) !important;
+    max-width: 100% !important;
+    max-height: calc(100vh - 220px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .layers-panel .slider {
+    height: 4px;
+    width: 100%;
+  }
+}
+@media (max-width: 455px) {
+  #map .ldmap_topleft {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  .ldmap_placeholder .ldmap_frame .ldmap_popup_detail {
+    min-width: 50vw !important;
+    max-height: fit-content !important;
+  }
+}
+@media (max-width: 450px) {
+  .ldmap_placeholder .ldmap_frame .ldmap_popup_detail {
+    min-width: 50vw !important;
+    max-height: fit-content !important;
+  }
+  .mode-indicator {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 }

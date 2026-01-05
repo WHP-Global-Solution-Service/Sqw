@@ -2,8 +2,8 @@
 .filters-panel,
 .layers-panel {
   position: absolute;
-  right: calc(50vw - 230px);
-  top: calc(50vw - 100px); /* moved down further to sit below navbar */
+  right: 80px;
+  top: 120px; /* moved down further to sit below navbar */
   width: 300px;
   background: rgba(6, 10, 15, 0.95); /* dark base */
   border-radius: 8px;

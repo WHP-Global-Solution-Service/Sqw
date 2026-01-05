@@ -93,9 +93,18 @@ export function onAuthChanged(cb) {
 
 export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: 'select_account'
+  });
+
+  // ใช้ popup สำหรับทุก device
   const cred = await signInWithPopup(auth, provider);
-  // แนะนำให้อัปเดต presence ทันทีด้าน UI หลัง login เสร็จ โดยเรียก updateOnlineStatus()
   return cred.user;
+}
+
+// ไม่จำเป็นต้องใช้ redirect แล้ว
+export async function checkRedirectResult() {
+  return null;
 }
 
 export async function loginWithEmail(email, password) {
@@ -162,7 +171,6 @@ export async function updateOnlineStatus(uid, payload = {}) {
       ...payload, // { name: "..." } เป็นต้น
     });
 
-    console.log('updateOnlineStatus: wrote presence for', uid, payload || {});
   } catch (e) {
     console.error('updateOnlineStatus failed for', uid, e);
     throw e;
@@ -184,7 +192,6 @@ export function subscribeOnlineUsers(cb) {
   const pRef = ref(db, "presence");
   return onValue(pRef, (snap) => {
     const obj = snap.val() || {};
-    try { console.log('subscribeOnlineUsers: presence snapshot keys=', Object.keys(obj || {}).length); } catch (err) { console.debug('subscribeOnlineUsers: keys log failed', err); }
     const now = Date.now();
     const STALE_MS = 60 * 1000; // ถ้าเงียบเกิน 60s ถือว่า stale
 
@@ -202,7 +209,7 @@ export function subscribeOnlineUsers(cb) {
       const fresh = last ? now - last < STALE_MS : false; // if unknown timestamp, don't assume fresh
       return u && u.online === true && fresh;
     });
-    try { console.log('subscribeOnlineUsers: online count=', list.length); } catch (err) { console.debug('subscribeOnlineUsers: count log failed', err); }
+
 
     cb(list);
   });
@@ -275,7 +282,7 @@ export async function sendChatMessage(text, fromUid, fromName = "", toUid) {
       console.warn('sendChatMessage: inbox update failed', e);
     }
 
-    console.log('sendChatMessage: pushed', { from: a, to: b, key: p1.key });
+
     return { ok: true, key: p1.key };
   } catch (e) {
     console.error('sendChatMessage failed', e, { from: a, to: b, payload });
@@ -385,12 +392,24 @@ export function subscribeP2PChatRooms(myUid, cb) {
       return;
     }
 
+    // ดึงชื่อจาก presence เพื่อให้แสดงชื่อจริงเสมอ
+    let presObj = {};
+    try {
+      const presSnap = await get(ref(db, `presence`));
+      presObj = presSnap.val() || {};
+    } catch (e) {
+      console.debug('Failed to fetch presence for names', e);
+    }
+
     const list = keys.map((otherUid) => {
       const v = obj[otherUid] || {};
+      const pres = presObj[otherUid] || {};
+      // ใช้ชื่อจาก presence ก่อน ถ้าไม่มีค่อยใช้จาก inbox
+      const realName = pres.name || v.otherName;
       return {
         roomId: `${myUid}_${otherUid}`,
         otherUid,
-        otherName: v.otherName || `User-${String(otherUid).slice(0, 6)}`,
+        otherName: realName || `User-${String(otherUid).slice(0, 6)}`,
         unreadCount: v.unreadCount || 0,
         lastText: v.lastText || "",
         lastAt: v.lastAt || 0,
@@ -400,6 +419,22 @@ export function subscribeP2PChatRooms(myUid, cb) {
     list.sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
     cb(list);
   });
+}
+
+// ลบการสนทนากับ user คนนั้นๆ (ลบจากฝั่งตัวเองเท่านั้น)
+export async function deleteChatRoom(myUid, otherUid) {
+  if (!myUid || !otherUid) throw new Error("deleteChatRoom: ต้องระบุ myUid และ otherUid");
+  try {
+    // ลบข้อความในห้องแชท (ฝั่งตัวเอง)
+    await remove(ref(db, `privateChats/${myUid}/${otherUid}`));
+    // ลบจาก inbox
+    await remove(ref(db, `users/${myUid}/inbox/${otherUid}`));
+    console.log('deleteChatRoom: deleted chat with', otherUid);
+    return { ok: true };
+  } catch (e) {
+    console.error('deleteChatRoom failed', e);
+    throw e;
+  }
 }
 
 // ========================

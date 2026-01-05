@@ -129,7 +129,6 @@ var kmlToLongdoMap = function (map, kml, options = {}) {
                 break
 
             default:
-                console.log(type + ' is not supported.')
                 break
         }
     }

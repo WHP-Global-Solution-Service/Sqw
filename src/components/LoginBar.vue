@@ -52,10 +52,10 @@
               type="password"
               placeholder="รหัสผ่าน"
             />
-            <button class="login-btn" @click="doLoginEmail">เข้าสู่ระบบ</button>
+            <button class="login-btn" @click="doLoginEmail">Login</button>
           </div>
           <div class="actions">
-            <button class="reg-btn" @click="doRegister">สมัคร</button>
+            <!-- <button class="reg-btn" @click="doRegister">สมัคร</button> -->
             <button
               class="google-btn"
               @click="doLoginGoogle"
@@ -100,7 +100,7 @@ import {
   onAuthChanged,
   loginWithGoogle,
   loginWithEmail,
-  registerWithEmail,
+  /* registerWithEmail, */
   logout as doSignOut,
   updateOnlineStatus,
   clearOnlineStatus,
@@ -179,7 +179,7 @@ async function doLoginEmail() {
     error.value = tidy(e);
   }
 }
-async function doRegister() {
+/* async function doRegister() {
   error.value = "";
   try {
     // derive a friendly display name from the email local-part if not provided
@@ -194,7 +194,7 @@ async function doRegister() {
   } catch (e) {
     error.value = tidy(e);
   }
-}
+} */
 async function doLogout() {
   error.value = "";
   try {
@@ -413,6 +413,7 @@ function tidy(e) {
   .login-input {
     padding: 6px 8px;
     font-size: 13px;
+    width: 20vw;
   }
   .brand-logo {
     font-size: 16px;

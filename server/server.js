@@ -247,7 +247,6 @@ module.exports = app;
 // Uncomment the code above when ready to enable server
 // ======================================================
 
-console.log('⚠️  Server is currently disabled. Application can run without server.');
-console.log('💡 To enable server, uncomment the code in server.js');
+
 
 module.exports = {};

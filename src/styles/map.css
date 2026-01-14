@@ -120,9 +120,9 @@
 }
 
 /* Minimal: hide Longdo base-map / tab control (small white tab bar)
-   Targets common class-name patterns for the tab/layer switcher shown
-   in the screenshot ("แผนที่", "ดาวเทียม"). This only hides the
-   control elements; map tiles and overlays are left untouched.
+  Targets common class-name patterns for the tab/layer switcher shown
+  in the screenshot ("แผนที่", "ดาวเทียม"). This only hides the
+  control elements; map tiles and overlays are left untouched.
 */
 #map .ldmap_tab,
 #map .ldmap_tabs,

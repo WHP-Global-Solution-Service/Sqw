@@ -19,6 +19,9 @@
       <div class="auth-area">
         <div v-if="user" class="user-block">
           <div class="user-pill">
+            <button class="contact-btn" @click="openContact" title="Contact us">
+              Contact us
+            </button>
             <div class="avatar">
               {{
                 (user.displayName || user.email || shortUid)
@@ -33,6 +36,7 @@
               <div class="user-sub">ออนไลน์</div>
             </div>
           </div>
+
           <button class="logout-btn" @click="doLogout" title="ออกจากระบบ">
             ออก
           </button>
@@ -130,7 +134,7 @@ const displayMode = computed(() => {
 
 // Emit สำหรับเปลี่ยนโหมด
 // eslint-disable-next-line no-undef
-const emit = defineEmits(["change-mode"]);
+const emit = defineEmits(["change-mode", "open-contact"]);
 
 function changeModeRequest() {
   emit("change-mode");
@@ -206,6 +210,15 @@ async function doLogout() {
 }
 function tidy(e) {
   return (e?.message || String(e)).replace("Firebase: ", "");
+}
+
+function openContact() {
+  try {
+    emit("open-contact");
+  } catch (e) {
+    // fallback: open a mailto link
+    window.open("mailto:info@sqw.example?subject=Contact%20Us", "_blank");
+  }
 }
 </script>
 
@@ -326,6 +339,20 @@ function tidy(e) {
   color: #111;
   cursor: pointer;
   transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.contact-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(90deg, #f59e0b, #d97706) !important;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.contact-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 .login-btn {
   background: #111;

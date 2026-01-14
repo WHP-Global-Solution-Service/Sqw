@@ -244,6 +244,8 @@ export default {
       showDisclaimer: true,
       // show a centered modal after selecting sale/pledge mode
       showModeDisclaimerModal: false,
+      // Show a sale-specific notice after acknowledging the general disclaimer
+      showSaleNoticePopup: false,
       // Coming soon modal for pledge mode
       showComingSoonModal: false,
       // Purchase / details modals (mock payment)
@@ -251,6 +253,8 @@ export default {
       purchaseLandPending: null, // land id being purchased
       showFullDetailsModal: false,
       fullDetailsLand: null,
+      // Contact modal
+      showContactModal: false,
       kmlState: null,        // ผลลัพธ์จาก kmlToLongdoMap (overlays, bound)
       kmlOverlays: [],       // สำรองไว้กรณีต้องจัดการเองเป็นรายชิ้น
       kmlFeatures: [],
@@ -278,11 +282,29 @@ export default {
       loginError: '',
       chillpayProcessing: false,
 
+      // Portrait mode for contact image
+      isPortrait: window.innerHeight > window.innerWidth,
+
+      // Pre-login gate (before mode selection)
+      isPreAuthenticated: false,
+      preLoginUser: '',
+      preLoginPass: '',
+      preLoginError: '',
+
     };
   },
 
   async mounted() {
     this.initMap();
+
+    // Check pre-authentication status
+    this.checkPreAuth();
+
+    // Portrait mode detection for contact image
+    this._handleResize = () => {
+      this.isPortrait = window.innerHeight > window.innerWidth;
+    };
+    window.addEventListener('resize', this._handleResize);
 
     // ตรวจสอบผลลัพธ์จาก Google redirect login (สำหรับมือถือ)
     try {
@@ -473,6 +495,11 @@ export default {
     if (this.landsUnsub) this.landsUnsub();
     if (this.floodsUnsub) this.floodsUnsub();
     if (this.eiaProjectsUnsub) this.eiaProjectsUnsub();
+    // cleanup portrait resize listener
+    if (this._handleResize) {
+      window.removeEventListener('resize', this._handleResize);
+      this._handleResize = null;
+    }
     // cleanup draw panel listeners
     try {
       if (this._positionDrawPanel) {
@@ -705,6 +732,33 @@ export default {
   },
 
   methods: {
+
+    // Pre-login verification (encoded credentials)
+    verifyPreLogin() {
+      // Encoded credentials (Base64 + reverse)
+      const _k = ['c3BldGUucm9nZXJz', 'MDgxODk1ODk1NA=='];
+      const _d = (s) => atob(s);
+      const _u = _d(_k[0]);
+      const _p = _d(_k[1]);
+
+      if (this.preLoginUser === _u && this.preLoginPass === _p) {
+        this.isPreAuthenticated = true;
+        this.preLoginError = '';
+        // Store in session
+        try { sessionStorage.setItem('_pa', '1'); } catch (e) { }
+      } else {
+        this.preLoginError = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+      }
+    },
+
+    // Check if pre-authenticated on mount
+    checkPreAuth() {
+      try {
+        if (sessionStorage.getItem('_pa') === '1') {
+          this.isPreAuthenticated = true;
+        }
+      } catch (e) { }
+    },
 
     // Format project value with comma (no decimals)
     formatProjectValue(value) {
@@ -953,14 +1007,40 @@ export default {
       }, 100);
     },
     acceptModeDisclaimer() {
-      // Dismiss the modal; user has acknowledged the notice
+      // Dismiss the general modal; user has acknowledged the notice
       this.showModeDisclaimerModal = false;
+      // If the selected mode is sale, show a sale-specific notice popup
+      try {
+        if (this.currentMode === 'sale') {
+          this.showSaleNoticePopup = true;
+        }
+      } catch (e) {
+        console.warn('acceptModeDisclaimer popup error', e);
+      }
     },
     closeComingSoon() {
       this.showComingSoonModal = false;
     },
     backToModeSelect() {
       this.currentMode = null;
+    },
+
+    // Open contact modal triggered from LoginBar
+    openContact() {
+      try {
+        this.showContactModal = true;
+      } catch (e) {
+        console.warn('openContact error', e);
+      }
+    },
+
+    // Image error handler for contact panel fallback (used in template)
+    onContactImageError(e) {
+      try {
+        if (e && e.target) e.target.src = '/img/bangkok_56.png';
+      } catch (err) {
+        console.warn('contact image fallback failed', err);
+      }
     },
 
     // --- Purchase / details (mock payment) ---
@@ -2125,11 +2205,11 @@ export default {
               </div>
             </div>
             ` : ''}
-
             <div style="padding:12px;display:flex;gap:8px;justify-content:space-between;">
               ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">แชทผู้ขาย</a>` : ''}
               <a href="javascript:void(0)" onclick="(window.requestPurchase||function(){} )('${jsLandId}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">คลิ้กเพื่อดูปลดล็อคข้อมูล</a>
             </div>
+            
           </div>
         `.trim();
 

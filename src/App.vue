@@ -1,7 +1,11 @@
 <template>
   <div id="app" :class="{ 'mode-sale': currentMode === 'sale' }">
     <header class="app-header">
-      <LoginBar :current-mode="currentMode" @change-mode="backToModeSelect" />
+      <LoginBar
+        :current-mode="currentMode"
+        @change-mode="backToModeSelect"
+        @open-contact="openContact"
+      />
       <RouterView v-if="false" />
     </header>
 
@@ -64,6 +68,49 @@
         </div>
         <div style="text-align: center; margin-top: 16px">
           <button class="btn btn-primary" @click="closeComingSoon">ตกลง</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sale-specific notice popup shown after acknowledging the general disclaimer -->
+    <div v-if="showSaleNoticePopup" class="mode-disclaimer-overlay">
+      <div class="mode-disclaimer-box" style="max-width: 520px">
+        <div class="mode-disclaimer-icon">🔔</div>
+        <div class="mode-disclaimer-text" style="text-align: center">
+          เตือน: ท่านกำลังเข้าสู่คำสั่งประมวลผลข้อมูลส่วนบุคคล
+          ซึ่งท่านมีหน้าที่และความรับผิดชอบในการเข้าถึงข้อมูลเหล่านี้ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล
+          พ.ศ. 2562 หากท่านไม่ประสงค์ที่จะดำเนินการต่อ กรุณากดเลือกคำสั่ง ตกลง
+        </div>
+        <div style="text-align: center; margin-top: 12px">
+          <button class="btn btn-primary" @click="showSaleNoticePopup = false">
+            ตกลง
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact modal: show image directly (use contact-panel.png, fallback to existing image) -->
+    <div v-if="showContactModal" class="mode-disclaimer-overlay">
+      <div
+        class="mode-disclaimer-contact-us"
+        style="max-width: 80vw; padding: 8px"
+      >
+        <img
+          :src="isPortrait ? '/img/contact-us-v.jpg' : '/img/contact-us.jpg'"
+          alt="Contact"
+          style="
+            width: 98%;
+            height: auto;
+            max-height: 80vh;
+            display: block;
+            border-radius: 8px;
+            object-fit: contain;
+          "
+        />
+        <div style="text-align: right; margin-top: 12px">
+          <button class="btn btn-secondary" @click="showContactModal = false">
+            ปิด
+          </button>
         </div>
       </div>
     </div>
@@ -283,8 +330,64 @@
 
     <div v-if="!currentMode" class="mode-select fullscreen1"></div>
     <div v-if="showModeDisclaimerModal" class="mode-select fullscreen1"></div>
+
+    <!-- Pre-login gate (before mode selection) -->
+    <div
+      v-if="!currentMode && !isPreAuthenticated"
+      class="mode-select fullscreen"
+    >
+      <h2>🔐 เข้าสู่ระบบ</h2>
+      <p>กรุณากรอกข้อมูลเพื่อเข้าใช้งาน</p>
+      <div style="max-width: 300px; margin: 0 auto">
+        <input
+          type="text"
+          v-model="preLoginUser"
+          placeholder="Username"
+          class="form-input"
+          style="
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+          "
+          @keyup.enter="verifyPreLogin"
+        />
+        <input
+          type="password"
+          v-model="preLoginPass"
+          placeholder="Password"
+          class="form-input"
+          style="
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+          "
+          @keyup.enter="verifyPreLogin"
+        />
+        <div
+          v-if="preLoginError"
+          style="color: #e11d48; margin-bottom: 10px; font-size: 14px"
+        >
+          {{ preLoginError }}
+        </div>
+        <button
+          class="btn btn-primary"
+          style="width: 100%; padding: 12px"
+          @click="verifyPreLogin"
+        >
+          เข้าสู่ระบบ
+        </button>
+      </div>
+    </div>
+
     <!-- หน้าเลือกโหมด (ขึ้นเมื่อเปิดครั้งแรก)-->
-    <div v-if="!currentMode" class="mode-select fullscreen">
+    <div
+      v-if="!currentMode && isPreAuthenticated"
+      class="mode-select fullscreen"
+    >
       <h2>เลือกโหมดการใช้งาน</h2>
       <p>กรุณาเลือกดูข้อมูลที่ดิน</p>
 
@@ -2095,8 +2198,8 @@
   color: #0b1220;
   padding: 20px 22px;
   border-radius: 14px;
-  width: 460px;
-  max-width: 94%;
+  width: 90%;
+  max-width: 540px;
   text-align: center;
   box-shadow: 0 10px 30px rgba(2, 6, 23, 0.18);
   border: 1px solid rgba(15, 23, 42, 0.06);
@@ -2106,6 +2209,19 @@
 .mode-disclaimer-icon {
   font-size: 46px;
   margin-bottom: 8px;
+}
+.mode-disclaimer-contact-us {
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  color: #0b1220;
+  padding: 20px 22px;
+  border-radius: 14px;
+  width: fit-content;
+  max-width: 94vw;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.18);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  transform-origin: center;
+  animation: pop-in 180ms ease-out;
 }
 
 @keyframes pop-in {

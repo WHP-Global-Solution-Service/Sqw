@@ -25,6 +25,13 @@ import {
   onDisconnect,
   remove,
 } from "firebase/database";
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
 
 // Ensure a minimal user profile exists so inbox/rooms list can surface
 export async function ensureUserProfile(uid, displayName = "") {
@@ -83,12 +90,38 @@ try {
 
 const auth = getAuth(app);
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 /* ========================
    AUTH
    ======================== */
 export function onAuthChanged(cb) {
   return onAuthStateChanged(auth, cb);
+}
+
+// Upload a Blob to Firebase Storage and return { url, path }
+export async function uploadBlob(blob, path) {
+  if (!blob || !path) throw new Error('uploadBlob: missing blob or path');
+  try {
+    const sref = storageRef(storage, path);
+    await uploadBytes(sref, blob);
+    const url = await getDownloadURL(sref);
+    return { url, path };
+  } catch (e) {
+    console.error('uploadBlob failed', e, { path });
+    throw e;
+  }
+}
+
+// Delete a file in storage by path
+export async function deleteStorageFile(path) {
+  if (!path) return;
+  try {
+    const sref = storageRef(storage, path);
+    await deleteObject(sref);
+  } catch (e) {
+    console.warn('deleteStorageFile failed', e, { path });
+  }
 }
 
 export async function loginWithGoogle() {
@@ -443,6 +476,9 @@ export async function deleteChatRoom(myUid, otherUid) {
 
 export async function saveLand(uid, landData) {
   if (!uid) throw new Error("saveLand: need uid");
+  try {
+    console.log('firebase.saveLand: called', { uid, id: landData?.id, size: landData?.size, hasGeometry: !!landData?.geometry, images: (landData?.images || []).length });
+  } catch (e) { /* ignore logging errors */ }
   const now = serverTimestamp();
 
   const payload = {

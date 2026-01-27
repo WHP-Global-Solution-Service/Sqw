@@ -19,7 +19,6 @@ import {
   deleteEiaProject,
   subscribeEiaProjectsAll,
   getUserProfile,
-  loginWithEmail,
   loginWithGoogle,
   checkRedirectResult,
 } from "./firebase";
@@ -118,7 +117,8 @@ export default {
 
       currentMode: null,
       isLoadingDetails: false,
-      n_mode: "กรุณาเลือกโหมด", // 'sale' | 'pledge'
+      // When entering EIA mode, show a one-time area selection modal
+      showSelectAreaModal: false,
       raiModel: "",
       nganModel: "",
       wahModel: "",
@@ -277,28 +277,16 @@ export default {
       // Login-after-mode state
       showLoginModalAfterMode: false,
       pendingMode: null,
-      loginEmail: '',
-      loginPassword: '',
-      loginError: '',
       chillpayProcessing: false,
 
       // Portrait mode for contact image
       isPortrait: window.innerHeight > window.innerWidth,
-
-      // Pre-login gate (before mode selection)
-      isPreAuthenticated: false,
-      preLoginUser: '',
-      preLoginPass: '',
-      preLoginError: '',
 
     };
   },
 
   async mounted() {
     this.initMap();
-
-    // Check pre-authentication status
-    this.checkPreAuth();
 
     // Portrait mode detection for contact image
     this._handleResize = () => {
@@ -733,33 +721,6 @@ export default {
 
   methods: {
 
-    // Pre-login verification (encoded credentials)
-    verifyPreLogin() {
-      // Encoded credentials (Base64 + reverse)
-      const _k = ['c3BldGUucm9nZXJz', 'MDgxODk1ODk1NA=='];
-      const _d = (s) => atob(s);
-      const _u = _d(_k[0]);
-      const _p = _d(_k[1]);
-
-      if (this.preLoginUser === _u && this.preLoginPass === _p) {
-        this.isPreAuthenticated = true;
-        this.preLoginError = '';
-        // Store in session
-        try { sessionStorage.setItem('_pa', '1'); } catch (e) { }
-      } else {
-        this.preLoginError = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
-      }
-    },
-
-    // Check if pre-authenticated on mount
-    checkPreAuth() {
-      try {
-        if (sessionStorage.getItem('_pa') === '1') {
-          this.isPreAuthenticated = true;
-        }
-      } catch (e) { }
-    },
-
     // Format project value with comma (no decimals)
     formatProjectValue(value) {
       if (!value || isNaN(value)) return '0';
@@ -993,7 +954,8 @@ export default {
       // Show the centered disclaimer modal after mode selection
       this.showModeDisclaimerModal = true;
 
-      this.n_mode = mode;
+      // If entering EIA mode, show the select-area modal
+      this.showSelectAreaModal = (mode === 'eia');
 
       // Refresh map overlays based on mode
       setTimeout(() => {
@@ -1111,29 +1073,7 @@ export default {
     },
 
     // --- Login modal handlers (shown when selecting mode) ---
-    async loginSubmit() {
-      this.loginError = '';
-      try {
-        if (!this.loginEmail || !this.loginPassword) {
-          this.loginError = 'กรุณากรอกอีเมลและรหัสผ่าน';
-          return;
-        }
-        await loginWithEmail(this.loginEmail, this.loginPassword);
-        // successful login: finalize pending mode
-        const mode = this.pendingMode || null;
-        this.pendingMode = null;
-        this.showLoginModalAfterMode = false;
-        this.loginEmail = '';
-        this.loginPassword = '';
-        this.loginError = '';
-        if (mode) this.finalizeModeSelection(mode);
-      } catch (e) {
-        this.loginError = (e?.message || String(e)).replace('Firebase: ', '');
-      }
-    },
-
     async loginWithGoogleFromModal() {
-      this.loginError = '';
       try {
         const user = await loginWithGoogle();
 
@@ -1145,27 +1085,11 @@ export default {
         }
       } catch (e) {
         console.error('Google login error:', e);
-        const errorMsg = (e?.message || String(e)).replace('Firebase: ', '');
-
-        // แสดง error ที่เข้าใจง่ายกว่า
-        if (e.code === 'auth/popup-closed-by-user') {
-          this.loginError = 'ยกเลิกการเข้าสู่ระบบ';
-        } else if (e.code === 'auth/popup-blocked') {
-          this.loginError = 'Popup ถูกบล็อก กรุณาอนุญาต Popup สำหรับเว็บนี้';
-        } else if (e.code === 'auth/cancelled-popup-request') {
-          this.loginError = '';
-        } else {
-          this.loginError = errorMsg;
+        // Handle errors silently or show alert for blocked popups
+        if (e.code === 'auth/popup-blocked') {
+          alert('Popup ถูกบล็อก กรุณาอนุญาต Popup สำหรับเว็บนี้');
         }
       }
-    },
-
-    cancelLoginModal() {
-      this.pendingMode = null;
-      this.showLoginModalAfterMode = false;
-      this.loginEmail = '';
-      this.loginPassword = '';
-      this.loginError = '';
     },
 
     async processChillPayPayment(land) {
@@ -3323,6 +3247,8 @@ export default {
         );
         this.currentLocation = { lat: 13.7563, lon: 100.5234 };
         this.map.zoom(12, true);
+        // close the select-area modal if open
+        try { this.showSelectAreaModal = false; } catch (e) { }
       }
     },
 
@@ -4134,7 +4060,10 @@ export default {
 
 
     async saveLandData() {
+      console.log('saveLandData: entry', { currentUserId: this.currentUserId, owner: this.landData.owner, agent: this.landData.agent, drawPointsLen: this.drawPoints.length });
+
       if (!(this.landData.owner?.trim() || this.landData.agent?.trim())) {
+        console.log('saveLandData: validation failed - missing owner/agent');
         alert("กรุณากรอกชื่อเจ้าของ หรือ ชื่อนายหน้า อย่างใดอย่างหนึ่ง");
         return;
       }
@@ -4179,10 +4108,15 @@ export default {
 
 
       try {
-        if (!this.currentUserId) { alert("ยังไม่ได้เข้าสู่ระบบ (เปิด anonymous ได้)"); return; }
+        if (!this.currentUserId) {
+          console.log('saveLandData: abort - no currentUserId');
+          alert("ยังไม่ได้เข้าสู่ระบบ (เปิด anonymous ได้)");
+          return;
+        }
 
-
-        await saveLand(this.currentUserId, payload);
+        console.log('saveLandData: calling saveLand', { uid: this.currentUserId, payloadSummary: { size: payload.size, images: (payload.images || []).length, hasGeometry: !!payload.geometry, id: payload.id } });
+        const savedId = await saveLand(this.currentUserId, payload);
+        console.log('saveLandData: saveLand resolved', { savedId });
         this.landData = {
           size: "",
           width: "",
@@ -4282,6 +4216,9 @@ export default {
       } catch (e) {
         console.debug("[SEARCH] centerTo error:", e);
       }
+
+      // close select-area modal if open (called from area selector)
+      try { this.showSelectAreaModal = false; } catch (e) { }
 
       /* try {
         if (this.myMarker) this.map.Overlays.remove(this.myMarker);

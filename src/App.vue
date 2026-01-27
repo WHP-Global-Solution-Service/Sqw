@@ -6,7 +6,6 @@
         @change-mode="backToModeSelect"
         @open-contact="openContact"
       />
-      <RouterView v-if="false" />
     </header>
 
     <!-- Global loading overlay for details -->
@@ -202,7 +201,7 @@
             <div>
               {{
                 formatPrice(
-                  fullDetailsLand?.pricePerSqw || fullDetailsLand?.price
+                  fullDetailsLand?.pricePerSqw || fullDetailsLand?.price,
                 )
               }}
               บ.
@@ -331,63 +330,8 @@
     <div v-if="!currentMode" class="mode-select fullscreen1"></div>
     <div v-if="showModeDisclaimerModal" class="mode-select fullscreen1"></div>
 
-    <!-- Pre-login gate (before mode selection) -->
-    <div
-      v-if="!currentMode && !isPreAuthenticated"
-      class="mode-select fullscreen"
-    >
-      <h2>🔐 เข้าสู่ระบบ</h2>
-      <p>กรุณากรอกข้อมูลเพื่อเข้าใช้งาน</p>
-      <div style="max-width: 300px; margin: 0 auto">
-        <input
-          type="text"
-          v-model="preLoginUser"
-          placeholder="Username"
-          class="form-input"
-          style="
-            margin-bottom: 10px;
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-          "
-          @keyup.enter="verifyPreLogin"
-        />
-        <input
-          type="password"
-          v-model="preLoginPass"
-          placeholder="Password"
-          class="form-input"
-          style="
-            margin-bottom: 10px;
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-          "
-          @keyup.enter="verifyPreLogin"
-        />
-        <div
-          v-if="preLoginError"
-          style="color: #e11d48; margin-bottom: 10px; font-size: 14px"
-        >
-          {{ preLoginError }}
-        </div>
-        <button
-          class="btn btn-primary"
-          style="width: 100%; padding: 12px"
-          @click="verifyPreLogin"
-        >
-          เข้าสู่ระบบ
-        </button>
-      </div>
-    </div>
-
     <!-- หน้าเลือกโหมด (ขึ้นเมื่อเปิดครั้งแรก)-->
-    <div
-      v-if="!currentMode && isPreAuthenticated"
-      class="mode-select fullscreen"
-    >
+    <div v-if="!currentMode" class="mode-select fullscreen">
       <h2>เลือกโหมดการใช้งาน</h2>
       <p>กรุณาเลือกดูข้อมูลที่ดิน</p>
 
@@ -447,6 +391,29 @@
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      v-else-if="currentMode === 'eia' && showSelectAreaModal"
+      class="mode-select selact-area"
+    >
+      <div class="form-section-area">
+        <div class="header-title">เลือกพื้นที่</div>
+        <div class="selact-area-btn">
+          <button class="area-btn" @click="centerBangkok()">Bangkok</button>
+          <button
+            class="area-btn"
+            @click="centerTo(101.15871369838715, 12.898715399777016, 10)"
+          >
+            EEC
+          </button>
+          <button
+            class="area-btn"
+            @click="centerTo(98.34484040737152, 7.958483076083571, 12)"
+          >
+            Phuket
           </button>
         </div>
       </div>
@@ -588,7 +555,7 @@
                     v-model="landData.totalPrice"
                     @input="
                       landData.totalPrice = sanitizeDecimal(
-                        landData.totalPrice
+                        landData.totalPrice,
                       );
                       syncPerSqwFromTotal();
                     "
@@ -1808,25 +1775,6 @@
         </div>
       </div>
 
-      <!-- Old Layers Panel (commented) -->
-      <!-- <div class="layers-panel" v-show="showLayers">
-          <div class="panel-header">
-            <h3>Layers</h3>
-            <button type="button" @click="showLayers = false" @touchstart.prevent="showLayers = false" class="close-btn">×</button>
-          </div>
-          <div
-            class="layer-item"
-            v-for="layer in availableLayers"
-            :key="layer.id"
-          >
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="layer.visible" />
-              <span class="checkmark">✓</span>
-              {{ layer.name }}
-            </label>
-          </div>
-        </div> -->
-
       <!-- P2P Chat Panel -->
       <div
         class="chat-popup"
@@ -2381,6 +2329,7 @@
 @import "./styles/responsive.css";
 @import "./styles/chat.css";
 @import "./styles/main.css";
+@import "./styles/popUp.css";
 
 /* Purchase modal styles (matching screenshot) */
 .purchase-overlay {

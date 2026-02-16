@@ -18,12 +18,12 @@
       </div>
     </div>
 
-    <!-- Global loading overlay for projects (shown during login) -->
-    <div v-if="isLoadingProjects" class="global-loading-overlay">
+    <!-- Global loading overlay for login -->
+    <div v-if="isLoadingLogin" class="global-loading-overlay">
       <div class="global-loading-box">
         <div class="spinner"></div>
         <div style="margin-top: 8px; font-weight: 600; color: #fff">
-          กำลังโหลดข้อมูลโครงการ... กรุณารอสักครู่
+          กำลังเข้าสู่ระบบ... กรุณารอสักครู่
         </div>
       </div>
     </div>
@@ -414,6 +414,9 @@
             @click="centerTo(98.34484040737152, 7.958483076083571, 12)"
           >
             Phuket
+          </button>
+          <button class="area-btn" @click="centerTo(102.838889, 16.438333, 12)">
+            Khon kaen
           </button>
         </div>
       </div>
@@ -919,6 +922,62 @@
                   </select>
                 </div>
               </div>
+              <!-- Highlight Toggle -->
+              <div
+                class="form-row"
+                style="
+                  display: flex;
+                  gap: 10px;
+                  align-items: center;
+                  margin-bottom: 10px;
+                "
+              >
+                <div
+                  class="form-group"
+                  style="flex: 1; display: flex; align-items: center; gap: 10px"
+                >
+                  <label
+                    style="
+                      margin-bottom: 0;
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      cursor: pointer;
+                    "
+                  >
+                    <input
+                      type="checkbox"
+                      v-model="eiaProjectData.isHighlighted"
+                      style="width: 18px; height: 18px; cursor: pointer"
+                    />
+                    <span>Highlight Project</span>
+                    <span
+                      :style="{
+                        display: 'inline-block',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: eiaProjectData.isHighlighted
+                          ? '#FFD700'
+                          : '#39ff14',
+                        border: '1px solid #333',
+                      }"
+                      :title="
+                        eiaProjectData.isHighlighted
+                          ? 'สีหมุด: เหลือง (Highlight)'
+                          : 'สีหมุด: เขียว (Future Project)'
+                      "
+                    ></span>
+                  </label>
+                  <span style="font-size: 11px; color: #9ca3af">
+                    ({{
+                      eiaProjectData.isHighlighted
+                        ? "เหลือง = โครงการเด่น"
+                        : "เขียว = Future Project"
+                    }})
+                  </span>
+                </div>
+              </div>
               <!-- แถวที่ 7: ทุกภาค + ทุกจังหวัด -->
               <div class="form-row" style="display: flex; gap: 10px">
                 <div class="form-group" style="flex: 1">
@@ -1260,7 +1319,7 @@
         </button>
 
         <!-- Draw (pencil) Button -->
-        <button
+        <!-- <button
           ref="drawBtn"
           class="control-btn draw-btn"
           :class="{ active: showDrawMenu }"
@@ -1278,7 +1337,7 @@
             />
             <path d="M14 7l3 3" />
           </svg>
-        </button>
+        </button> -->
       </div>
 
       <!-- Draw Panel: moved out as floating popup (see below) -->
@@ -2067,6 +2126,149 @@
         <span class="highlight">ล้านบาท</span>
       </div>
     </template>
+
+    <!-- แสดงจำนวนผู้เข้าชมทั้งหมด (แสดงทุกโหมด) - คลิกเพื่อเข้า Admin -->
+    <div
+      class="dashboard visitors"
+      :style="currentUserId ? 'cursor: pointer;' : ''"
+    >
+      <div class="dashboard-label">ผู้เข้าชมทั้งหมด</div>
+      <span class="dashboard-number">{{
+        allTimeVisitors.toLocaleString()
+      }}</span>
+      <span class="highlight">คน</span>
+    </div>
+  </div>
+
+  <!-- Admin Panel Overlay -->
+  <div v-if="showAdminPanel" class="admin-panel-overlay">
+    <div class="admin-panel">
+      <div class="admin-panel-header">
+        <h2>📊 Admin Panel - Visitor Logs</h2>
+        <button class="btn-close-admin" @click="closeAdminPanel">✕</button>
+      </div>
+
+      <div class="admin-panel-controls">
+        <label>เลือกวันที่:</label>
+        <select
+          v-model="selectedLogDate"
+          @change="changeLogDate(selectedLogDate)"
+        >
+          <option v-for="date in availableLogDates" :key="date" :value="date">
+            {{ date }}
+          </option>
+        </select>
+        <span class="admin-stats">
+          รวม {{ visitorLogs.length }} sessions | ออนไลน์
+          {{ visitorLogs.filter((l) => l.status === "online").length }} คน
+        </span>
+        <button
+          class="btn-force-logout-all"
+          @click="adminForceLogoutAll"
+          :disabled="
+            visitorLogs.filter(
+              (l) => l.status === 'online' && l.uid !== currentUserId,
+            ).length === 0
+          "
+          title="บังคับออกจากระบบทุกคน (ยกเว้นตัวเอง)"
+        >
+          ⚠️ ตัดทุกคน
+        </button>
+        <button
+          class="btn-cleanup-stale"
+          @click="adminCleanupStaleUsers"
+          title="ล้าง users ที่ไม่ active (ไม่มี heartbeat เกิน 2 นาที)"
+        >
+          🧹 ล้าง Stale
+        </button>
+        <button
+          class="btn-force-reload"
+          @click="adminForceReloadAll"
+          title="บังคับ reload ทุกคน (ตั้ง version ใหม่)"
+        >
+          🔄 Force Reload
+        </button>
+      </div>
+
+      <div class="admin-panel-table-wrapper">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ชื่อผู้ใช้</th>
+              <th>เวลาเข้า</th>
+              <th>เวลาออก</th>
+              <th>ระยะเวลา</th>
+              <th>สถานะ</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(log, index) in visitorLogs"
+              :key="log.sessionId"
+              :class="{ 'is-online': log.status === 'online' }"
+            >
+              <td>{{ index + 1 }}</td>
+              <td>{{ log.displayName || "Unknown" }}</td>
+              <td>{{ formatVisitorTime(log.loginAt) }}</td>
+              <td>
+                {{
+                  log.status === "online"
+                    ? "-"
+                    : formatVisitorTime(log.logoutAt)
+                }}
+              </td>
+              <td>
+                {{
+                  log.status === "online"
+                    ? getLiveDuration(log.loginAt)
+                    : formatDuration(log.duration)
+                }}
+              </td>
+              <td>
+                <span :class="['status-badge', log.status]">
+                  {{ log.status === "online" ? "🟢 ออนไลน์" : "⚪ ออฟไลน์" }}
+                </span>
+              </td>
+              <td>
+                <button
+                  v-if="
+                    log.status === 'online' &&
+                    log.uid &&
+                    log.uid !== currentUserId
+                  "
+                  class="btn-force-logout"
+                  @click="adminForceLogoutUser(log)"
+                  title="บังคับออกจากระบบ"
+                >
+                  ❌ ตัด
+                </button>
+                <span
+                  v-else-if="log.uid === currentUserId"
+                  style="color: #888; font-size: 12px"
+                  >ตัวเอง</span
+                >
+                <span
+                  v-else-if="log.status === 'online' && !log.uid"
+                  style="color: #f59e0b; font-size: 11px"
+                  >ไม่มี UID</span
+                >
+                <span v-else style="color: #ccc">-</span>
+              </td>
+            </tr>
+            <tr v-if="visitorLogs.length === 0">
+              <td
+                colspan="7"
+                style="text-align: center; padding: 24px; color: #666"
+              >
+                ไม่มีข้อมูลสำหรับวันที่เลือก
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -2935,6 +3137,287 @@
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Admin Panel Styles */
+.admin-hint {
+  font-size: 10px;
+  color: #10b981;
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
+.admin-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.admin-panel {
+  background: #1e293b;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.admin-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #334155;
+}
+
+.admin-panel-header h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 20px;
+}
+
+.btn-close-admin {
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.btn-close-admin:hover {
+  background: #dc2626;
+}
+
+.admin-panel-controls {
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #334155;
+  flex-wrap: wrap;
+}
+
+.admin-panel-controls label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.admin-panel-controls select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.admin-stats {
+  color: #10b981;
+  font-size: 14px;
+  margin-left: auto;
+}
+
+.btn-force-logout {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.btn-force-logout:hover {
+  background: #b91c1c;
+}
+
+.btn-force-logout-all {
+  background: #991b1b;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 12px;
+  transition: background 0.2s;
+}
+
+.btn-force-logout-all:hover:not(:disabled) {
+  background: #7f1d1d;
+}
+
+.btn-force-logout-all:disabled {
+  background: #4b5563;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-cleanup-stale {
+  background: #d97706;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+  transition: background 0.2s;
+}
+
+.btn-cleanup-stale:hover {
+  background: #b45309;
+}
+
+.btn-force-reload {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+  transition: background 0.2s;
+}
+
+.btn-force-reload:hover {
+  background: #1d4ed8;
+}
+
+.admin-panel-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table th {
+  background: #334155;
+  color: #f8fafc;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.admin-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #334155;
+  color: #cbd5e1;
+}
+
+.admin-table tr.is-online {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.admin-table tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.online {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.status-badge.offline {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.btn-force-logout {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-force-logout:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+@media (max-width: 768px) {
+  .admin-panel {
+    max-height: 90vh;
+    border-radius: 12px;
+  }
+
+  .admin-panel-header {
+    padding: 16px;
+  }
+
+  .admin-panel-header h2 {
+    font-size: 16px;
+  }
+
+  .admin-panel-controls {
+    padding: 12px 16px;
+  }
+
+  .admin-panel-table-wrapper {
+    padding: 12px 16px;
+  }
+
+  .admin-table {
+    font-size: 12px;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 8px 10px;
+  }
+
+  .admin-stats {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 8px;
   }
 }
 </style>

@@ -237,10 +237,12 @@ export function subscribeOnlineUsers(cb) {
 
     const list = vals.filter((u) => {
       if (!u) return false;
+      // ต้อง online === true เท่านั้น (ถ้า false หรือ undefined = offline)
+      if (u.online !== true) return false;
       // lastSeen may be server timestamp (number) or missing; handle defensively
       const last = typeof u.lastSeen === "number" ? u.lastSeen : 0;
       const fresh = last ? now - last < STALE_MS : false; // if unknown timestamp, don't assume fresh
-      return u && u.online === true && fresh;
+      return fresh;
     });
 
 
@@ -533,48 +535,6 @@ export function subscribeLands(uid, cb) {
 }
 
 // ========================
-// FLOOD ZONES (น้ำท่วม)
-// ========================
-export async function saveFloodZone(uid, zone) {
-  if (!uid) throw new Error("saveFloodZone: need uid");
-  const now = serverTimestamp();
-
-  const payload = {
-    ...zone,                 // { level, waterAmount, geometry, location? }
-    ownerUid: uid,
-    updatedAt: now,
-  };
-
-  if (zone.id) {
-    await update(ref(db, `floods/${uid}/${zone.id}`), payload);
-    await update(ref(db, `floodZonesPublic/${zone.id}`), payload);
-    return zone.id;
-  } else {
-    const newRef = push(ref(db, `floods/${uid}`));
-    const id = newRef.key;
-    const data = { ...payload, id, createdAt: now };
-    await update(newRef, data);
-    await update(ref(db, `floodZonesPublic/${id}`), data);
-    return id;
-  }
-}
-
-export async function deleteFloodZone(ownerUid, zoneId) {
-  if (!ownerUid || !zoneId) throw new Error("deleteFloodZone: need ownerUid & zoneId");
-  await remove(ref(db, `floods/${ownerUid}/${zoneId}`));
-  await remove(ref(db, `floodZonesPublic/${zoneId}`));
-}
-
-export function subscribeFloodZonesAll(cb) {
-  const zRef = ref(db, `floodZonesPublic`);
-  return onValue(zRef, (snap) => {
-    const obj = snap.val() || {};
-    const list = Object.entries(obj).map(([id, v]) => ({ id, ...v }));
-    cb(list);
-  });
-}
-
-// ========================
 // EIA PROJECTS
 // ========================
 export async function saveEiaProject(uid, projectData) {
@@ -618,6 +578,458 @@ export function subscribeEiaProjectsAll(cb) {
     const list = Object.entries(obj).map(([id, v]) => ({ id, ...v }));
     cb(list);
   });
+}
+
+/* ========================
+   DAILY VISITORS TRACKING
+   ======================== */
+// Get today's date key in format YYYY-MM-DD
+function getTodayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Record a visitor for today (called once per session)
+export async function recordDailyVisitor(uid = null) {
+  const todayKey = getTodayKey();
+  const visitorId = uid || `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  try {
+    // Store visitor in today's visitors list
+    const visitorRef = ref(db, `dailyVisitors/${todayKey}/visitors/${visitorId}`);
+    await update(visitorRef, {
+      visitedAt: serverTimestamp(),
+      uid: uid || null,
+    });
+
+    // Increment the counter using transaction
+    const countRef = ref(db, `dailyVisitors/${todayKey}/count`);
+    await runTransaction(countRef, (currentCount) => {
+      return (currentCount || 0) + 1;
+    });
+  } catch (e) {
+    console.warn('recordDailyVisitor failed', e);
+  }
+}
+
+// Record unique visitor (only counts once per uid per day)
+export async function recordUniqueVisitor(uid) {
+  if (!uid) return;
+  const todayKey = getTodayKey();
+
+  try {
+    // Check if this user already visited today
+    const visitorRef = ref(db, `dailyVisitors/${todayKey}/uniqueVisitors/${uid}`);
+    const snap = await get(visitorRef);
+
+    if (!snap.exists()) {
+      // First visit today - record it
+      await update(visitorRef, {
+        visitedAt: serverTimestamp(),
+      });
+
+      // Increment unique counter
+      const countRef = ref(db, `dailyVisitors/${todayKey}/uniqueCount`);
+      await runTransaction(countRef, (currentCount) => {
+        return (currentCount || 0) + 1;
+      });
+    }
+  } catch (e) {
+    console.warn('recordUniqueVisitor failed', e);
+  }
+}
+
+// Subscribe to daily visitor count (realtime)
+export function subscribeDailyVisitors(cb) {
+  const todayKey = getTodayKey();
+  const countRef = ref(db, `dailyVisitors/${todayKey}`);
+
+  return onValue(countRef, (snap) => {
+    const data = snap.val() || {};
+    cb({
+      date: todayKey,
+      uniqueCount: data.uniqueCount || 0,
+      totalCount: data.count || 0,
+    });
+  });
+}
+
+// Subscribe to all-time total visitors (รวมทุกวัน)
+export function subscribeAllTimeVisitors(cb) {
+  const countRef = ref(db, 'stats/allTimeVisitors');
+
+  return onValue(countRef, (snap) => {
+    const count = snap.val() || 0;
+    cb(count);
+  });
+}
+
+// Record all-time visitor (เพิ่มยอดรวมทั้งหมด - เรียกทุกครั้งที่ login)
+export async function recordAllTimeVisitor() {
+  try {
+    const countRef = ref(db, 'stats/allTimeVisitors');
+    await runTransaction(countRef, (currentCount) => {
+      return (currentCount || 0) + 1;
+    });
+  } catch (e) {
+    console.warn('recordAllTimeVisitor failed', e);
+  }
+}
+
+/* ========================
+   VISITOR LOG (Admin)
+   ======================== */
+
+// Record visitor login (เก็บ log เมื่อเข้าสู่ระบบ)
+export async function recordVisitorLogin(uid, displayName) {
+  if (!uid) return null;
+  const todayKey = getTodayKey();
+  const sessionId = `${uid}_${Date.now()}`;
+
+  try {
+    const logRef = ref(db, `visitorLogs/${todayKey}/${sessionId}`);
+    await update(logRef, {
+      uid,
+      displayName: displayName || 'Unknown',
+      loginAt: serverTimestamp(),
+      logoutAt: null,
+      duration: null,
+      status: 'online',
+    });
+    return sessionId;
+  } catch (e) {
+    console.warn('recordVisitorLogin failed', e);
+    return null;
+  }
+}
+
+// Update visitor logout (อัพเดท log เมื่อออกจากระบบ)
+export async function recordVisitorLogout(sessionId) {
+  if (!sessionId) return;
+  const todayKey = getTodayKey();
+
+  try {
+    const logRef = ref(db, `visitorLogs/${todayKey}/${sessionId}`);
+    const snap = await get(logRef);
+
+    if (snap.exists()) {
+      const data = snap.val();
+      const loginAt = data.loginAt;
+      const now = Date.now();
+      const duration = loginAt ? Math.floor((now - loginAt) / 1000) : 0; // duration in seconds
+
+      await update(logRef, {
+        logoutAt: serverTimestamp(),
+        duration,
+        status: 'offline',
+      });
+    }
+  } catch (e) {
+    console.warn('recordVisitorLogout failed', e);
+  }
+}
+
+// Set up onDisconnect to auto-update logout when browser closes
+export async function setupVisitorDisconnect(sessionId) {
+  if (!sessionId) return;
+  const todayKey = getTodayKey();
+
+  try {
+    const logRef = ref(db, `visitorLogs/${todayKey}/${sessionId}`);
+    await onDisconnect(logRef).update({
+      logoutAt: serverTimestamp(),
+      status: 'offline',
+    });
+  } catch (e) {
+    console.warn('setupVisitorDisconnect failed', e);
+  }
+}
+
+// Subscribe to visitor logs (realtime) - สำหรับ admin
+export function subscribeVisitorLogs(date, cb) {
+  const dateKey = date || getTodayKey();
+  const logsRef = ref(db, `visitorLogs/${dateKey}`);
+
+  return onValue(logsRef, (snap) => {
+    const data = snap.val() || {};
+    const logs = Object.entries(data).map(([sessionId, log]) => ({
+      sessionId,
+      ...log,
+    }));
+    // เรียงตาม loginAt ล่าสุดก่อน
+    logs.sort((a, b) => (b.loginAt || 0) - (a.loginAt || 0));
+    cb(logs);
+  });
+}
+
+// Get available log dates (for admin to select)
+export async function getVisitorLogDates() {
+  try {
+    const logsRef = ref(db, 'visitorLogs');
+    const snap = await get(logsRef);
+    if (!snap.exists()) return [];
+
+    const dates = Object.keys(snap.val());
+    dates.sort((a, b) => b.localeCompare(a)); // ล่าสุดก่อน
+    return dates;
+  } catch (e) {
+    console.warn('getVisitorLogDates failed', e);
+    return [];
+  }
+}
+
+// ===== Force Logout Functions (Admin) =====
+
+// Admin สั่งให้ user ถูก force logout
+export async function forceLogoutUser(uid) {
+  if (!uid) return false;
+  try {
+    console.log('forceLogoutUser: starting for uid:', uid);
+
+    // 1. ส่ง signal ให้ client logout
+    const forceLogoutRef = ref(db, `forceLogout/${uid}`);
+    await update(forceLogoutRef, {
+      timestamp: serverTimestamp(),
+      reason: 'admin_forced',
+    });
+    console.log('forceLogoutUser: forceLogout flag set');
+
+    // 2. อัพเดท presence ให้เป็น offline ทันที (รายชื่อ P2P Chat)
+    const presenceRef = ref(db, `presence/${uid}`);
+    await update(presenceRef, {
+      online: false,
+      lastSeen: serverTimestamp(),
+      forceLogout: true,
+    });
+    console.log('forceLogoutUser: presence updated to offline');
+
+    // 3. อัพเดท visitorLogs ให้เป็น offline ทันที (Admin Panel)
+    const todayKey = getTodayKey();
+    const logsRef = ref(db, `visitorLogs/${todayKey}`);
+    const snap = await get(logsRef);
+
+    if (snap.exists()) {
+      const logs = snap.val();
+      // หา session ของ user นี้ที่ยัง online อยู่
+      for (const [sessId, log] of Object.entries(logs)) {
+        if (log.uid === uid && log.status === 'online') {
+          const logRef = ref(db, `visitorLogs/${todayKey}/${sessId}`);
+          const now = Date.now();
+          const duration = log.loginAt ? Math.floor((now - log.loginAt) / 1000) : 0;
+          await update(logRef, {
+            logoutAt: serverTimestamp(),
+            duration,
+            status: 'offline',
+            forceLogout: true,
+          });
+          console.log('forceLogoutUser: visitorLog updated for session:', sessId);
+        }
+      }
+    }
+
+    console.log('forceLogoutUser: completed successfully');
+    return true;
+  } catch (e) {
+    console.error('forceLogoutUser failed', e);
+    return false;
+  }
+}
+
+// Subscribe เพื่อรับคำสั่ง force logout (ผู้ใช้ subscribe นี้)
+export function subscribeForceLogout(uid, cb) {
+  if (!uid) return () => { };
+  const forceLogoutRef = ref(db, `forceLogout/${uid}`);
+  return onValue(forceLogoutRef, (snap) => {
+    if (snap.exists()) {
+      cb(snap.val());
+    }
+  });
+}
+
+// ลบ flag force logout หลังจาก user logout แล้ว
+export async function clearForceLogoutFlag(uid) {
+  if (!uid) return;
+  try {
+    const forceLogoutRef = ref(db, `forceLogout/${uid}`);
+    await remove(forceLogoutRef);
+  } catch (e) {
+    console.warn('clearForceLogoutFlag failed', e);
+  }
+}
+
+// Admin สั่งให้ทุกคน (ยกเว้นตัวเอง) ถูก force logout
+export async function forceLogoutAllUsers(exceptUid) {
+  try {
+    const dateKey = getTodayKey();
+    const logsRef = ref(db, `visitorLogs/${dateKey}`);
+    const snap = await get(logsRef);
+
+    if (!snap.exists()) return { success: true, count: 0 };
+
+    const logs = snap.val();
+    const onlineUsers = [];
+
+    // หา user ที่ออนไลน์อยู่ (ยกเว้นตัวเอง)
+    for (const [, log] of Object.entries(logs)) {
+      if (log.status === 'online' && log.uid && log.uid !== exceptUid) {
+        onlineUsers.push(log.uid);
+      }
+    }
+
+    // ลบ duplicate uid
+    const uniqueUids = [...new Set(onlineUsers)];
+
+    // สั่ง force logout ทุกคน
+    for (const uid of uniqueUids) {
+      await forceLogoutUser(uid);
+    }
+
+    return { success: true, count: uniqueUids.length };
+  } catch (e) {
+    console.warn('forceLogoutAllUsers failed', e);
+    return { success: false, count: 0 };
+  }
+}
+
+// ===== Heartbeat & Version Control =====
+
+// อัพเดท heartbeat ของ user (เรียกทุก 30 วินาที)
+export async function updateHeartbeat(sessionId) {
+  if (!sessionId) return false;
+  const todayKey = getTodayKey();
+
+  try {
+    const logRef = ref(db, `visitorLogs/${todayKey}/${sessionId}`);
+    await update(logRef, {
+      lastHeartbeat: Date.now(),
+      status: 'online',
+    });
+    return true;
+  } catch (e) {
+    console.debug('updateHeartbeat error:', e);
+    return false;
+  }
+}
+
+// Subscribe app version (บังคับ reload เมื่อมี version ใหม่)
+export function subscribeAppVersion(currentVersion, onNewVersion) {
+  try {
+    const versionRef = ref(db, 'config/appVersion');
+
+    return onValue(versionRef, (snap) => {
+      if (!snap.exists()) return;
+
+      const data = snap.val();
+      const serverVersion = data?.version || '1.0.0';
+      const forceReload = data?.forceReload || false;
+
+      console.log('App version check:', { currentVersion, serverVersion, forceReload });
+
+      // ถ้า version ไม่ตรง หรือมี flag forceReload
+      if (serverVersion !== currentVersion || forceReload) {
+        if (typeof onNewVersion === 'function') {
+          onNewVersion(serverVersion, forceReload);
+        }
+      }
+    });
+  } catch (e) {
+    console.error('subscribeAppVersion setup error:', e);
+    return () => { };
+  }
+}
+
+// ตั้งค่า app version (เรียกจาก Admin)
+export async function setAppVersion(version, forceReload = false) {
+  try {
+    const versionRef = ref(db, 'config/appVersion');
+    await update(versionRef, {
+      version: version,
+      forceReload: forceReload,
+      updatedAt: Date.now(),
+    });
+    return true;
+  } catch (e) {
+    console.error('setAppVersion error:', e);
+    return false;
+  }
+}
+
+// ล้าง forceReload flag หลังจาก reload แล้ว
+export async function clearForceReloadFlag() {
+  try {
+    const versionRef = ref(db, 'config/appVersion');
+    await update(versionRef, {
+      forceReload: false,
+    });
+    return true;
+  } catch (e) {
+    console.error('clearForceReloadFlag error:', e);
+    return false;
+  }
+}
+
+// ล้าง users ที่ไม่มี heartbeat เกิน 2 นาที (เรียกจาก Admin)
+export async function cleanupStaleUsers() {
+  try {
+    const todayKey = getTodayKey();
+    const logsRef = ref(db, `visitorLogs/${todayKey}`);
+    const snap = await get(logsRef);
+
+    if (!snap.exists()) return { success: true, count: 0 };
+
+    const logs = snap.val();
+    const staleThreshold = Date.now() - (2 * 60 * 1000); // 2 นาที
+    let count = 0;
+    const processedUids = new Set();
+
+    for (const [sessId, log] of Object.entries(logs)) {
+      if (log.status === 'online') {
+        const lastHeartbeat = log.lastHeartbeat || log.loginAt || 0;
+
+        // ถ้าไม่มี heartbeat เกิน 2 นาที → ถือว่า offline
+        if (lastHeartbeat < staleThreshold) {
+          // อัพเดท visitorLogs
+          const logRef = ref(db, `visitorLogs/${todayKey}/${sessId}`);
+          const logoutTime = lastHeartbeat || Date.now();
+          const loginAt = log.loginAt || logoutTime;
+          const duration = Math.floor((logoutTime - loginAt) / 1000);
+
+          await update(logRef, {
+            status: 'offline',
+            logoutAt: logoutTime,
+            duration: duration,
+            staleLogout: true,
+          });
+
+          // อัพเดท presence ให้เป็น offline ด้วย (รายชื่อ P2P Chat)
+          if (log.uid && !processedUids.has(log.uid)) {
+            processedUids.add(log.uid);
+            try {
+              const presenceRef = ref(db, `presence/${log.uid}`);
+              await update(presenceRef, {
+                online: false,
+                lastSeen: serverTimestamp(),
+                staleLogout: true,
+              });
+            } catch (e) {
+              console.debug('cleanupStaleUsers: presence update failed', e);
+            }
+          }
+
+          count++;
+        }
+      }
+    }
+
+    console.log('cleanupStaleUsers: cleaned', count, 'stale users');
+    return { success: true, count };
+  } catch (e) {
+    console.error('cleanupStaleUsers error:', e);
+    return { success: false, count: 0 };
+  }
 }
 
 

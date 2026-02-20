@@ -38,6 +38,7 @@ import {
   setAppVersion,
   clearForceReloadFlag,
   cleanupStaleUsers,
+  cleanupOldVisitorLogs,
 } from "./firebase";
 
 import LoginBar from "./components/LoginBar.vue";
@@ -50,9 +51,11 @@ export default {
   components: { LoginBar },
   data() {
     return {
-
-
-
+      // --- Pre-Authentication Gate ---
+      isPreAuthenticated: false,
+      preAuthUser: '',
+      preAuthPassword: '',
+      preAuthError: '',
 
       // --- EIA Projects ---
       eiaMode: false,
@@ -276,14 +279,14 @@ export default {
       viewerImages: [],
       currentImageIndex: 0,
 
-      // ChillPay configuration
+      /* // ChillPay configuration
       chillpay: {
         merchantCode: 'M037016',
         apiKey: 'Oh7XNjDQowUfM7G020YIU1gt7jNXxIdUaCm8UL8XFXvEzElamuzurR1HGuuxLP8',
         sandboxUrl: 'https://sandbox-pgw.chillpay.co/api/v3',
         backendUrl: 'http://localhost:3001', // Backend server URL
         useBackend: true, // true = ใช้ backend, false = demo mode
-      },
+      }, */
       // Login-after-mode state
       showLoginModalAfterMode: false,
       pendingMode: null,
@@ -337,6 +340,11 @@ export default {
   },
 
   async mounted() {
+    // Check if already pre-authenticated in this session
+    if (sessionStorage.getItem('sqw_preauth') === 'true') {
+      this.isPreAuthenticated = true;
+    }
+
     this.initMap();
 
     // === Subscribe App Version (บังคับ reload เมื่อมี version ใหม่) ===
@@ -893,6 +901,35 @@ export default {
   },
 
   methods: {
+    // Pre-Authentication verification (encrypted)
+    async verifyPreAuth() {
+      // SHA-256 hashes of valid credentials (encrypted for security)
+      const validUserHash = 'd3f9dc0d9846096862d143a8ef241b641f99df3387909de864415868985e52d6';
+      const validPasswordHash = '70ed6e68d82de1068aa5f201eceac02deef8b58bb4754f39dda183dc2e0bd8f3';
+      
+      // Hash the user input
+      const userHash = await this.hashString(this.preAuthUser);
+      const passwordHash = await this.hashString(this.preAuthPassword);
+      
+      if (userHash === validUserHash && passwordHash === validPasswordHash) {
+        this.isPreAuthenticated = true;
+        this.preAuthError = '';
+        // Store in sessionStorage to persist during session
+        sessionStorage.setItem('sqw_preauth', 'true');
+      } else {
+        this.preAuthError = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+      }
+    },
+
+    // Hash string using SHA-256
+    async hashString(str) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    },
 
     // ===== Session Timeout Methods =====
     // เริ่มนับเวลา session (3 ชม. แล้วบังคับ logout)
@@ -984,6 +1021,9 @@ export default {
 
       this.showAdminPanel = true;
       window.location.hash = '#/admin';
+
+      // ลบ visitor logs ที่เกิน 7 วัน
+      await cleanupOldVisitorLogs(7);
 
       // โหลดรายการวันที่ที่มี log
       this.availableLogDates = await getVisitorLogDates();

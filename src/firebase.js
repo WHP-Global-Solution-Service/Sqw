@@ -1032,5 +1032,55 @@ export async function cleanupStaleUsers() {
   }
 }
 
+// ลบ visitor logs และ daily visitors ที่เกิน 7 วัน
+export async function cleanupOldVisitorLogs(daysToKeep = 7) {
+  try {
+    const now = new Date();
+    const cutoffDate = new Date(now);
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+    const cutoffKey = cutoffDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    let deletedCount = 0;
+
+    // 1. ลบ visitorLogs ที่เกินกำหนด
+    const logsRef = ref(db, 'visitorLogs');
+    const logsSnap = await get(logsRef);
+
+    if (logsSnap.exists()) {
+      const allDates = Object.keys(logsSnap.val());
+      for (const dateKey of allDates) {
+        if (dateKey < cutoffKey) {
+          const oldLogRef = ref(db, `visitorLogs/${dateKey}`);
+          await remove(oldLogRef);
+          deletedCount++;
+          console.log('cleanupOldVisitorLogs: deleted visitorLogs/', dateKey);
+        }
+      }
+    }
+
+    // 2. ลบ dailyVisitors ที่เกินกำหนด
+    const visitorsRef = ref(db, 'dailyVisitors');
+    const visitorsSnap = await get(visitorsRef);
+
+    if (visitorsSnap.exists()) {
+      const allDates = Object.keys(visitorsSnap.val());
+      for (const dateKey of allDates) {
+        if (dateKey < cutoffKey) {
+          const oldVisitorRef = ref(db, `dailyVisitors/${dateKey}`);
+          await remove(oldVisitorRef);
+          deletedCount++;
+          console.log('cleanupOldVisitorLogs: deleted dailyVisitors/', dateKey);
+        }
+      }
+    }
+
+    console.log('cleanupOldVisitorLogs: total deleted', deletedCount, 'old entries (older than', daysToKeep, 'days)');
+    return { success: true, count: deletedCount };
+  } catch (e) {
+    console.error('cleanupOldVisitorLogs error:', e);
+    return { success: false, count: 0 };
+  }
+}
+
 
 export { app, analytics, auth, db };

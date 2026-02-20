@@ -1,5 +1,41 @@
 <template>
   <div id="app" :class="{ 'mode-sale': currentMode === 'sale' }">
+    <!-- Pre-Authentication Gate Modal -->
+    <div v-if="!isPreAuthenticated" class="preauth-overlay">
+      <div class="preauth-box">
+        <div class="preauth-icon">🔐</div>
+        <h2 class="preauth-title">กรุณาใส่รหัสเข้าใช้งาน</h2>
+        <div class="preauth-form">
+          <div class="preauth-field">
+            <label>ชื่อผู้ใช้</label>
+            <input
+              type="text"
+              v-model="preAuthUser"
+              placeholder="Username"
+              class="preauth-input"
+              @keyup.enter="verifyPreAuth"
+            />
+          </div>
+          <div class="preauth-field">
+            <label>รหัสผ่าน</label>
+            <input
+              type="password"
+              v-model="preAuthPassword"
+              placeholder="Password"
+              class="preauth-input"
+              @keyup.enter="verifyPreAuth"
+            />
+          </div>
+          <div v-if="preAuthError" class="preauth-error">
+            {{ preAuthError }}
+          </div>
+          <button class="btn btn-primary preauth-btn" @click="verifyPreAuth">
+            เข้าสู่ระบบ
+          </button>
+        </div>
+      </div>
+    </div>
+
     <header class="app-header">
       <LoginBar
         :current-mode="currentMode"
@@ -1319,7 +1355,7 @@
         </button>
 
         <!-- Draw (pencil) Button -->
-        <!-- <button
+        <button
           ref="drawBtn"
           class="control-btn draw-btn"
           :class="{ active: showDrawMenu }"
@@ -1337,7 +1373,7 @@
             />
             <path d="M14 7l3 3" />
           </svg>
-        </button> -->
+        </button>
       </div>
 
       <!-- Draw Panel: moved out as floating popup (see below) -->
@@ -2360,6 +2396,84 @@
   font-size: 46px;
   margin-bottom: 8px;
 }
+
+/* Pre-Authentication Gate Styles */
+.preauth-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  z-index: 9999;
+}
+.preauth-box {
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: #0b1220;
+  padding: 32px 40px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: pop-in 300ms ease-out;
+}
+.preauth-icon {
+  font-size: 56px;
+  margin-bottom: 12px;
+}
+.preauth-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 24px;
+  color: #1e293b;
+}
+.preauth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.preauth-field {
+  text-align: left;
+}
+.preauth-field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+.preauth-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.preauth-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.preauth-error {
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+}
+.preauth-btn {
+  margin-top: 8px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .mode-disclaimer-contact-us {
   background: linear-gradient(180deg, #ffffff, #fbfdff);
   color: #0b1220;

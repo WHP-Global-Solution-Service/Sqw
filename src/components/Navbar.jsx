@@ -8,6 +8,7 @@ import React, {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ShoppingCart, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { NavLink } from "react-router-dom";
 
 import { readFavorites, subscribeFavoritesChanged } from "../utils/favorites";
 import { useAuth } from "../auth/AuthProvider";
@@ -141,7 +142,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="nav">
+    <header className={`nav ${location.pathname === "/" || location.pathname === "/news" || location.pathname === "/contact" ? "nav-dark" : "nav-light"}`}>
       <Link to="/" className="nav-logo">SQW</Link>
 
       {isMap && (
@@ -184,39 +185,47 @@ export default function Navbar() {
       )}
 
       <div className="nav-right">
-        <nav className="nav-menu">
-          <Link to="/" className="nav-item">{t("nav.home")}</Link>
-          <a href="/news" className="nav-item">{t("nav.news")}</a>
-          <a href="#guide" className="nav-item">{t("nav.guide")}</a>
-          <a href="#contact" className="nav-item">{t("nav.contact")}</a>
+        <NavLink to="/" className="nav-item">
+          {t("nav.home")}
+        </NavLink>
 
-          {isAdmin && (
-            <button
-              type="button"
-              className="nav-admin-chip"
-              onClick={() => navigate("/admin?tab=dashboard")}
-              title={t("nav.admin.go")}
-            >
-              <ShieldCheck size={16} />
-              Admin
-            </button>
-          )}
-        </nav>
+        <NavLink to="/news" className="nav-item">
+          {t("nav.news")}
+        </NavLink>
 
-        {/* Profile / Auth */}
+        <a href="#contact" className="nav-item">
+          {t("nav.contact")}
+        </a>
+
+        {/* Notification */}
+        {isLoggedIn && (
+          <button className="nav-bell">
+            <span className="material-symbols-outlined">notifications</span>
+            <span className="bell-dot"></span>
+          </button>
+        )}
+
+        <div className="nav-user-group ">
+          {/* Profile / Auth */}
           {isLoggedIn ? (
             <div className="nav-profile" ref={ref}>
               <button
-                className="nav-avatar"
-                aria-label="User menu"
-                type="button"
+                className="nav-profile-trigger"
                 onClick={() => setOpen(v => !v)}
                 aria-expanded={open}
               >
-                {me?.photoURL
-                  ? <img src={me.photoURL} alt="avatar" />
-                  : <span>{avatarLetter}</span>
-                }
+                <div className="nav-avatar">
+                  {me?.photoURL
+                    ? <img src={me.photoURL} alt="avatar" />
+                    : <span>{avatarLetter}</span>
+                  }
+                </div>
+
+                <span className="nav-username">{me?.name}</span>
+
+                <span className="material-symbols-outlined nav-chevron">
+                  expand_more
+                </span>
               </button>
 
               {open && (
@@ -239,6 +248,7 @@ export default function Navbar() {
                           <ShieldCheck size={16} />
                           {t("nav.admin.section")}
                         </div>
+
                         <button onClick={() => go("/admin?tab=dashboard")}>
                           {t("nav.admin.dashboard")}
                         </button>
@@ -270,44 +280,49 @@ export default function Navbar() {
           ) : (
             <div className="nav-auth">
               <button
-                className="nav-signin"
+                className="nav-auth-pill"
                 onClick={() => navigate("/login")}
               >
-                Sign In
-              </button>
-
-              <button
-                className="nav-signin"
-                onClick={() => navigate("/login?signup=1")}
-              >
-                Sign up
+                {t("nav.login")} / {t("nav.signup")}
               </button>
             </div>
           )}
 
-        {/* Cart */}
-        {isLoggedIn && (
-          <Link to="/cart" className="cart-btn">
-            <ShoppingCart size={20} />
-            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-          </Link>
-        )}
+          {/* Cart */}
+            {isLoggedIn && (
+              <Link to="/cart" className="cart-btn">
+                <span className="material-symbols-outlined cart-icon">
+                  shopping_cart
+                </span>
+
+                {cartCount > 0 && (
+                  <span className="cart-badge">{cartCount}</span>
+                )}
+              </Link>
+            )}
+        </div>
 
         {/* Language Switch */}
-        <div className="nav-lang-switch">
-          <button
-            className={`nav-lang-flag ${currentLang === "th" ? "active" : ""}`}
-            onClick={() => changeLanguage("th")}
-          >
-            <img src="/flags/th.png" alt="Thai" />
-          </button>
+        <div className="nav-lang">
+          {/*<span className="material-symbols-outlined lang-icon">language</span>*/}
 
-          <button
-            className={`nav-lang-flag ${currentLang === "en" ? "active" : ""}`}
-            onClick={() => changeLanguage("en")}
-          >
-            <img src="/flags/en.png" alt="English" />
-          </button>
+          <div className="lang-pill">
+            <button
+              className={currentLang === "th" ? "active" : ""}
+              onClick={() => changeLanguage("th")}
+            >
+              TH
+            </button>
+
+            <span className="sep">|</span>
+
+            <button
+              className={currentLang === "en" ? "active" : ""}
+              onClick={() => changeLanguage("en")}
+            >
+              EN
+            </button>
+          </div>
         </div>
       </div>
     </header>

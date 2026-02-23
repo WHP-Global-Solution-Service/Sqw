@@ -1,7 +1,7 @@
 :root {
   /* Brand */
-  --primary: #16a34a;
-  --primary-dark: #065f46;
+  --primary: #053974;
+  --primary-dark: #053974;
   --primary-700: #11863b;
   --primary-light: #a7f3d0;
   --danger: #ef4444;
@@ -37,8 +37,8 @@
   --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.18);
 
   /* Fonts */
-  --font-en: "Kaisei Decol", serif;
-  --font-th: "Mitr", sans-serif;
+  --font-en: "Nunito Sans", sans-serif;
+  --font-th: "Nunito Sans", sans-serif;
 
   /* Spacing scale */
   --space-xxs: 4px;
@@ -234,5 +234,4 @@
     --auth-pad-y: 32px;
   }
 }
-
 

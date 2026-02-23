@@ -63,11 +63,44 @@
   },
 
   "hero": {
-    "title": "SQW Land Management Platform",
-    "subtitle": "Please select land information to view",
-    "sell": "List Land for Sale",
+    "title": "Elevate Decisions\nwith Precision Land Data",
+    "subtitle": "Unlock the full potential of every plot with superior land insights for smarter decision-making.",
+    "bomtom": "Select land data for details",
+    "sell": "Sell Land",
     "buy": "Buy/Sell Land",
-    "eia": "Future Project & EIA Base Map"
+    "eia": "Future Project & EIA base map"
+  },
+
+  "stats": {
+    "title": "STATISTICS",
+    "land_plots": "Land Plots",
+    "eia_reports": "EIA Reports",
+    "users": "Users",
+    "million": "Million"
+  },
+
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Simple steps to get started",
+    "step1": {
+      "title": "1. Select Mode",
+      "desc": "Choose your preferred mode to start searching for information."
+    },
+    "step2": {
+      "title": "2. View Details",
+      "desc": "Click on map points to view detailed information pop-ups."
+    },
+    "step3": {
+      "title": "3. Get Insights",
+      "desc": "Analyze in-depth data to power your decision-making."
+    }
+  },
+
+  "authModal": {
+    "title": "Please sign in to continue",
+    "description": "You need to be signed in to select operational modes and access exclusive land insights.",
+    "loginBtn": "Sign In / Register",
+    "cancelBtn": "Cancel"
   },
 
   "footer": {

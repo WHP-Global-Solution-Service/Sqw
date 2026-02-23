@@ -1,82 +1,109 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import LoginRequiredModal from "../components/Common/LoginRequiredModal";
 import "../css/HeroSection.css";
 
 export default function HeroSection() {
   const navigate = useNavigate();
   const { t } = useTranslation("common");
+  const [openModal, setOpenModal] = useState(false);
 
   return (
-    <section className="hero-section">
-      <div className="hero-overlay" />
-
-      <div className="hero-content">
-        <h1 className="hero-title">
-          {t("hero.title")}
-        </h1>
-
-        <p className="hero-subtitle">
-          {t("hero.subtitle")}
-        </p>
-
-        <div className="hero-buttons">
-          {/* ฝากขายที่ดิน */}
-          <div className="hero-item">
+    <>
+      <section className="hero-section">
+        <div className="hero-overlay" />
+        <div className="hero-content">
+          {/* ใช้ whitespace-pre-line เพื่อให้ \n ใน JSON ทำงาน */}
+          <h1 className="hero-title" style={{ whiteSpace: 'pre-line' }}>
+            {t("hero.title")}
+          </h1>
+          <p className="hero-subtitle">{t("hero.subtitle")}</p>
+          <div className="hero-buttons">
             <button
-              className="hero-circle-btn"
-              onClick={() => navigate("/map?mode=sell")}
-              aria-label={t("hero.sell")}
-            >
-              <img
-                src="/sell-land.png"
-                alt={t("hero.sell")}
-                className="hero-img-icon"
-              />
-            </button>
-            <span className="hero-btn-label">
-              {t("hero.sell")}
-            </span>
-          </div>
+              className="hero-main-btn"
+              onClick={() => {
+                const token = localStorage.getItem("token");
 
-          {/* ซื้อขายที่ดิน */}
-          <div className="hero-item">
-            <button
-              className="hero-circle-btn"
-              onClick={() => navigate("/map?mode=buy")}
-              aria-label={t("hero.buy")}
+                if (token) {
+                  navigate("/map");
+                } else {
+                  setOpenModal(true);
+                }
+              }}
             >
-              <img
-                src="/buy-land.png"
-                alt={t("hero.buy")}
-                className="hero-img-icon"
-              />
+              {t("hero.bomtom")}
             </button>
-            <span className="hero-btn-label">
-              {t("hero.buy")}
-            </span>
-          </div>
-
-          {/* EIA */}
-          <div className="hero-item">
-            <button
-              className="hero-circle-btn"
-              onClick={() => navigate("/map?mode=eia")}
-              aria-label={t("hero.eia")}
-            >
-              <img
-                src="/eia.png"
-                alt={t("hero.eia")}
-                className="hero-img-icon hero-img-eia"
-              />
-            </button>
-            {/* เพิ่ม className พิเศษเฉพาะปุ่มที่มีข้อความยาว */}
-            <span className="hero-btn-label label-multiline">
-              {t("hero.eia")}
-            </span>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section className="stats-section">
+        <h3 className="stats-title">{t("stats.title")}</h3>
+        <div className="stats-container">
+          <div className="stat-card">
+            <div className="stat-icon">
+              <span className="material-symbols-outlined">map</span>
+            </div>
+            <div className="stat-number">10,000+</div>
+            <div className="stat-label">{t("stats.land_plots")}</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">
+              <span className="material-symbols-outlined">description</span>
+            </div>
+            <div className="stat-number">5,000+</div>
+            <div className="stat-label">{t("stats.eia_reports")}</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">
+              <span className="material-symbols-outlined">person</span>
+            </div>
+            <div className="stat-number">1 {t("stats.million")}+</div>
+            <div className="stat-label">{t("stats.users")}</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="how-section">
+        <h2 className="how-title">{t("howItWorks.title")}</h2>
+        <p className="how-subtitle">{t("howItWorks.subtitle")}</p>
+
+        <div className="how-steps">
+          <div className="how-step">
+            <div className="how-icon">
+              <span className="material-symbols-outlined">ads_click</span>
+            </div>
+            <h4>{t("howItWorks.step1.title")}</h4>
+            <p>{t("howItWorks.step1.desc")}</p>
+          </div>
+
+          <div className="how-step">
+            <div className="how-icon">
+              <span className="material-symbols-outlined">location_on</span>
+            </div>
+            <h4>{t("howItWorks.step2.title")}</h4>
+            <p>{t("howItWorks.step2.desc")}</p>
+          </div>
+
+          <div className="how-step">
+            <div className="how-icon">
+              <span className="material-symbols-outlined">bar_chart_4_bars</span>
+            </div>
+            <h4>{t("howItWorks.step3.title")}</h4>
+            <p>{t("howItWorks.step3.desc")}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* modal ต้องอยู่ใน fragment */}
+      <LoginRequiredModal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+      />
+
+    </>
   );
 }

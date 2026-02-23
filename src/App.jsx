@@ -51,7 +51,7 @@ export default function App() {
         <Routes>
 
           {/* public */}
-          <Route path="/" element={<><HeroSection /><NewsSection /></>} />
+          <Route path="/" element={<HeroSection />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/news/:id" element={<NewsDetail />} />
           <Route path="/news" element={<NewsList/>}/>

@@ -16,20 +16,20 @@
 }
 
 .footer-logo {
-  font-family: "Kaisei Decol", serif;
+  font-family: "Kanit", sans-serif;
   font-size: 40px;
   font-weight: 700;
   margin-bottom: 4px;
 }
 
 .footer-subtitle {
-  font-family: "Mitr", sans-serif;
+  font-family: "Nunito Sans", sans-serif;
   font-size: 14px;
   margin-bottom: 20px;
 }
 
 .footer-text {
-  font-family: "Mitr", sans-serif;
+  font-family: "Nunito Sans", sans-serif;
   font-size: 13px;
   line-height: 1.6;
 }

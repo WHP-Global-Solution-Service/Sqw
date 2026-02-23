@@ -6,8 +6,9 @@ import {
   useCallback,
 } from "react";
 
-import { mockLogin, mockSignup, mockLogout } from "../mocks/mockAuthApi";
+//import { mockLogin, mockSignup, mockLogout } from "../mocks/mockAuthApi";
 import { saveAuth, clearAuth, getUser, getTokens } from "../mocks/authStorage";
+import { loginAPI } from "../api/auth";
 
 const AuthCtx = createContext(null);
 
@@ -42,12 +43,15 @@ export function AuthProvider({ children }) {
   // LOGIN
   // ==================================================
   const login = useCallback(async (email, password) => {
-    const res = await mockLogin(email, password);
+    const res = await loginAPI(email, password);
 
     const payload = {
-      user: res.user,
-      accessToken: res.accessToken,
-      refreshToken: res.refreshToken,
+      user: {
+        role: res.role,
+        type: res.type
+      },
+      accessToken: res.token,
+      refreshToken: null
     };
 
     saveAuth(payload);
@@ -55,7 +59,7 @@ export function AuthProvider({ children }) {
     setMe(payload.user);
     setTokens({
       access: payload.accessToken,
-      refresh: payload.refreshToken,
+      refresh: null
     });
 
     return payload;

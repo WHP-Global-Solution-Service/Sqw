@@ -4,7 +4,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import InvestorRiskQuiz from "../components/InvestorRiskQuiz";
 import { useTranslation } from "react-i18next";
-import { mockSignup } from "../mocks/authMock";
+//import { mockSignup } from "../mocks/authMock";
+//import { mockSignup } from "../mocks/authMock";
+import { signupAPI } from "../api/auth";
 import { saveAuth } from "../mocks/authStorage";
 import { addApplicant } from "../utils/applicantsLocal";
 import "../css/Signup.css";
@@ -103,10 +105,12 @@ export default function Signup() {
 
     name: form.firstName,
     lastname: form.lastName,
-    email: form.email,
-    phone: form.phone,
-    lineId: form.lineId,
-    address: form.address,
+    email: form.email.trim(),
+    phone: form.phone.trim(),
+    first_name: form.firstName.trim(),
+    last_name: form.lastName.trim(),
+    address: form.address.trim(),
+    line_id: form.lineId.trim(),
 
     shopName: form.shopName,
     agentLicense: form.agentLicense,
@@ -227,22 +231,16 @@ export default function Signup() {
   };
 
   const buildPayload = () => {
-
     let roleKey;
 
-    if (isSeller)
-      roleKey = role || form.sellerRole;
-    else if (isInvestor)
-      roleKey = "investor";
-    else
-      roleKey = "buyer";
-
-    const roleToSave = String(roleKey).trim().toLowerCase();
-
-    console.log("SEND ROLE =", roleToSave);
+    if (isSeller) roleKey = role || form.sellerRole;
+    else if (isInvestor) roleKey = "investor";
+    else roleKey = "buyer";
 
     return {
-      role: roleToSave,
+      type: isSeller ? "seller" : isInvestor ? "investor" : "buyer",
+      role: roleKey,
+
       email: form.email,
       password: form.password,
       first_name: form.firstName,
@@ -250,7 +248,10 @@ export default function Signup() {
       phone: form.phone,
       line_id: form.lineId,
       address: form.address,
-      number_id_card: form.idCard.replace(/-/g, "")
+      id_number: form.idCard.replace(/-/g, ""),
+
+      number_license: form.agentLicense,
+      agency_name: form.shopName
     };
   };
 
@@ -284,15 +285,15 @@ export default function Signup() {
     Object.entries(payload).forEach(([key, value]) => {
       formData.append(key, value);
     });
-    formData.append("id_card_image_front", idFront);
-    formData.append("id_card_image_back", idBack);
+    formData.append("id_front", idFront);
+    formData.append("id_back", idBack);
     formData.append("selfie", selfie);
 
     try {
-    const data = await mockSignup(formData);
+    const data = await signupAPI(formData);
 
-    if (!data.success) {
-      alert(data.message || "Signup failed");
+    if (!data || data.error) {
+      alert(data?.error || "Signup failed");
       return;
     }
 
@@ -301,22 +302,22 @@ export default function Signup() {
     setShowSuccess(true);
     setTimeout(()=> navigate("/login"),2000);
 
-    saveAuth({
-      user:data.user,
-      accessToken:"mock-access"
-    });
+    //saveAuth({
+      //user:data.user,
+      //accessToken:"mock-access"
+    //});
 
   } catch(err){
     console.error(err);
-    alert("Mock error");
+    alert(err.message);
   }
 
-    if (!data.success) return;
+    //if (!data.success) return;
 
-    saveAuth({
-      user:data.user,
-      accessToken:"mock-access"
-    });
+    //saveAuth({
+      //user:data.user,
+      //accessToken:"mock-access"
+    //});
 
   };
 
@@ -334,19 +335,19 @@ export default function Signup() {
       formData.append(key, value);
     });
     
-    formData.append("id_card_image_front", idFront);
-    formData.append("id_card_image_back", idBack);
+    formData.append("id_front", idFront);
+    formData.append("id_back", idBack);
     formData.append("selfie", selfie);
 
     if (isAgent && agentLicenseImage) {
-      formData.append("agent_license_image", agentLicenseImage);
+      formData.append("license_image", agentLicenseImage);
     }
 
     try {
-    const data = await mockSignup(formData);
+    const data = await signupAPI(formData);
 
-    if (!data.success) {
-      alert(data.message || "Signup failed");
+    if (!data || data.error) {
+      alert(data?.error || "Signup failed");
       return;
     }
 
@@ -355,22 +356,22 @@ export default function Signup() {
     setShowSuccess(true);
     setTimeout(()=> navigate("/login"),2000);
 
-    saveAuth({
-      user:data.user,
-      accessToken:"mock-access"
-    });
+    //saveAuth({
+      //user:data.user,
+      //accessToken:"mock-access"
+    //});
 
   } catch(err){
     console.error(err);
-    alert("Mock error");
+    alert(err.message || "Signup failed");
   }
 
-    if (!data.success) return;
+    //if (!data.success) return;
 
-    saveAuth({
-      user:data.user,
-      accessToken:"mock-access"
-    });
+    //saveAuth({
+      //user:data.user,
+      //accessToken:"mock-access"
+    //});
   };
 
   const goBack = () => {

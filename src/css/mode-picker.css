@@ -1,0 +1,158 @@
+:root{
+ --primary:#1E3A8A;
+ --primary-soft:#E8EDFB;
+ --primary-light:#F3F6FF;
+}
+
+.mode-overlay{
+ position:fixed;
+ inset:0;
+ background:rgba(0,0,0,.35);
+ backdrop-filter: blur(8px);
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ z-index:9999;
+}
+
+/* CARD */
+.mode-card{
+ background:#fff;
+ border-radius:24px;
+ padding:48px 48px 48px;
+ width:820px;
+ max-width:92%;
+ text-align:center;
+ border-radius:32px;
+ border:1px solid rgba(255,255,255,.5);
+ background:rgba(255,255,255,.70);
+ backdrop-filter: blur(6px);
+
+ box-shadow:0 25px 50px -12px rgba(0,0,0,.25);
+
+ animation:pop .25s ease;
+}
+
+@keyframes pop{
+ from{transform:scale(.94);opacity:0}
+ to{transform:scale(1);opacity:1}
+}
+
+/* TITLE */
+.mode-card h2{
+ color:var(--primary);
+ font-size:30px;
+ font-weight:700;
+ margin-bottom:10px;
+}
+
+.mode-card p{
+ color:#6b7280;
+ font-size:15px;
+ line-height:1.6;
+}
+
+/* GRID */
+.mode-grid{
+ display:flex;
+ gap:26px;
+ margin-top:38px;
+}
+
+/* ITEM */
+.mode-grid button{
+ flex:1;
+ padding:32px 22px 26px;
+ border-radius:20px;
+ border:1px solid #F1F5F9;
+ background:#fff;
+ cursor:pointer;
+ transition:.25s;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:10px;
+ position:relative;
+}
+
+.mode-grid button:hover{
+ transform:translateY(-6px);
+ box-shadow:0 25px 60px rgba(0,0,0,.15);
+ border-color:var(--primary-soft);
+}
+
+/* ICON */
+.icon{
+ width:72px;
+ height:72px;
+ border-radius:18px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ background:var(--primary-soft);
+ color:var(--primary);
+ margin-bottom:8px;
+}
+
+.icon .material-symbols-outlined{
+ font-size:34px;
+}
+
+/* TEXT */
+.mode-grid b{
+ font-size:20px;
+}
+
+.mode-grid span{
+ font-size:14px;
+ color:#6b7280;
+ max-width:220px;
+ line-height:1.5;
+}
+
+/* underline indicator */
+.mode-grid button::after{
+ content:"";
+ width:40px;
+ height:4px;
+ border-radius:8px;
+ background:var(--primary);
+ margin-top:14px;
+ opacity:.25;
+ transition:.25s;
+}
+
+.mode-grid button:hover::after{
+ opacity:1;
+ width:60px;
+}
+
+/* BUY */
+.icon.buy{
+ color:#1E3A8A;
+ background:#EFF6FF;
+}
+
+/* SELL */
+.icon.sell{
+ color:#0D9488;
+ background:#ECFEFF;
+}
+
+/* EIA */
+.icon.eia{
+ color:#D97706;
+ background:#FFF7ED;
+}
+
+.mode-grid button:nth-child(1)::after{
+ background:#1E3A8A;
+}
+
+.mode-grid button:nth-child(2)::after{
+ background:#0D9488;
+}
+
+.mode-grid button:nth-child(3)::after{
+ background:#D97706;
+}

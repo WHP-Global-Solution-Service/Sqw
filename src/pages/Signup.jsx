@@ -6,7 +6,7 @@ import InvestorRiskQuiz from "../components/InvestorRiskQuiz";
 import { useTranslation } from "react-i18next";
 //import { mockSignup } from "../mocks/authMock";
 //import { mockSignup } from "../mocks/authMock";
-import { signupAPI } from "../api/auth";
+import { mockSignup } from "../mocks/mockAuthApi";
 import { saveAuth } from "../mocks/authStorage";
 import { addApplicant } from "../utils/applicantsLocal";
 import "../css/Signup.css";
@@ -290,7 +290,7 @@ export default function Signup() {
     formData.append("selfie", selfie);
 
     try {
-    const data = await signupAPI(formData);
+    const data = await mockSignup(formData);
 
     if (!data || data.error) {
       alert(data?.error || "Signup failed");
@@ -344,7 +344,7 @@ export default function Signup() {
     }
 
     try {
-    const data = await signupAPI(formData);
+    const data = await mockSignup(formData);
 
     if (!data || data.error) {
       alert(data?.error || "Signup failed");

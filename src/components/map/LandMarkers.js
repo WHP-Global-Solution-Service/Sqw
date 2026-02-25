@@ -17,6 +17,8 @@ const FAV_RING = "#ffffff"; // วงขาวรอบหมุด
 
 const EIA_COLOR = "#2563EB";    // 🔵 blue-600 (EIA)
 
+
+
 function safeId(v, i) {
   if (v == null) return `land_${i}`;
   return String(v);
@@ -115,7 +117,7 @@ function isFavId(favoriteIds, id) {
 }
 
 
-export default function LandMarkers({ map, lands = [], favoriteIds, onSelect, mode }) {
+export default function LandMarkers({ map, lands = [], favoriteIds, onSelect, mode, onReady }) {
   const markerMapRef = useRef(new Map()); // id -> marker overlay
   const polygonMapRef = useRef(new Map()); // id -> polygon overlay
 
@@ -358,6 +360,10 @@ export default function LandMarkers({ map, lands = [], favoriteIds, onSelect, mo
       }
     };
   }, [map, lands, favoriteIds, onSelect, mode]);
+
+  useEffect(()=>{
+    if(lands?.length) onReady?.()
+  },[lands])
 
   return null;
 }

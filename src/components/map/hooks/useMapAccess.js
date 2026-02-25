@@ -37,6 +37,7 @@ export function useMapAccess() {
   // ---- Unlock modal state ----
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [unlockLandId, setUnlockLandId] = useState("");
+  const [gateOpen,setGateOpen] = useState(false)
 
   const unlockedForThisLand = useMemo(() => {
     const landId = String(unlockLandId || "");
@@ -65,6 +66,15 @@ export function useMapAccess() {
       }
 
       setUnlockLandId(id);
+
+      // ⭐ ถ้าไม่ใช่ member → เปิด gate
+      if (!access.isMember) {
+        setGateOpen(true);
+        return;
+      }
+
+      // ⭐ ถ้าเป็น member → เปิด picker
+      setUnlockOpen(true);
       setUnlockOpen(true);
     },
     [access]
@@ -109,6 +119,8 @@ export function useMapAccess() {
     saveAccess,
 
     unlockOpen,
+    gateOpen,
+    setGateOpen,
     setUnlockOpen,
     unlockLandId,
     setUnlockLandId,

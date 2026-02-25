@@ -113,15 +113,19 @@ export default function Navbar() {
 
   const currentMode = useMemo(() => {
     const sp = new URLSearchParams(location.search || "");
-    return sp.get("mode") || DEFAULT_MODE;
+    return sp.get("mode") 
   }, [location.search]);
 
 
   // MODE LABEL (i18n)
   const modeLabel = useMemo(() => {
     if (!isMap) return "";
+
     const sp = new URLSearchParams(location.search || "");
-    const mode = sp.get("mode") || DEFAULT_MODE;
+    const mode = sp.get("mode");
+
+    if (!mode) return t("nav.mode.select");
+
     return t(`nav.mode.${mode}`);
   }, [isMap, location.search, t]);
 
@@ -131,6 +135,11 @@ export default function Navbar() {
   );
 
   const changeMode = (mode) => {
+    if (!isMap) {
+      navigate(`/map?mode=${mode}`);
+      return;
+    }
+
     const sp = new URLSearchParams(location.search || "");
     sp.set("mode", mode);
 
@@ -222,23 +231,12 @@ export default function Navbar() {
                 </div>
 
                 <span className="nav-username">{me?.name}</span>
-
-                <span className="material-symbols-outlined nav-chevron">
-                  expand_more
-                </span>
               </button>
 
               {open && (
                 <div className="nav-profile-menu">
                   <div className="nav-profile-name">{me?.name}</div>
-
                   <button onClick={() => go("/profile")}>{t("nav.profile")}</button>
-                  <button onClick={() => go("/profile?tab=fav")}>
-                    {t("nav.favorites")} {favCount > 0 && `(${favCount})`}
-                  </button>
-                  <button onClick={() => go("/profile?tab=purchase")}>
-                    {t("nav.purchases")}
-                  </button>
 
                   {isAdmin && (
                     <>

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import "../../css/ModeDisclaimerModal.css";
 
 export default function ModeDisclaimerModal({ onClose }) {
@@ -23,7 +25,9 @@ export default function ModeDisclaimerModal({ onClose }) {
       <div className="modal-box">
         {step === "mode" && (
           <>
-            <div className="modal-icon">⚠️</div>
+            <div className="modal-icon">
+              <WarningAmberIcon fontSize="inherit" />
+            </div>
 
             <p className="modal-text">
               {t("disclaimer.mode.line1")}
@@ -41,7 +45,9 @@ export default function ModeDisclaimerModal({ onClose }) {
 
         {step === "pdpa" && (
           <>
-            <div className="modal-icon">🔔</div>
+            <div className="modal-icon">
+              <NotificationsActiveIcon fontSize="inherit" />
+            </div>
 
             <p className="modal-text text-danger">
               {t("disclaimer.pdpa.line1")}

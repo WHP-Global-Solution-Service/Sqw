@@ -1,13 +1,19 @@
-const KEY = "auth_user";
+export const saveAuth = (payload) => {
+  localStorage.setItem("authUser", JSON.stringify(payload.user));
+  localStorage.setItem("accessToken", payload.accessToken);
+};
 
-export function saveAuth(user) {
-  localStorage.setItem(KEY, JSON.stringify(user));
-}
+export const clearAuth = () => {
+  localStorage.removeItem("authUser");
+  localStorage.removeItem("accessToken");
+};
 
-export function loadAuth() {
-  return JSON.parse(localStorage.getItem(KEY) || "null");
-}
+export const getUser = () => {
+  const u = localStorage.getItem("authUser");
+  return u ? JSON.parse(u) : null;
+};
 
-export function clearAuth() {
-  localStorage.removeItem(KEY);
-}
+export const getTokens = () => ({
+  access: localStorage.getItem("accessToken"),
+  refresh: null
+});

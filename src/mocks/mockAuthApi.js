@@ -1,117 +1,58 @@
-const KEY = "mockUsers";
+const USERS_KEY = "mock_users";
 
-/* STORAGE */
 function getUsers(){
-  try{
-    return JSON.parse(localStorage.getItem(KEY) || "[]");
-  }catch{
-    return [];
-  }
+  return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
 }
 
 function saveUsers(users){
-  localStorage.setItem(KEY, JSON.stringify(users));
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-/* UTILS */
-const hash = p => btoa(p);
-const delay = (ms=400)=>new Promise(r=>setTimeout(r,ms));
-
-function normalizeUser(u){
-  return {
-    uid: u.uid,
-    email: u.email,
-    role: u.role || "buyer",
-
-    name:
-      u.name ||
-      `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
-      "User",
-
-    firstName: u.firstName || "",
-    lastName: u.lastName || "",
-    phone: u.phone || "",
-    address: u.address || "",
-    lineId: u.lineId || "",
-
-    createdAt: u.createdAt || null
-  };
-}
-
-/* LOGIN */
+// ================= LOGIN =================
 export async function mockLogin(email,password){
-  await delay();
-
-  const user = getUsers().find(
-    u => u.email===email && u.password===hash(password)
-  );
-
-  if(!user) throw new Error("Invalid credentials");
-
-  return {
-    user: normalizeUser(user),
-    accessToken:"mock-access",
-    refreshToken:"mock-refresh"
-  };
-}
-
-/* SIGNUP */
-export async function mockSignup(data){
-  await delay();
-
-  const payload =
-    data instanceof FormData
-      ? Object.fromEntries(data.entries())
-      : data;
+  await wait();
 
   const users = getUsers();
+  const user = users.find(u=>u.email===email && u.password===password);
 
-  if(users.some(u=>u.email===payload.email))
-    return { success:false, message:"Email exists" };
-
-  const newUser = {
-    uid: crypto.randomUUID(),
-    email: payload.email,
-    password: hash(payload.password),
-
-    role: payload.role || "buyer",
-
-    firstName: payload.first_name || "",
-    lastName: payload.last_name || "",
-    phone: payload.phone || "",
-    address: payload.address || "",
-    lineId: payload.line_id || "",
-
-    createdAt: new Date().toISOString()
-  };
-
-  saveUsers([...users,newUser]);
+  if(!user)
+    throw new Error("Invalid email or password");
 
   return {
-    success:true,
-    user: normalizeUser(newUser),
-    accessToken:"mock-access",
-    refreshToken:"mock-refresh"
+    token:"mock-token-"+Date.now(),
+    user
   };
 }
 
-/* LOGOUT */
-export async function mockLogout(){
-  await delay();
-  return true;
-}
-
-/* UPDATE PROFILE */
-export async function mockUpdateProfile(uid, patch){
-  await delay();
+// ================= SIGNUP =================
+export async function mockSignup(formData){
+  await wait();
 
   const users = getUsers();
+  const email = formData.get("email");
 
-  const next = users.map(u=>
-    u.uid===uid ? {...u,...patch} : u
-  );
+  if(users.some(u=>u.email===email))
+    return { error:"Email already exists" };
 
-  saveUsers(next);
+  const user = Object.fromEntries(formData.entries());
 
-  return normalizeUser(next.find(u=>u.uid===uid));
+  users.push(user);
+  saveUsers(users);
+
+  return { success:true, user };
+}
+
+// ================= PROFILE =================
+export async function mockGetProfile(){
+  await wait();
+
+  const user = JSON.parse(localStorage.getItem("authUser"));
+  if(!user) throw new Error("Not logged in");
+
+  return user;
+}
+
+// ================= UTILS =================
+function wait(ms=400){
+  return new Promise(res=>setTimeout(res,ms));
 }

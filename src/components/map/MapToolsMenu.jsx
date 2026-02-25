@@ -21,7 +21,8 @@ export default function MapToolsMenu({
   const rootRef = React.useRef(null);
   const finishingRef = React.useRef(false);
   const DRAWABLE_MODES = ["buy","sell","eia"];
-  const canDraw = currentRole === "admin" && showDrawing;
+  const canDraw =
+  ["landlord", "agent", "admin"].includes(currentRole) && showDrawing;
 
   /* ---------- safe wrapper ---------- */
   const safe = React.useCallback(

@@ -11,6 +11,11 @@ function safeParse(json, fallback) {
   }
 }
 
+function normalizeNumber(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? String(n) : "0";
+}
+
 export function readFavorites() {
   const raw = localStorage.getItem(FAV_KEY) || "[]";
   const arr = safeParse(raw, []);
@@ -64,7 +69,13 @@ export function toggleFavorite(id, payload = {}) {
     return false;
   }
 
-  const item = { id, ...payload };
+  const item = { 
+    id,
+    ...payload,
+    totalPrice: normalizeNumber(payload.totalPrice),
+    price: normalizeNumber(payload.price),
+    size: normalizeNumber(payload.size),
+   };
   writeFavorites([item, ...list]);
   return true;
 }

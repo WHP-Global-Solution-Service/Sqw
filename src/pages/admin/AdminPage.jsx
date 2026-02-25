@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 // Styles
-import "../../css/profile.css";
+import "../../css/admin.css";
 
 // Utilities & Services
 import {
@@ -222,7 +222,7 @@ export default function AdminPage() {
         </header>
 
         {/* Stats Summary */}
-        <div className="profile-stats">
+        <div className="profile-stats" data-count={3}>
           <div className="stat-card">
             <div className="stat-num">{lands.length}</div>
             <div className="stat-label">{t("stats.lands")}</div>

@@ -1,7 +1,9 @@
 // src/pages/ResetPassword.jsx
 import React, { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
+import { resetPasswordAPI } from "../api/auth";
 import "../css/Login.css";
 
 export default function ResetPassword() {
@@ -14,6 +16,9 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  const emailParam = query.get("email");
+  const otpParam = query.get("otp");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,22 +28,30 @@ export default function ResetPassword() {
       return;
     }
 
+    if (password.length < 8) {
+      alert("Password must be at least 8 characters");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // await api.resetPassword({ token, password })
+      await resetPasswordAPI({
+        email: emailParam,
+        otp: otpParam,
+        password,
+        confirmPassword: confirm
+      });
 
-      console.log("Reset password:", token, password);
-
-      // ✅ ไป success page
       navigate("/reset-password-success");
 
     } catch (err) {
-      alert("Reset failed");
+      alert(err.message);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="login-wrapper">

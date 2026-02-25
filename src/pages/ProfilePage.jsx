@@ -32,6 +32,7 @@ export default function ProfilePage() {
   const [favorites, setFavorites] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [posts, setPosts] = useState([]);
+  const [editOpen, setEditOpen] = useState(false);
 
   /* ---------------- AUTH GUARD ---------------- */
 
@@ -93,13 +94,26 @@ export default function ProfilePage() {
     <div className="profile-page">
       <div className="profile-container">
 
-        <ProfileHeader me={me} navigate={navigate} t={t} />
+        <ProfileHeader me={me} onEdit={()=>setEditOpen(true)} t={t} />
 
-        <Stats posts={posts} favorites={favorites} purchases={purchases} t={t} />
+          {editOpen && (
+            <EditProfileModal
+              me={me}
+              onClose={()=>setEditOpen(false)}
+            />
+          )}
+
+        <Stats
+          posts={posts}
+          favorites={favorites}
+          purchases={purchases}
+          role={me?.role}
+          t={t}
+        />
 
         <div className="profile-grid">
 
-          <Sidebar tab={tab} goTab={goTab} t={t} />
+          <Sidebar tab={tab} goTab={goTab} t={t} role={me?.role}/>
 
           <Content
             tab={tab}
@@ -124,36 +138,61 @@ export default function ProfilePage() {
 /* ===================== COMPONENTS ======================== */
 /* ========================================================= */
 
-function ProfileHeader({ me, navigate, t }) {
+function ProfileHeader({ me, onEdit, t }) {
+  const name = me?.name || me?.email || t("header.guest");
+  const firstLetter = name?.charAt(0)?.toUpperCase() || "U";
+
   return (
     <div className="profile-header">
+
+      {/* avatar */}
       <div className="profile-avatar">
-        {(me?.name?.[0] || me?.email?.[0] || "U").toUpperCase()}
+        {firstLetter}
       </div>
 
+      {/* text */}
       <div className="profile-meta">
-        <div className="profile-name">{me?.name || "Guest"}</div>
-        <div className="profile-sub">{t("header.member")}</div>
+        <div className="profile-name">
+          {name}
+        </div>
+
+        <div className="profile-sub">
+          {t("header.member")}
+        </div>
       </div>
 
+      {/* button */}
       <button
         className="ds-btn ds-btn-outline"
-        onClick={() => navigate("/profile/edit")}
+        onClick={onEdit}
       >
         {t("header.editProfile")}
       </button>
+
     </div>
   );
 }
 
 /* ---------------- STATS ---------------- */
 
-function Stats({ posts, favorites, purchases, t }) {
+function Stats({ posts, favorites, purchases, t, role }) {
+
+  const items = [];
+
+  if (["agent","landlord"].includes(role))
+    items.push({ label: t("stats.posts"), value: posts.length });
+
+  items.push({ label: t("stats.favorites"), value: favorites.length });
+  items.push({ label: t("stats.purchases"), value: purchases.length });
+
   return (
-    <div className="profile-stats">
-      <Stat value={posts.length} label={t("stats.posts")} />
-      <Stat value={favorites.length} label={t("stats.favorites")} />
-      <Stat value={purchases.length} label={t("stats.purchases")} />
+    <div
+      className="profile-stats"
+      data-count={items.length}
+    >
+      {items.map((x,i)=>(
+        <Stat key={i} value={x.value} label={x.label}/>
+      ))}
     </div>
   );
 }
@@ -167,12 +206,17 @@ const Stat = ({ value, label }) => (
 
 /* ---------------- SIDEBAR ---------------- */
 
-function Sidebar({ tab, goTab, t }) {
+function Sidebar({ tab, goTab, t, role }) {
   const items = [
     ["info", t("menu.info")],
     ["fav", t("menu.favorites")],
     ["purchase", t("menu.purchases")],
-    ["posts", t("menu.posts")],
+
+    ...( ["agent","landlord"].includes(role)
+      ? [["posts", t("menu.posts")]]
+      : []
+    ),
+
     ["settings", t("menu.settings")]
   ];
 
@@ -242,7 +286,7 @@ function PostsTab({ posts, t, deletePost, navigate }) {
               <Row label={t("posts.phone")} value={p.phone || "-"} />
 
               <div className="fav-actions fav-actions--row fav-actions--lg">
-                <button className="ds-btn ds-btn-outline" onClick={()=>navigate(`/map?focus=${p.id}`)}>
+                <button className="ds-btn ds-btn-outline" onClick={()=>navigate(`/map?mode=${p.mode || "buy"}&focus=${p.id}`)}>
                   {t("posts.viewMap")}
                 </button>
 
@@ -261,28 +305,78 @@ function PostsTab({ posts, t, deletePost, navigate }) {
 
 /* ---------------- FAVORITES ---------------- */
 
-function FavoritesTab({ favorites, removeFavorite, t }) {
+function FavoritesTab({ favorites, removeFavorite, t, navigate }) {
+  if (!favorites.length) {
+    return (
+      <section className="profile-content">
+        <Header
+          title={t("favorites.title")}
+        />
+        <Empty
+          title={t("favorites.emptyTitle")}
+          sub={t("favorites.emptySub")}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="profile-content">
-      <Header title={t("favorites.title")} sub={t("favorites.subtitle")} count={favorites.length} />
+      <Header
+        title={t("favorites.title")}
+      />
 
-      {favorites.map(f => (
-        <div key={f.id} className="fav-card">
-          <div className="fav-top">
-            <div>{f.owner}</div>
+      <div className="fav-grid">
 
+        {favorites.map(f => (
+          <div key={f.id} className="fav-land-card">
+
+            {/* delete */}
             <button
               className="fav-delete-icon"
-              onClick={() => {
-                if (window.confirm(t("favorites.confirmRemove")))
-                  removeFavorite(f.id);
+              onClick={()=>{
+                if(window.confirm(t("favorites.confirmRemove")))
+                  removeFavorite(f.id)
               }}
             >
               ✕
             </button>
+
+            {/* image */}
+            <img
+              src={f.image || "/placeholder.jpg"}
+              className="fav-land-img"
+            />
+
+            {/* info */}
+            <div className="fav-land-info">
+
+              <div className="fav-land-title">
+                {f.title || f.owner || t("common.unknown")}
+              </div>
+
+              <div className="fav-land-desc">
+                {f.location || "-"}
+              </div>
+
+              <div className="fav-land-meta">
+                <span>{t("posts.size")} {f.size ?? "-"}</span>
+                <span>{t("posts.price")} {Number(f.totalPrice || 0).toLocaleString()}</span>
+              </div>
+
+              <button
+                className="fav-land-link"
+                onClick={()=>navigate(`/map?mode=${f.mode || "buy"}&focus=${f.id}`)}
+              >
+                {t("posts.viewMap")} →
+              </button>
+
+            </div>
+
           </div>
-        </div>
-      ))}
+        ))}
+
+      </div>
     </section>
   );
 }
@@ -292,24 +386,72 @@ function FavoritesTab({ favorites, removeFavorite, t }) {
 function PurchasesTab({ purchases, removePurchase, t }) {
   return (
     <section className="profile-content">
-      <Header title={t("purchases.title")} sub={t("purchases.subtitle")} count={purchases.length} />
 
-      {purchases.map(p => (
-        <div key={p.id} className="purchase-card">
-          <Row label={t("purchases.seller")} value={p.seller} />
-          <Row label={t("purchases.total")} value={p.totalPrice} />
+      <Header
+        title={t("purchases.title")}
+      />
 
-          <button
-            className="ds-btn ds-btn-outline"
-            onClick={()=>{
-              if(window.confirm("Delete purchase?"))
-                removePurchase(p.id);
-            }}
-          >
-            {t("purchases.delete")}
-          </button>
+      <div className="purchase-table">
+
+        {/* header row */}
+        <div className="purchase-row purchase-head">
+          <div></div>
+          <div>{t("purchases.service")}</div>
+          <div>{t("purchases.paidAt")}</div>
+          <div>{t("purchases.status")}</div>
+          <div>{t("purchases.qty")}</div>
+          <div>{t("purchases.total")}</div>
+          <div></div>
         </div>
-      ))}
+
+        {/* rows */}
+        {purchases.map(p => (
+          <div key={p.id} className="purchase-row">
+
+            {/* icon */}
+            <div className="purchase-icon">
+              <span className="material-symbols-outlined">
+                call
+              </span>
+            </div>
+
+            {/* service */}
+            <div>{p.service}</div>
+
+            {/* date */}
+            <div>
+              {new Date(p.date).toLocaleDateString()}
+            </div>
+
+            {/* status */}
+            <div>
+              <span className={`badge ${p.status}`}>
+                {p.status}
+              </span>
+            </div>
+
+            {/* qty */}
+            <div>{p.qty}</div>
+
+            {/* price */}
+            <div>฿ {Number(p.totalPrice).toLocaleString()}</div>
+
+            {/* view */}
+            <div>
+              <button
+                className="icon-btn"
+                onClick={()=>alert("view purchase")}
+              >
+                <span className="material-symbols-outlined">
+                  visibility
+                </span>
+              </button>
+            </div>
+
+          </div>
+        ))}
+
+      </div>
     </section>
   );
 }
@@ -318,12 +460,11 @@ function PurchasesTab({ purchases, removePurchase, t }) {
 
 function InfoTab({ me, t }) {
   const fields = [
-    ["Name", me?.name],
-    ["Email", me?.email],
-    ["Phone", me?.phone],
-    ["Role", me?.role],
-    ["UID", me?.uid],
-    ["Joined", me?.createdAt && new Date(me.createdAt).toLocaleDateString()]
+    { label:t("info.name"), value:me?.name },
+    { label:t("info.email"), value:me?.email },
+    { label:t("info.phone"), value:me?.phone },
+    { label:t("info.lineId"), value:me?.line_id },
+    { label:t("info.status"), value:me?.role, isStatus:true }
   ];
 
   return (
@@ -331,8 +472,8 @@ function InfoTab({ me, t }) {
       <Header title={t("info.title")} sub={t("info.subtitle")} />
 
       <div className="info-card">
-        {fields.map(([label,value])=>(
-          <Row key={label} label={label} value={value}/>
+        {fields.map((f)=>(
+          <Row key={f.label} label={f.label} value={f.value}/>
         ))}
       </div>
     </section>
@@ -354,12 +495,23 @@ const Header = ({ title, sub, count }) => (
   </div>
 );
 
-const Row = ({ label, value }) => (
-  <div className="fav-row">
-    <span className="muted">{label}</span>
-    <b>{value || "-"}</b>
-  </div>
-);
+const Row = ({ label, value }) => {
+  const isStatus = label === "สถานะ";
+
+  return (
+    <div className="fav-row">
+      <span className="muted">{label}</span>
+
+      {isStatus ? (
+        <span className="badge badge-info">
+          {value === "buyer" ? "สมาชิกทั่วไป" : value}
+        </span>
+      ) : (
+        <b>{value || "-"}</b>
+      )}
+    </div>
+  );
+};
 
 const Empty = ({ title, sub, btn, onClick }) => (
   <div className="empty-state">
@@ -374,3 +526,47 @@ const ComingSoon = ({ t }) => (
     <Empty title={t("common.notReady")} sub={t("common.comingSoon")} />
   </section>
 );
+
+function EditProfileModal({ me, onClose }) {
+
+  const [form,setForm] = useState({
+    name: me.name || "",
+    phone: me.phone || "",
+    line_id: me.line_id || ""
+  });
+
+  const change = e =>
+    setForm({...form,[e.target.name]:e.target.value});
+
+  const save = ()=>{
+    console.log("SAVE",form);
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay">
+
+      <div className="modal-card">
+
+        <div className="modal-header">
+          Edit Profile
+          <button onClick={onClose}>✕</button>
+        </div>
+
+        <div className="modal-body">
+
+          <input name="name" value={form.name} onChange={change}/>
+          <input name="phone" value={form.phone} onChange={change}/>
+          <input name="line_id" value={form.line_id} onChange={change}/>
+
+        </div>
+
+        <div className="modal-footer">
+          <button onClick={onClose}>Cancel</button>
+          <button onClick={save}>Save</button>
+        </div>
+
+      </div>
+    </div>
+  );
+}

@@ -16,12 +16,15 @@ import SaleSidePanel from "./SaleSidePanel";
 import DashboardStats from "./DashboardStats";
 import SellModePickerModal from "./SellModePickerModal";
 import { MAP_MODE, isEia, isSell, isLandMode } from "./mapMode";
+import MembershipGateModal from "../modals/MembershipGateModal";
+
 
 // ✅ Investor flow
 import InvestorProfileModal from "./InvestorProfileModal";
 import InvestorRecommendPanel from "./InvestorRecommendPanel";
 import { loadInvestorProfile } from "../../utils/investorProfile";
 import { recommendLands } from "./recommend/recommendLands";
+import ModePickerModal from "./ModePickerModal";
 
 // ✅ Broadcast & Line ADs (Mode 2)
 import BroadcastFab from "./broadcast/BroadcastFab";
@@ -104,6 +107,7 @@ export default function MapPage() {
   const [createLand, setCreateLand] = useState(null);
   const [plan, setPlan] = useState("bkk2556");
   const [baseOpacity, setBaseOpacity] = useState(1);
+  const [markersReady,setMarkersReady] = useState(false)
 
   // =========================================================================
   // ✅ Mock Identity for Chat (มาก่อนทุกอย่างที่ใช้มัน)
@@ -184,26 +188,29 @@ export default function MapPage() {
   // ✅ กด “แชทผู้ขาย” จาก land (ปรับ field ให้ตรง schema จริงของคุณ)
   const openChatWithSellerFromLand = useCallback(
     (land) => {
+      console.log("CHAT TARGET LAND =", land);
+
       const sellerUid =
-        land?.sellerUid ||
-        land?.ownerUid ||
-        land?.createdByUid ||
+        land?.contactUid ??
+        land?.ownerId ??
+        land?.createdBy ??
+        land?.uid ??
         null;
 
       const sellerName =
-        land?.sellerName ||
+        land?.owner ||
+        land?.agent ||
         land?.ownerName ||
-        land?.createdByName ||
-        "";
+        "ผู้ขาย";
 
       if (!sellerUid) {
-        alert(t("chat.sellerNotFound"));
+        alert("❌ land นี้ไม่มี UID ผู้ขาย");
         return;
       }
 
       openChatWith(sellerUid, sellerName);
     },
-    [openChatWith, t]
+    [openChatWith]
   );
 
   // =========================================================================
@@ -346,9 +353,15 @@ export default function MapPage() {
 
   // ✅ lands ที่ใช้โชว์บนแผนที่/หมุด/สถิติ
   // land data (เดิม)
-  const landsForMap = isInvestorResult
-    ? recommendedLands || []
-    : filteredLands;
+  const landsForMap = useMemo(()=>{
+
+    const base = isInvestorResult
+      ? (recommendedLands || [])
+      : filteredLands
+
+    return base.filter(l => l.mode === mode)
+
+  },[mode, filteredLands, recommendedLands, isInvestorResult])
 
   // eia data (ใหม่)
   const eiaAsLandLike = useMemo(() => {
@@ -403,9 +416,7 @@ export default function MapPage() {
     return unsub;
   }, []);
 
-  useEffect(()=>{
-  console.log("EIA", eiaAsLandLike)
-  },[eiaAsLandLike])
+  
 
   // =========================================================================
   // Access / Cart
@@ -520,6 +531,42 @@ export default function MapPage() {
     reopenPopup,
   });
 
+  const handleChatFromPopup = useCallback(() => {
+    const land = popupApi.selectedLand;
+    if (!land) return;
+
+    const landId = land.id;
+    const access = accessApi.access?.[landId];
+
+    // ---------- ADMIN BYPASS ----------
+    if (role === "admin") {
+      openChatWithSellerFromLand(land);
+      return;
+    }
+
+    // ---------- ACCESS CHECK ----------
+    const hasChatAccess =
+      access === true ||
+      access === "all" ||
+      access?.chat === true ||
+      (Array.isArray(access) && access.includes("chat"));
+
+    if (!hasChatAccess) {
+      unlockFlow.onOpenUnlockPicker?.(landId);
+      return;
+    }
+
+    // ---------- OPEN CHAT ----------
+    openChatWithSellerFromLand(land);
+
+  }, [
+    popupApi.selectedLand,
+    accessApi.access,
+    unlockFlow,
+    openChatWithSellerFromLand,
+    role
+  ]);
+
   useMapEvents({
     mapObj,
     onOverlayOrMarkerSelect: handleSelectOverlay, // ✅ ใช้ handler กลาง
@@ -567,58 +614,36 @@ export default function MapPage() {
   // ✅ Focus + Zoom + Open Popup (เมื่อ navigate ไป /map?...&focus=ID)
   // =========================================================================
   useEffect(() => {
-    if (!mapObj) return;
+    if (!mapObj?.location) return;
     if (!focusLandId) return;
+    if (!markersReady) return; // ⭐ สำคัญ
     if (!landsForMap?.length) return;
 
-    const land = landsForMap.find((l) => String(l.id) === String(focusLandId));
+    const land = landsForMap.find(
+      l => String(l.id) === String(focusLandId)
+    );
     if (!land) return;
 
-    const loc =
-      land?.location ??
-      ({
-        lat: land?.lat ?? land?.latitude,
-        lon: land?.lon ?? land?.lng ?? land?.longitude,
-      } || null);
+    const loc = land.location ?? {
+      lat: land.lat ?? land.latitude,
+      lon: land.lon ?? land.lng ?? land.longitude,
+    };
 
-    if (loc?.lat == null || loc?.lon == null) return;
-
-    const lat = Number(loc.lat);
-    const lon = Number(loc.lon);
+    const lat = Number(loc?.lat);
+    const lon = Number(loc?.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
-    try {
-      mapObj.location({ lon, lat });
-      mapObj.zoom(16);
-    } catch (e) {
-      console.warn("map focus failed", e);
-    }
+    mapObj.location({ lon, lat });
+    mapObj.zoom(16);
 
-    const keep = [];
-    keep.push(`mode=${encodeURIComponent(mode)}`);
-    if (intent) keep.push(`intent=${encodeURIComponent(intent)}`);
-    if (profile) keep.push(`profile=${encodeURIComponent(profile)}`);
+    onSelectLand(land,{lon,lat});
 
-    const t = setTimeout(() => {
-      onSelectLand(land, { lon, lat }); // ✅ เปิด popup
-      navigate(`/map?${keep.join("&")}`, { replace: true }); // ✅ ล้าง focus แต่คง params ไว้
-    }, 250);
-
-    return () => clearTimeout(t);
-  }, [
-    mapObj,
-    focusLandId,
-    landsForMap,
-    onSelectLand,
-    navigate,
-    mode,
-    intent,
-    profile,
-  ]);
+  },[mapObj,focusLandId,landsForMap,markersReady]);
   // =========================================================================
   // Search
   // =========================================================================
   const handleSearch = useMapSearch(mapObj);
+  const [modeOpen, setModeOpen] = useState(!params.get("mode"));
 
   // =========================================================================
   // Derived
@@ -682,12 +707,27 @@ export default function MapPage() {
 
   }, [baseOpacity, mapObj, EIA_LAYERS]);
 
+  const handleSelectMode = (mode) => {
+      setModeOpen(false);
+      navigate(`/map?mode=${mode}`, { replace: true });
+    };
+
+  useEffect(() => {
+      setModeOpen(!params.get("mode"));
+    }, [params]);
+
   // =========================================================================
   // Render
   // =========================================================================
   return (
     <div className="map-shell">
       <div id="map" className="map-canvas" />
+
+      <ModePickerModal
+        open={modeOpen}
+        onClose={() => navigate("/map")}
+        onSelect={handleSelectMode}
+      />
 
       {showDisclaimer && (
         <ModeDisclaimerModal onClose={handleAcceptDisclaimer} />
@@ -729,6 +769,7 @@ export default function MapPage() {
           lands={isEia(mode) ? eiaAsLandLike : landsForMap}
           favoriteIds={isEia(mode) ? undefined : favoriteIds}
           onSelect={handleSelectOverlay}
+          onReady={() => setMarkersReady(true)}   // ⭐ เพิ่ม
           mode={mode}
         />
       )}
@@ -801,9 +842,7 @@ export default function MapPage() {
               onClose={() => popupApi.closePopup()}
               onOpenUnlockPicker={unlockFlow.onOpenUnlockPicker}
               onUnlockAll={unlockFlow.onUnlockAll}
-              onChatSeller={() =>
-                openChatWithSellerFromLand(popupApi.selectedLand)
-              }
+              onChatSeller={handleChatFromPopup}
             />
           )}
         </MapPopup>
@@ -859,6 +898,20 @@ export default function MapPage() {
         />
       )}
 
+      <MembershipGateModal
+        open={accessApi.gateOpen}
+        onClose={()=>accessApi.setGateOpen(false)}
+
+        onContinueFree={()=>{
+          accessApi.setGateOpen(false)
+          accessApi.setUnlockOpen(true)
+        }}
+
+        onUpgrade={()=>{
+          navigate("/pricing")
+        }}
+      />
+
       <UnlockPickerModal
         open={accessApi.unlockOpen}
         landId={accessApi.unlockLandId}
@@ -875,7 +928,20 @@ export default function MapPage() {
         open={unlockFlow.payOpen}
         draft={unlockFlow.payDraft}
         onClose={unlockFlow.onClosePay}
-        onPaid={unlockFlow.onPaid}
+        onPaid={(payload)=>{
+          // 1️⃣ run logic เดิมก่อน
+          unlockFlow.onPaid(payload)
+
+          // 2️⃣ ตรวจว่า unlock chat ไหม
+          const hasChat = payload?.selected?.includes("chat")
+
+          if(hasChat){
+            const land = popupApi.selectedLand
+            if(land){
+              openChatWithSellerFromLand(land)
+            }
+          }
+        }}
       />
 
       {/* 1) ปุ่มลอยข่าว */}

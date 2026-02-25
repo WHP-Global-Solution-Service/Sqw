@@ -127,9 +127,12 @@ export function useSalePanel({ getPoints, clearDrawing, currentUserId, mode, rol
       ...landForm,
       id,
       geometry,
-      __type:"eia",  // ใช้แยก popup 
+      mode,                 // buy | sell | eia
+      __type: mode === "eia" ? "eia" : undefined,
+      postedByRole: role,
       ownerId: currentUserId,
       location: centerOfPolygon(geometry) ,
+      contactUid: currentUserId,
 
       size: String(size),
       price: String(finalPrice),
@@ -145,6 +148,7 @@ export function useSalePanel({ getPoints, clearDrawing, currentUserId, mode, rol
       createdAt: isEdit ? (landForm.createdAt || nowISO) : nowISO,
       updatedAt: nowISO,
       approved: role === "admin"
+
     };
 
     if (isEdit) updateLand(id, payload);
@@ -158,7 +162,7 @@ export function useSalePanel({ getPoints, clearDrawing, currentUserId, mode, rol
     alert(isEdit ? "บันทึกการแก้ไขแล้ว ✅" : "บันทึกแปลงใหม่แล้ว ✅");
 
     return { id };
-  }, [getPoints, clearDrawing, landForm, resetForm, mode]);
+  }, [getPoints, clearDrawing, landForm, resetForm, mode, currentUserId, role]);
 
   const handleDeleteLand = useCallback((id) => {
     if (!id) return;

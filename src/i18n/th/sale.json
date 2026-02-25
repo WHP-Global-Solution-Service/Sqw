@@ -36,6 +36,7 @@
   },
   "placeholder": {
     "owner": "ชื่อเจ้าของ",
+    "agent":"ชื่อนายหน้า",
     "phone": "08x-xxx-xxxx",
     "lineId": "@lineid หรือ lineid",
     "rai": "ไร่",
@@ -46,7 +47,8 @@
     "size": "ขนาด",
     "unitSqw": "ตร.วา",
     "perSqw": "ราคาต่อตารางวา",
-    "total": "ราคารวม"
+    "total": "ราคารวม",
+    "day":"วันที่"
   },
   "unit": {
     "baht": "บ."

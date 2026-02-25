@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { FcGoogle } from "react-icons/fc";
 import { useTranslation } from "react-i18next";
-import { mockLogin } from "../mocks/mockAuthApi";
+//import { mockLogin } from "../mocks/mockAuthApi";
 import { useAuth } from "../auth/AuthProvider";
 import "../css/Login.css";
 
@@ -114,8 +114,7 @@ export default function Login() {
     try {
       setLoading(true);
 
-      await login(email, password); // ใช้ context login อย่างเดียว
-
+      await login(email,password);
       navigate("/");
 
     } catch (err) {

@@ -1,153 +1,90 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
-
-//import { mockLogin, mockSignup, mockLogout } from "../mocks/mockAuthApi";
-import { saveAuth, clearAuth, getUser, getTokens } from "../mocks/authStorage";
-import { loginAPI } from "../api/auth";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { mockLogin, mockGetProfile } from "../mocks/mockAuthApi";
 
 const AuthCtx = createContext(null);
 
 export function AuthProvider({ children }) {
   const [me, setMe] = useState(null);
-  const [tokens, setTokens] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ==================================================
+  // =====================================================
   // RESTORE SESSION
-  // ==================================================
+  // =====================================================
   useEffect(() => {
-    try {
-      const user = getUser();
-      const tk = getTokens();
+    const token = localStorage.getItem("accessToken");
 
-      if (user && tk?.access) {
-        setMe(user);
-        setTokens(tk);
-      } else {
-        clearAuth();
-      }
-    } catch (err) {
-      console.error("Auth restore failed:", err);
-      clearAuth();
-    } finally {
+    if (!token) {
       setLoading(false);
+      return;
     }
-  }, []);
 
-  // ==================================================
-  // LOGIN
-  // ==================================================
-  const login = useCallback(async (email, password) => {
-    const res = await loginAPI(email, password);
-
-    const payload = {
-      user: {
-        role: res.role,
-        type: res.type
-      },
-      accessToken: res.token,
-      refreshToken: null
-    };
-
-    saveAuth(payload);
-
-    setMe(payload.user);
-    setTokens({
-      access: payload.accessToken,
-      refresh: null
-    });
-
-    return payload;
-  }, []);
-
-  // ==================================================
-  // SIGNUP
-  // ==================================================
-  const signup = useCallback(async (data) => {
-    const res = await mockSignup(data);
-
-    const payload = {
-      user: res.user,
-      accessToken: res.accessToken,
-      refreshToken: res.refreshToken,
-    };
-
-    saveAuth(payload);
-
-    setMe(payload.user);
-    setTokens({
-      access: payload.accessToken,
-      refresh: payload.refreshToken,
-    });
-
-    return payload;
-  }, []);
-
-  // ==================================================
-  // LOGOUT
-  // ==================================================
-  const logout = useCallback(async () => {
-    try {
-      await mockLogout();
-    } finally {
-      clearAuth();
-      setMe(null);
-      setTokens(null);
-    }
-  }, []);
-
-  // ==================================================
-  // UPDATE ROLE
-  // ==================================================
-  const updateRole = useCallback(
-    (newRole) => {
-      setMe((prev) => {
-        if (!prev) return prev;
-
-        const updated = { ...prev, role: newRole };
-
-        saveAuth({
-          user: updated,
-          accessToken: tokens?.access || "",
-          refreshToken: tokens?.refresh || "",
+    mockGetProfile()
+      .then(user => {
+        setMe({
+          ...user,
+          name: `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim(),
+          role: user.role || "user"
         });
+      })
+      .catch(() => {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("authUser");
+        setMe(null);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-        return updated;
-      });
-    },
-    [tokens]
-  );
+  // =====================================================
+  // LOGIN
+  // =====================================================
+  const login = useCallback(async (email, password) => {
+    const res = await mockLogin(email, password);
 
-  // ==================================================
-  // PERMISSIONS
-  // ==================================================
+    localStorage.setItem("accessToken", res.token);
+    localStorage.setItem("authUser", JSON.stringify(res.user));
+
+    setMe({
+      ...res.user,
+      name: `${res.user.first_name ?? ""} ${res.user.last_name ?? ""}`.trim(),
+      role: res.user.role || "user"
+    });
+
+    return res;
+  }, []);
+
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+  const logout = useCallback(() => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("authUser");
+    setMe(null);
+  }, []);
+
+  // =====================================================
+  // ROLE
+  // =====================================================
   const role = me?.role || "guest";
 
   const hasRole = useCallback(
-    (allowed) => {
-      if (Array.isArray(allowed)) return allowed.includes(role);
-      return allowed === role;
-    },
+    (allowed) =>
+      Array.isArray(allowed)
+        ? allowed.includes(role)
+        : allowed === role,
     [role]
   );
 
+  // =====================================================
+  // VALUE
+  // =====================================================
   const value = {
     me,
     role,
-    tokens,
     loading,
     isLoggedIn: !!me,
 
     login,
-    signup,
     logout,
-    updateRole,
-
     hasRole,
 
     isAdmin: role === "admin",
@@ -159,9 +96,9 @@ export function AuthProvider({ children }) {
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }
 
-// ==================================================
+// =====================================================
 // HOOK
-// ==================================================
+// =====================================================
 export function useAuth() {
   const ctx = useContext(AuthCtx);
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");

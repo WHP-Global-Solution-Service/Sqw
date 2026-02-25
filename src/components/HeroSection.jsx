@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LoginRequiredModal from "../components/Common/LoginRequiredModal";
 import "../css/HeroSection.css";
+import { useAuth } from "../auth/AuthProvider";
 
 export default function HeroSection() {
   const navigate = useNavigate();
   const { t } = useTranslation("common");
   const [openModal, setOpenModal] = useState(false);
+  const { isLoggedIn } = useAuth();
 
   return (
     <>
@@ -23,9 +25,7 @@ export default function HeroSection() {
             <button
               className="hero-main-btn"
               onClick={() => {
-                const token = localStorage.getItem("token");
-
-                if (token) {
+                if (isLoggedIn) {
                   navigate("/map");
                 } else {
                   setOpenModal(true);

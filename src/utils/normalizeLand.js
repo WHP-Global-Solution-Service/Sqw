@@ -5,7 +5,7 @@ const normalizeDate = (v) => {
 
   if (typeof v === "string") {
     const parsed = new Date(v);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString("th-TH");
+    if (!Number.isNaN(parsed.getTime())) return parsed;
     return v;
   }
 
@@ -55,33 +55,73 @@ export function normalizeLand(input = {}) {
 
   const id = pick(input.id, input.landId, input._id, input.docId, "");
 
+  const role = input.postedByRole;
+
+  const displayName = (() => {
+    if (role === "landlord") {
+      return pick(input.owner, input.contactOwner);
+    }
+
+    if (role === "agent") {
+      return pick(input.agent, input.broker);
+    }
+
+    // admin หรือ unknown
+    return pick(
+      input.owner,
+      input.agent,
+      input.contactOwner,
+      input.broker,
+      "ไม่ระบุ"
+    );
+  })();
+
   return {
     id,
-    owner: pick(
-      input.owner,
-      input.ownerName,
-      input.contactOwner,
-      input.agent,
-      "คุณปาลิส (นายหน้า)"
-    ),
+    owner: displayName,
+    postedByRole: role,
+    contactUid: input.contactUid || input.ownerId,
+
+    createdAt: normalizeDate(input.createdAt),
+
     updatedAt:
       normalizeDate(
         pick(input.updatedAt, input.createdAt)
       ) ?? "-",
+
     area:
       fmt(pick(input.area, input.size, input.sqw)) ??
       String(pick(input.area, input.size) ?? "-"),
+
     raw:
       pick(input.rnw, input.raiNganWah) ??
       sqwToRNW(pick(input.area, input.size)) ??
       "-",
-    frontage: fmt(pick(input.frontage, input.frontWidth, input.width)) ?? "-",
-    roadWidth: fmt(pick(input.roadWidth, input.road, input.roadSize)) ?? "-",
-    pricePerWa: fmt(pick(input.pricePerWa, input.pricePerSqw, input.price), 2) ?? "-",
-    totalPrice: fmt(pick(input.totalPrice, input.total)) ?? "-",
 
-    contactOwner: pick(input.contactOwner, input.ownerContact, ""),
-    broker: pick(input.agent, input.broker, ""),
+    frontage:
+      fmt(pick(input.frontage, input.frontWidth, input.width)) ?? "-",
+
+    roadWidth:
+      fmt(pick(input.roadWidth, input.road, input.roadSize)) ?? "-",
+
+    pricePerWa:
+      fmt(
+        pick(input.pricePerWa, input.pricePerSqw, input.price),
+        2
+      ) ?? "-",
+
+    totalPrice:
+      fmt(pick(input.totalPrice, input.total)) ?? "-",
+
+    contactOwner:
+    role === "landlord"
+      ? pick(input.contactOwner, input.ownerContact, "")
+      : "",
+
+  broker:
+    role === "agent"
+      ? pick(input.agent, input.broker, "")
+      : "",
     phone: pick(input.phone, input.tel, ""),
     line: pick(input.lineId, input.line, ""),
     frame: pick(input.landFrame, input.frame, ""),
@@ -91,9 +131,9 @@ export function normalizeLand(input = {}) {
     lng: pick(input.lng, input.longitude),
 
     images: Array.isArray(input.images)
-    ? input.images
-    : Array.isArray(input.image)
-    ? input.image
-    : [],
+      ? input.images
+      : Array.isArray(input.image)
+      ? input.image
+      : [],
   };
 }

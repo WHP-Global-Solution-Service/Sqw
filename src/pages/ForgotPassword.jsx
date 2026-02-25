@@ -2,21 +2,32 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import "../css/Login.css";
+import { forgotPasswordAPI } from "../api/auth";
 
 export default function ForgotPassword() {
   const { t } = useTranslation("auth");
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // เรียก API จริงในอนาคต
-    // await api.post("/auth/forgot-password", { email });
+    try {
+      setLoading(true);
+      setError("");
 
-    // ไปหน้า OTP
-    navigate(`/otp-verification?email=${encodeURIComponent(email)}`);
+      await forgotPasswordAPI(email);
+
+      navigate(`/otp-verification?email=${encodeURIComponent(email)}`);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

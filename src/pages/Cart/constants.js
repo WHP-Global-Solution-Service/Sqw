@@ -8,6 +8,7 @@ export const PRICE = {
   line: 150,
   frame: 100,
   chanote: 200,
+  chat: 100,
 };
 
 /**
@@ -22,6 +23,7 @@ export const FIELD_I18N_KEY = {
   line: "field.lineId",
   frame: "field.landFrame",
   chanote: "field.deed",
+  chat: "แชท"
 };
 /**
  * Payment methods (logic only)

@@ -28,6 +28,17 @@
     return `${parts[0]}.${parts.slice(1).join("")}`;
   }
 
+  function formatDateTH(dateStr){
+    if(!dateStr) return "-"
+    const d = new Date(dateStr)
+    if(isNaN(d)) return "-"
+    return d.toLocaleDateString("th-TH",{
+      year:"numeric",
+      month:"short",
+      day:"numeric"
+    })
+  }
+
   function onlyDigits(v) {
     return String(v ?? "").replace(/[^\d]/g, "");
   }
@@ -163,6 +174,11 @@
     const isAdmin = role === "admin";
     const canEditEia = isEiaMode && isAdmin;
     const { t } = useTranslation("sale");
+    const canSeeOwner =
+      role === "admin" || role === "landlord";
+
+    const canSeeAgent =
+      role === "admin" || role === "agent";
 
     // ✅ Gate เฉพาะตอนแก้ไข: ต้องครบ 14 วันจาก createdAt
     const editGate = useMemo(() => getEditGateInfo(landData, 14), [landData]);
@@ -520,27 +536,31 @@
                   </div>
                 </div>
 
-                <div className="field">
-                  <label>{t("field.owner")}</label>
-                  <input
-                    type="text"
-                    value={landData?.owner ?? ""}
-                    onChange={(e) => patchLand({ owner: e.target.value })}
-                    placeholder={t("placeholder.owner")}
-                    disabled={!canEditCurrentLand || !!String(landData?.agent ?? "").trim()}
-                  />
-                </div>
+                {canSeeOwner && (
+                  <div className="field">
+                    <label>{t("field.owner")}</label>
+                    <input
+                      type="text"
+                      value={landData?.owner ?? ""}
+                      onChange={(e) => patchLand({ owner: e.target.value })}
+                      placeholder={t("placeholder.owner")}
+                      disabled={!canEditCurrentLand || (!!String(landData?.agent ?? "").trim() && role !== "admin")}
+                    />
+                  </div>
+                )}
 
-                <div className="field">
-                  <label>{t("field.agent")}</label>
-                  <input
-                    type="text"
-                    value={landData?.agent ?? ""}
-                    onChange={(e) => patchLand({ agent: e.target.value })}
-                    placeholder={t("placeholder.agent")}
-                    disabled={!canEditCurrentLand || !!String(landData?.owner ?? "").trim()}
-                  />
-                </div>
+                {canSeeAgent && (
+                  <div className="field">
+                    <label>{t("field.agent")}</label>
+                    <input
+                      type="text"
+                      value={landData?.agent ?? ""}
+                      onChange={(e) => patchLand({ agent: e.target.value })}
+                      placeholder={t("placeholder.agent")}
+                      disabled={!canEditCurrentLand || (!!String(landData?.owner ?? "").trim() && role !== "admin")}
+                    />
+                  </div>
+                )}
 
                 <div className="row2">
                   <div className="field">
@@ -893,6 +913,11 @@
                             <div className="item-row">
                               <span className="muted">{t("summary.total")}</span>
                               <b>{formatNumber(land.totalPrice) || "-"} {t("unit.baht")}</b>
+                            </div>
+
+                            <div className="item-row">
+                              <span className="muted">วันที่</span>
+                              <b>{formatDateTH(land.createdAt)}</b>
                             </div>
                           </>
                         )}

@@ -62,11 +62,16 @@ export default function LandDetailPanel({
       id: L.id,
       title: L.owner,
       owner: L.owner,
-      updatedAt: L.updatedAt,
-      totalPrice: L.totalPrice,
-      area: L.area,
+      image: L.images?.[0],
+
+      size: L.area,
+      price: L.pricePerWa ?? L.price,
+      location: L.location, // ⭐ สำคัญ
+
       lat: L.lat,
-      lng: L.lng,
+      lon: L.lon ?? L.lng,   // ⭐ สำคัญ
+
+      updatedAt: L.updatedAt,
     };
 
     if (typeof onToggleFavorite === "function") {
@@ -84,8 +89,8 @@ export default function LandDetailPanel({
   const showValue = (key, value, mask) =>
     canReveal(key) ? value ?? "-" : mask;
 
-  const postedDate = L.updatedAt
-    ? new Date(L.updatedAt).toLocaleDateString(i18n.language)
+  const postedDate = L.createdAt
+    ? new Date(L.createdAt).toLocaleDateString(i18n.language)
     : "-";
 
   return (
@@ -190,12 +195,22 @@ export default function LandDetailPanel({
         {isMember ? (
           <MemberActions
             quotaUsed={quotaUsed}
-            onChatSeller={() => onChatSeller?.(land)}
+            onChatSeller={() =>
+              onChatSeller?.({
+                uid: L.contactUid,
+                name: L.owner
+              })
+            }
             onUnlockAll={() => onUnlockAll?.(L.id)}
           />
         ) : (
           <GuestActions
-            onChatSeller={() => onChatSeller?.(land)}
+            onChatSeller={() =>
+              onChatSeller?.({
+                uid: L.contactUid,
+                name: L.owner
+              })
+            }
             onOpenUnlockPicker={() => onOpenUnlockPicker?.(L.id)}
           />
         )}

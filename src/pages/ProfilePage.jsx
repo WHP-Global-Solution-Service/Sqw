@@ -411,16 +411,17 @@ function PurchasesTab({ purchases, removePurchase, t }) {
             {/* icon */}
             <div className="purchase-icon">
               <span className="material-symbols-outlined">
-                call
+                receipt
               </span>
             </div>
-
             {/* service */}
-            <div>{p.service}</div>
+            <div>{p.title || "-"}</div>
 
             {/* date */}
             <div>
-              {new Date(p.date).toLocaleDateString()}
+              {p.paidAt
+                ? new Date(p.paidAt).toLocaleDateString()
+                : "-"}
             </div>
 
             {/* status */}
@@ -431,7 +432,7 @@ function PurchasesTab({ purchases, removePurchase, t }) {
             </div>
 
             {/* qty */}
-            <div>{p.qty}</div>
+            <div>{p.qty || 1}</div>
 
             {/* price */}
             <div>฿ {Number(p.totalPrice).toLocaleString()}</div>

@@ -20,7 +20,7 @@ export const LABEL = {
 };
 
 export const PAYMENT_METHODS = [
-  { key: "promptpay", title: "PromptPay / QR", desc: "สแกนเพื่อชำระเงิน" },
-  { key: "card", title: "บัตรเครดิต/เดบิต", desc: "Visa / MasterCard" },
-  { key: "bank", title: "โอนผ่านธนาคาร", desc: "Redirect ไปผู้ให้บริการ" },
+  { key:"promptpay", title:"PromptPay", icon:"qr_code_2" },
+  { key:"card", title:"Credit Card", icon:"credit_card" },
+  { key:"bank", title:"Banking", icon:"account_balance" }
 ];

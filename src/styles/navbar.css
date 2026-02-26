@@ -177,7 +177,7 @@
   margin-right: 12px;
   padding: 8px;
   border-radius: 50%;
-  color: #f3f4f6;
+  color:inherit;
   display: flex;
   align-items: center;
 }
@@ -677,6 +677,15 @@
 /* active underline */
 .nav-light .nav-item.active::after{
   background:#111827;
+}
+
+/* ===== DARK NAV ICON COLORS ===== */
+.nav-dark .cart-btn {
+  color: #fff;
+}
+
+.nav-dark .nav-bell .material-symbols-outlined {
+  color: #fff;
 }
 
 @media (max-width: 900px){

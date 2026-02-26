@@ -1,5 +1,5 @@
 // src/components/map/DashboardStats.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import "../../css/DashboardStats.css";
 import { parseNum } from "../../utils/number";
 import { sqwToRNW } from "../../utils/landUnit";
@@ -14,9 +14,10 @@ function formatInt(v) {
 }
 
 export default function DashboardStats({ lands = [] }) {
-  // ✅ bind dashboard namespace
   const { t } = useTranslation("dashboard");
   const { t: tCommon } = useTranslation("common");
+
+  const [open, setOpen] = useState(true);
 
   const stats = useMemo(() => {
     const list = Array.isArray(lands) ? lands : [];
@@ -39,35 +40,87 @@ export default function DashboardStats({ lands = [] }) {
       return sum;
     }, 0);
 
-    return { totalListings, totalSqw, totalValue };
+    const landlordCount = list.filter(l => l?.owner?.trim()).length;
+    const agentCount = list.filter(l => l?.agent?.trim()).length;
+
+    return {
+      totalListings,
+      totalSqw,
+      totalValue,
+      landlordCount,
+      agentCount
+    };
   }, [lands]);
 
   const rnw = sqwToRNW(stats.totalSqw);
 
   return (
-    <div className="dashbar">
-      {/* จำนวนประกาศ */}
-      <div className="dashcard">
-        <div className="dashlabel">{t("totalLand")}</div>
-        <div className="dashvalue">{formatInt(stats.totalListings)}</div>
-        <div className="dashunit">{t("unit.listing")}</div>
-      </div>
+    <div className={`dashbar ${open ? "open" : "collapsed"}`}>
 
-      {/* จำนวนรวม (ไร่/งาน/วา) */}
-      <div className="dashcard">
-        <div className="dashlabel">{t("totalArea")}</div>
-        <div className="dashvalue">{rnw.rai.toLocaleString("th-TH")}</div>
-        <div className="dashunit">
-          {rnw.ngan} {t("unit.ngan")} {rnw.wah} {t("unit.wah")}
+      {/* Toggle button */}
+      <button
+        className="dashToggleAttached"
+        onClick={() => setOpen(v => !v)}
+      >
+        {open ? "▼" : "▲"}
+      </button>
+
+      {/* Mini bar ตอนพับ */}
+      {!open && (
+        <div className="dashMini">
+          แสดงข้อมูลผลลัพธ์
         </div>
+      )}
+
+      {/* Content */}
+      <div className="dashContent">
+        {open && (
+          <>
+            <div className="dashcard">
+              <div className="dashlabel">{t("totalLand")}</div>
+              <div className="dashvalue">{formatInt(stats.totalListings)}</div>
+              <div className="dashunit">{t("unit.listing")}</div>
+            </div>
+
+            <div className="dashcard">
+              <div className="dashlabel">{t("totalArea")}</div>
+              <div className="dashvalue">
+                {rnw.rai.toLocaleString("th-TH")}
+              </div>
+              <div className="dashunit">
+                {rnw.ngan} {t("unit.ngan")} {rnw.wah} {t("unit.wah")}
+              </div>
+            </div>
+
+            <div className="dashcard">
+              <div className="dashlabel">{t("totalValue")}</div>
+              <div className="dashvalue">
+                {formatInt(stats.totalValue)}
+              </div>
+              <div className="dashunit">
+                {tCommon("unit.baht")}
+              </div>
+            </div>
+
+            <div className="dashcard">
+              <div className="dashlabel">เจ้าของที่</div>
+              <div className="dashvalue">
+                {formatInt(stats.landlordCount)}
+              </div>
+              <div className="dashunit">รายการ</div>
+            </div>
+
+            <div className="dashcard">
+              <div className="dashlabel">นายหน้า</div>
+              <div className="dashvalue">
+                {formatInt(stats.agentCount)}
+              </div>
+              <div className="dashunit">รายการ</div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* มูลค่ารวม */}
-      <div className="dashcard">
-        <div className="dashlabel">{t("totalValue")}</div>
-        <div className="dashvalue">{formatInt(stats.totalValue)}</div>
-        <div className="dashunit">{tCommon("unit.baht")}</div>
-      </div>
     </div>
   );
 }

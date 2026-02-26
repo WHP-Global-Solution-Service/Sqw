@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 import { QRCodeCanvas } from "qrcode.react";
 import { useTranslation } from "react-i18next";
-import { getMockStatus } from "../mockEngine";
 
 export default function PromptPayQrModal({
   open,
@@ -12,57 +11,46 @@ export default function PromptPayQrModal({
   onPaid,
 }) {
   const { t } = useTranslation("payment");
-
-  /* ---------- STATE ---------- */
-  const [mockStatus,setMockStatus] = useState(status || "PENDING");
-
-  /* ---------- POLLING ---------- */
-  useEffect(()=>{
-    if(!open || !data) return;
-
-    const timer = setInterval(()=>{
-      const s = getMockStatus(data.orderId);
-      setMockStatus(s);
-
-      if(s !== "PENDING") clearInterval(timer);
-    },1000);
-
-    return ()=> clearInterval(timer);
-  },[open,data]);
+  const { t: tCommon } = useTranslation("common");
 
   if (!open || !data) return null;
 
-  /* ---------- STATUS FLAGS ---------- */
-  const isPaid = mockStatus === "PAID";
-  const isFailed = mockStatus === "FAILED";
-  const isPending = mockStatus === "PENDING";
+  const isPaid = status === "PAID";
+  const isFailed = status === "FAILED";
+  const isPending = !isPaid && !isFailed;
 
-  /* ---------- RENDER ---------- */
   return createPortal(
-    <div className="qr-overlay" onClick={onClose}>
-      <div className="qr-panel" onClick={(e)=>e.stopPropagation()}>
-
-        <div className="qr-head">
-          <div className="qr-title">{t("promptpay.title")}</div>
-          <button className="qr-close" onClick={onClose}>×</button>
+    <div
+      className="pm-qr-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="pm-qr-card" onClick={(e) => e.stopPropagation()}>
+        {/* ================= TITLE ================= */}
+        <div className="pm-qr-title">
+          {t("promptpay.title")}
         </div>
 
-        <div className="qr-info">
-          {t("promptpay.order",{id:data.orderId})}
+        {/* ================= META ================= */}
+        <div className="pm-qr-sub">
+          {t("promptpay.order", { id: data.orderId })} •{" "}
+          <b>
+            {Number(data.amount).toLocaleString()}{" "}
+            {t("promptpay.amountUnit")}
+          </b>
         </div>
 
-        <div className="qr-box">
-          <QRCodeCanvas value={String(data.qrText)} size={220}/>
+        {/* ================= QR ================= */}
+        <div className="pm-qr-box">
+          <QRCodeCanvas
+            value={String(data.qrText || "")}
+            size={240}
+          />
         </div>
 
-        <div className="qr-amount">
-          {Number(data.amount).toLocaleString()} {t("promptpay.amountUnit")}
-        </div>
-
-        <div className={`qr-status ${
-          isPaid ? "success" :
-          isFailed ? "error" : "pending"
-        }`}>
+        {/* ================= STATUS ================= */}
+        <div className="pm-qr-hint">
           {isPaid
             ? t("promptpay.status.paid")
             : isFailed
@@ -70,18 +58,28 @@ export default function PromptPayQrModal({
             : t("promptpay.status.pending")}
         </div>
 
-        <div className="qr-actions">
-          <button className="btn-outline" onClick={onClose}>
+        {/* ================= ACTIONS ================= */}
+        <div className="pm-qr-actions">
+          <button
+            className="ds-btn ds-btn-outline"
+            onClick={onClose}
+            type="button"
+            aria-label={tCommon("close")}
+          >
             {t("action.close")}
           </button>
 
+          {/* mock flow: ให้ user กดยืนยันเอง */}
           {isPending && (
-            <button className="btn-primary" onClick={onPaid}>
+            <button
+              className="ds-btn ds-btn-primary"
+              onClick={onPaid}
+              type="button"
+            >
               {t("action.confirmPaid")}
             </button>
           )}
         </div>
-
       </div>
     </div>,
     document.body

@@ -30,7 +30,7 @@ export const FIELD_I18N_KEY = {
  * UI จะไปเรียก i18n เอง
  */
 export const PAYMENT_METHODS = [
-  { key: "promptpay" },
-  { key: "card" },
-  { key: "bank" },
+  { key:"promptpay", title:"PromptPay", icon:"qr_code_2" },
+  { key:"card", title:"Credit Card", icon:"credit_card" },
+  { key:"bank", title:"Banking", icon:"account_balance" }
 ];

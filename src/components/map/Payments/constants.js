@@ -6,6 +6,7 @@ export const PRICE = {
   line: 150,
   frame: 100,
   chanote: 200,
+  chat: 100
 };
 
 export const LABEL = {
@@ -15,6 +16,7 @@ export const LABEL = {
   line: "LINE ID",
   frame: "กรอบที่ดิน",
   chanote: "โฉนด/ระวาง",
+  chat : "แชท"
 };
 
 export const PAYMENT_METHODS = [

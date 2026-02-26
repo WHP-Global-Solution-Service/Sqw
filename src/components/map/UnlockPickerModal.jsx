@@ -16,6 +16,8 @@ export default function UnlockPickerModal({
 }) {
   const nav = useNavigate();
   const [selected, setSelected] = useState([]);
+  const PRIMARY = "#053974";
+  const PRIMARY_LIGHT = "#e6eef8"; 
 
   // ✅ bind unlock namespace
   const { t, i18n } = useTranslation("unlock");
@@ -108,29 +110,33 @@ export default function UnlockPickerModal({
         <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
           {(items || []).map((it) => {
             const checked = selected.includes(it.k);
+
+            const toggle = () => {
+              setSelected((prev) =>
+                prev.includes(it.k)
+                  ? prev.filter((x) => x !== it.k)
+                  : [...prev, it.k]
+              );
+            };
+
             return (
-              <button
+              <label
                 key={it.k}
-                type="button"
-                onClick={() =>
-                  setSelected((prev) =>
-                    prev.includes(it.k)
-                      ? prev.filter((x) => x !== it.k)
-                      : [...prev, it.k]
-                  )
-                }
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "12px 14px",
                   borderRadius: 14,
-                  border: "1px solid #e8e8e8",
-                  background: "#fff",
+                  border: checked ? `1px solid ${PRIMARY}` : "1px solid #e8e8e8",
+                  background: checked ? PRIMARY_LIGHT : "#fff",
+                  cursor: "pointer",
                 }}
               >
-                <div style={{ display: "flex", gap: 12 }}>
+                {/* ===== LEFT CONTENT ===== */}
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                   <div style={{ fontSize: 20 }}>{it.icon}</div>
+
                   <div>
                     <div style={{ fontWeight: 900 }}>{it.label}</div>
                     <div style={{ opacity: 0.7, fontSize: 13 }}>
@@ -140,16 +146,19 @@ export default function UnlockPickerModal({
                   </div>
                 </div>
 
-                <div
+                {/* ===== CHECKBOX RIGHT SIDE ===== */}
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={toggle}
                   style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 6,
-                    border: "2px solid #cfcfcf",
-                    background: checked ? "#118e44" : "#fff",
+                    width: 18,
+                    height: 18,
+                    accentColor: "#118e44",
+                    cursor: "pointer",
                   }}
                 />
-              </button>
+              </label>
             );
           })}
         </div>
@@ -178,7 +187,7 @@ export default function UnlockPickerModal({
                 height: 40,
                 padding: "0 18px",
                 borderRadius: 999,
-                border: "2px solid #118e44",
+                border: `2px solid ${PRIMARY}`,
                 background: "#fff",
                 fontWeight: 900,
               }}
@@ -216,7 +225,7 @@ export default function UnlockPickerModal({
                 padding: "0 18px",
                 borderRadius: 999,
                 border: 0,
-                background: "#118e44",
+                background: PRIMARY,
                 color: "#fff",
                 fontWeight: 900,
                 opacity: selected.length ? 1 : 0.6,

@@ -7,6 +7,7 @@ import { LABEL, PAYMENT_METHODS, PRICE } from "./constants";
 import { buildPromptPayMockQr, todayKeyTH } from "./utils";
 import PaymentMethodDropdown from "./components/PaymentMethodDropdown";
 import PromptPayQrModal from "./components/PromptPayQrModal";
+import { createMockPayment } from "./mockEngine";
 
 import { addPurchase } from "../../../utils/purchases";
 
@@ -91,6 +92,7 @@ export default function PayModal({ open, draft, onClose, onPaid, dock = "center"
       setPayStatus("PENDING");
 
       const qrText = buildPromptPayMockQr(amount);
+      createMockPayment(orderId,amount);
       setQrData({ orderId, amount, qrText });
 
       setQrOpen(true);
@@ -105,70 +107,21 @@ export default function PayModal({ open, draft, onClose, onPaid, dock = "center"
   if (!open || !landId) return null;
 
   return createPortal(
-    <div
-      className={`pay-backdrop ${dock === "left" ? "is-left" : ""}`}
-      onClick={onClose}
-    >
-      <div className="pay-card" onClick={(e) => e.stopPropagation()}>
-        {/* ================= HEAD ================= */}
-        <div className="pay-head">
-          <div className="pay-title">{t("title")}</div>
-          <button
-            className="pay-close"
-            onClick={onClose}
-            disabled={loading}
-            type="button"
-            aria-label={t("common.close")}
-          >
-            ×
-          </button>
-        </div>
+    <div className="pay-page">
 
-        <div className="pay-meta">
-          {t("landId", { id: landId })}
-        </div>
+      {/* LEFT PANEL */}
+      <div className="pay-left">
 
-        {/* ================= ITEMS ================= */}
-        <div className="pay-section">
-          <div className="pay-section-title">
-            {t("section.items")}
-          </div>
-
-          {itemsUi.length ? (
-            <ul className="pay-items">
-              {itemsUi.map((it) => (
-                <li key={it.k}>
-                  {it.label}{" "}
-                  <span style={{ opacity: 0.75 }}>
-                    ({it.price.toLocaleString()} {t("total.unit")})
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="pay-empty">
-              {t("empty.items")}
-            </div>
-          )}
-        </div>
-
-        {/* ================= TOTAL ================= */}
-        <div className="pay-total">
-          {t("total.label")}:{" "}
-          {amount.toLocaleString()} {t("total.unit")}
-        </div>
-
-        {/* ================= PAYMENT METHOD ================= */}
-        <div className="pay-pm">
-          <div className="pm-head">
-            {t("section.paymentMethod")}:
+        <div>
+          <div className="pay-title">
+            {t("section.paymentMethod")} | ChillPayMe
           </div>
 
           <PaymentMethodDropdown
             value={paymentMethod}
-            options={PAYMENT_METHODS.map((m) => ({
+            options={PAYMENT_METHODS.map(m => ({
               ...m,
-              label: t(`method.${m.value}`),
+              label: t(`method.${m.value}`)
             }))}
             onChange={setPaymentMethod}
             disabled={loading}
@@ -181,35 +134,47 @@ export default function PayModal({ open, draft, onClose, onPaid, dock = "center"
           </div>
         </div>
 
-        {/* ================= ACTIONS ================= */}
-        <div className="pay-actions">
-          <button
-            className="pay-btn pay-btn-outline"
-            onClick={onClose}
-            disabled={loading}
-            type="button"
-          >
+        <div className="pay-bottom">
+          <button className="btn-outline" onClick={onClose}>
             {t("action.cancel")}
           </button>
 
           <button
-            className="pay-btn pay-btn-primary"
+            className="btn-primary"
             disabled={!canPay}
             onClick={onPay}
-            type="button"
           >
             {paymentMethod === "promptpay"
               ? t("action.generateQr")
               : t("action.pay")}
           </button>
         </div>
-
-        <div className="pay-foot">
-          {t("footer.mock")}
-        </div>
       </div>
 
-      {/* ================= QR MODAL ================= */}
+      {/* RIGHT PANEL */}
+      <div className="pay-right">
+
+        <div className="summary-head">
+          {t("title")}
+        </div>
+
+        <div className="summary-items">
+          {itemsUi.map(it => (
+            <div key={it.k} className="summary-row">
+              <span>{it.label}</span>
+              <span>{it.price.toLocaleString()} {t("total.unit")}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="summary-total">
+          <span>{t("total.label")}</span>
+          <span>{amount.toLocaleString()} {t("total.unit")}</span>
+        </div>
+
+      </div>
+
+      {/* QR MODAL */}
       <PromptPayQrModal
         open={qrOpen}
         data={qrData}
@@ -225,7 +190,7 @@ export default function PayModal({ open, draft, onClose, onPaid, dock = "center"
 
           const paidAt = todayKeyTH();
           const title = t("title");
-          const note = itemsUi.map((x) => x.label).join(", ");
+          const note = itemsUi.map(x => x.label).join(", ");
 
           addPurchase({
             id: qrData?.orderId || `PM_${paidAt}_${landId}_${Date.now()}`,
@@ -243,6 +208,7 @@ export default function PayModal({ open, draft, onClose, onPaid, dock = "center"
           onClose?.();
         }}
       />
+
     </div>,
     document.body
   );

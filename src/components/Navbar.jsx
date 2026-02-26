@@ -1,328 +1,436 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-  useCallback
-} from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ShoppingCart, ShieldCheck } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { NavLink } from "react-router-dom";
+  import React, {
+    useEffect,
+    useMemo,
+    useState,
+    useRef,
+    useCallback
+  } from "react";
+  import { Link, useLocation, useNavigate } from "react-router-dom";
+  import { ShoppingCart, ShieldCheck } from "lucide-react";
+  import { useTranslation } from "react-i18next";
+  import { NavLink } from "react-router-dom";
 
-import { readFavorites, subscribeFavoritesChanged } from "../utils/favorites";
-import { useAuth } from "../auth/AuthProvider";
-import { changeLanguage, getCurrentLanguage } from "../i18n/changeLanguage";
+  import { readFavorites, subscribeFavoritesChanged } from "../utils/favorites";
+  import { useAuth } from "../auth/AuthProvider";
+  import { changeLanguage, getCurrentLanguage } from "../i18n/changeLanguage";
+  import { readAllCampaigns, subscribeCampaignsChanged } from "../utils/broadcastLocal";
 
-const CART_KEY = "sqw_cart_v1";
-const DEFAULT_MODE = "buy";
+  const CART_KEY = "sqw_cart_v1";
+  const DEFAULT_MODE = "buy";
 
-function readCartCount() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-    return Array.isArray(arr) ? arr.length : 0;
-  } catch {
-    return 0;
-  }
-}
-
-export default function Navbar() {
-  const { t, i18n } = useTranslation("common");
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const { me, logout } = useAuth();
-  const role = me?.role;
-  const isLoggedIn = !!me;
-  const isAdmin = useMemo(()=> role === "admin",[role]);
-
-  const [cartCount, setCartCount] = useState(readCartCount);
-  const [favCount, setFavCount] = useState(() => readFavorites().length);
-
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  const [modeOpen, setModeOpen] = useState(false);
-  const modeRef = useRef(null);
-
-  const currentLang = i18n.language || getCurrentLanguage();
-
-  // cart sync
-  useEffect(() => {
-    const onChanged = () => setCartCount(readCartCount());
-    window.addEventListener("sqw-cart-changed", onChanged);
-    window.addEventListener("storage", onChanged);
-    return () => {
-      window.removeEventListener("sqw-cart-changed", onChanged);
-      window.removeEventListener("storage", onChanged);
-    };
-  }, []);
-
-  // favorites sync
-  useEffect(() => {
-    setFavCount(readFavorites().length);
-    const unsub = subscribeFavoritesChanged(() =>
-      setFavCount(readFavorites().length)
-    );
-    return unsub;
-  }, []);
-
-  // close dropdowns on outside click (merged)
-  useEffect(()=>{
-    const onClick = e => {
-      if (!e.target) return;
-
-      if (ref.current && !ref.current.contains(e.target))
-        setOpen(false);
-
-      if (modeRef.current && !modeRef.current.contains(e.target))
-        setModeOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    return ()=> document.removeEventListener("mousedown", onClick);
-  },[]);
-
-  useEffect(()=>{
-    setOpen(false);
-    setModeOpen(false);
-  },[location.pathname]);
-
-  useEffect(()=>{
-    const esc = e=>{
-      if(e.key==="Escape"){
-        setOpen(false);
-        setModeOpen(false);
-      }
-    };
-    window.addEventListener("keydown",esc);
-    return ()=>window.removeEventListener("keydown",esc);
-  },[]);
-
-  const go = useCallback(
-    (to) => {
-      setOpen(false);
-      navigate(to);
-    },
-    [navigate]
-  );
-
-  const isMap = useMemo(
-    () => location.pathname.startsWith("/map"),
-    [location.pathname]
-  );
-
-  const currentMode = useMemo(() => {
-    const sp = new URLSearchParams(location.search || "");
-    return sp.get("mode") 
-  }, [location.search]);
-
-
-  // MODE LABEL (i18n)
-  const modeLabel = useMemo(() => {
-    if (!isMap) return "";
-
-    const sp = new URLSearchParams(location.search || "");
-    const mode = sp.get("mode");
-
-    if (!mode) return t("nav.mode.select");
-
-    return t(`nav.mode.${mode}`);
-  }, [isMap, location.search, t]);
-
-  const avatarLetter = useMemo(
-    () => (me?.name?.charAt(0) || "U").toUpperCase(),
-    [me?.name]
-  );
-
-  const changeMode = (mode) => {
-    if (!isMap) {
-      navigate(`/map?mode=${mode}`);
-      return;
+  function readCartCount() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+      return Array.isArray(arr) ? arr.length : 0;
+    } catch {
+      return 0;
     }
+  }
 
-    const sp = new URLSearchParams(location.search || "");
-    sp.set("mode", mode);
+  export default function Navbar() {
+    const { t, i18n } = useTranslation("common");
+    const location = useLocation();
+    const navigate = useNavigate();
 
-    navigate(`${location.pathname}?${sp.toString()}`, {
-      replace: true
-    });
+    const { me, logout } = useAuth();
+    const role = me?.role;
+    const isLoggedIn = !!me;
+    const isAdmin = useMemo(()=> role === "admin",[role]);
 
-    setModeOpen(false);
-  };
+    const [cartCount, setCartCount] = useState(readCartCount);
+    const [favCount, setFavCount] = useState(() => readFavorites().length);
 
-  return (
-    <header className={`nav ${location.pathname === "/" || location.pathname === "/news" || location.pathname === "/contact" ? "nav-dark" : "nav-light"}`}>
-      <Link to="/" className="nav-logo">SQW</Link>
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
 
-      {isMap && (
-        <div className="nav-mode" ref={modeRef}>
-          <button
-            type="button"
-            className="nav-mode-pill clickable"
-            onClick={() => setModeOpen(v => !v)}
-            aria-expanded={modeOpen}
-          >
-            {modeLabel}
-            <span className="chevron">▾</span>
-          </button>
+    const [modeOpen, setModeOpen] = useState(false);
+    const modeRef = useRef(null);
 
-          {modeOpen && (
-            <div className="nav-mode-menu">
-              <button
-                className={currentMode === "buy" ? "active" : ""}
-                onClick={() => changeMode("buy")}
-              >
-                {t("nav.mode.buy")}
-              </button>
+    const currentLang = i18n.language || getCurrentLanguage();
+    const [broadcastCount, setBroadcastCount] = useState(0);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const notifRef = useRef(null);
+    const [broadcastList, setBroadcastList] = useState([]);
 
-              <button
-                className={currentMode === "sell" ? "active" : ""}
-                onClick={() => changeMode("sell")}
-              >
-                {t("nav.mode.sell")}
-              </button>
+    // cart sync
+    useEffect(() => {
+      const onChanged = () => setCartCount(readCartCount());
+      window.addEventListener("sqw-cart-changed", onChanged);
+      window.addEventListener("storage", onChanged);
+      return () => {
+        window.removeEventListener("sqw-cart-changed", onChanged);
+        window.removeEventListener("storage", onChanged);
+      };
+    }, []);
 
-              <button
-                className={currentMode === "eia" ? "active" : ""}
-                onClick={() => changeMode("eia")}
-              >
-                {t("nav.mode.eia")}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+    useEffect(() => {
+      const sync = () => {
+        const list = readAllCampaigns() || [];
 
-      <div className="nav-right">
-        <NavLink to="/" className="nav-item">
-          {t("nav.home")}
-        </NavLink>
+        const published = list
+          .filter(c => c.status === "published")
+          .sort((a,b)=>
+            String(b.publishedAt || b.updatedAt)
+              .localeCompare(String(a.publishedAt || a.updatedAt))
+          );
 
-        <NavLink to="/news" className="nav-item">
-          {t("nav.news")}
-        </NavLink>
+        setBroadcastList(published);
+        setBroadcastCount(published.length);
+      };
 
-        <a href="#contact" className="nav-item">
-          {t("nav.contact")}
-        </a>
+      sync();
 
-        {/* Notification */}
-        {isLoggedIn && (
-          <button className="nav-bell">
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="bell-dot"></span>
-          </button>
+      const unsub = subscribeCampaignsChanged(sync);
+      return unsub;
+    }, []);
+
+    // favorites sync
+    useEffect(() => {
+      setFavCount(readFavorites().length);
+      const unsub = subscribeFavoritesChanged(() =>
+        setFavCount(readFavorites().length)
+      );
+      return unsub;
+    }, []);
+
+    // close dropdowns on outside click (merged)
+    useEffect(()=>{
+      const onClick = e => {
+        if (!e.target) return;
+
+        if (ref.current && !ref.current.contains(e.target))
+          setOpen(false);
+
+        if (modeRef.current && !modeRef.current.contains(e.target))
+          setModeOpen(false);
+      };
+      document.addEventListener("mousedown", onClick);
+      return ()=> document.removeEventListener("mousedown", onClick);
+    },[]);
+
+    useEffect(()=>{
+      setOpen(false);
+      setModeOpen(false);
+    },[location.pathname]);
+
+    useEffect(()=>{
+      const esc = e=>{
+        if(e.key==="Escape"){
+          setOpen(false);
+          setModeOpen(false);
+        }
+      };
+      window.addEventListener("keydown",esc);
+      return ()=>window.removeEventListener("keydown",esc);
+    },[]);
+
+    const go = useCallback(
+      (to) => {
+        setOpen(false);
+        navigate(to);
+      },
+      [navigate]
+    );
+
+    const isMap = useMemo(
+      () => location.pathname.startsWith("/map"),
+      [location.pathname]
+    );
+
+    const currentMode = useMemo(() => {
+      const sp = new URLSearchParams(location.search || "");
+      return sp.get("mode") 
+    }, [location.search]);
+
+
+    // MODE LABEL (i18n)
+    const modeLabel = useMemo(() => {
+      if (!isMap) return "";
+
+      const sp = new URLSearchParams(location.search || "");
+      const mode = sp.get("mode");
+
+      if (!mode) return t("nav.mode.select");
+
+      return t(`nav.mode.${mode}`);
+    }, [isMap, location.search, t]);
+
+    const avatarLetter = useMemo(
+      () => (me?.name?.charAt(0) || "U").toUpperCase(),
+      [me?.name]
+    );
+
+    const changeMode = (mode) => {
+      if (!isMap) {
+        navigate(`/map?mode=${mode}`);
+        return;
+      }
+
+      const sp = new URLSearchParams(location.search || "");
+      sp.set("mode", mode);
+
+      navigate(`${location.pathname}?${sp.toString()}`, {
+        replace: true
+      });
+
+      setModeOpen(false);
+    };
+
+    return (
+      <header className={`nav ${location.pathname === "/" || location.pathname === "/news" || location.pathname === "/contact" ? "nav-dark" : "nav-light"}`}>
+        <Link to="/" className="nav-logo">SQW</Link>
+
+        {isMap && (
+          <div className="nav-mode" ref={modeRef}>
+            <button
+              type="button"
+              className="nav-mode-pill clickable"
+              onClick={() => setModeOpen(v => !v)}
+              aria-expanded={modeOpen}
+            >
+              {modeLabel}
+              <span className="chevron">▾</span>
+            </button>
+
+            {modeOpen && (
+              <div className="nav-mode-menu">
+                <button
+                  className={currentMode === "buy" ? "active" : ""}
+                  onClick={() => changeMode("buy")}
+                >
+                  {t("nav.mode.buy")}
+                </button>
+
+                <button
+                  className={currentMode === "sell" ? "active" : ""}
+                  onClick={() => changeMode("sell")}
+                >
+                  {t("nav.mode.sell")}
+                </button>
+
+                <button
+                  className={currentMode === "eia" ? "active" : ""}
+                  onClick={() => changeMode("eia")}
+                >
+                  {t("nav.mode.eia")}
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
-        <div className="nav-user-group ">
-          {/* Profile / Auth */}
-          {isLoggedIn ? (
-            <div className="nav-profile" ref={ref}>
-              <button
-                className="nav-profile-trigger"
-                onClick={() => setOpen(v => !v)}
-                aria-expanded={open}
-              >
-                <div className="nav-avatar">
-                  {me?.photoURL
-                    ? <img src={me.photoURL} alt="avatar" />
-                    : <span>{avatarLetter}</span>
-                  }
-                </div>
+        <div className="nav-right">
+          <NavLink to="/" className="nav-item">
+            {t("nav.home")}
+          </NavLink>
 
-                <span className="nav-username">{me?.name}</span>
+          <NavLink to="/news" className="nav-item">
+            {t("nav.news")}
+          </NavLink>
+
+          <a href="/contact" className="nav-item">
+            {t("nav.contact")}
+          </a>
+
+          {/* Notification */}
+          {isLoggedIn && (
+            <div className="nav-notif" ref={notifRef}>
+              <button
+                className="nav-bell"
+                onClick={() => setNotifOpen(v => !v)}
+              >
+                <span className="material-symbols-outlined">notifications</span>
+
+                {broadcastCount > 0 && (
+                  <span className="bell-dot">
+                    {broadcastCount > 9 ? "9+" : broadcastCount}
+                  </span>
+                )}
               </button>
 
-              {open && (
-                <div className="nav-profile-menu">
-                  <div className="nav-profile-name">{me?.name}</div>
-                  <button onClick={() => go("/profile")}>{t("nav.profile")}</button>
+              {notifOpen && (
+                <div className="nav-notif-panel">
+                  <div className="notif-header">
+                    การแจ้งเตือน
+                  </div>
 
-                  {isAdmin && (
-                    <>
-                      <div className="nav-profile-divider" />
-                      <div className="nav-profile-section">
-                        <div className="nav-profile-section-title">
-                          <ShieldCheck size={16} />
-                          {t("nav.admin.section")}
-                        </div>
+                  <div className="notif-list">
 
-                        <button onClick={() => go("/admin?tab=dashboard")}>
-                          {t("nav.admin.dashboard")}
-                        </button>
-                        <button onClick={() => go("/admin?tab=broadcast")}>
-                          {t("nav.admin.broadcast")}
-                        </button>
-                        <button onClick={() => go("/admin?tab=lands")}>
-                          {t("nav.admin.lands")}
-                        </button>
+                    {broadcastList.length === 0 && (
+                      <div className="notif-empty">
+                        ไม่มีแจ้งเตือน
                       </div>
-                    </>
-                  )}
+                    )}
 
-                  <div className="nav-profile-divider" />
-                  <button
-                    className="danger"
-                    onClick={()=>{
-                      setOpen(false);
-                      setModeOpen(false);
-                      logout();
-                      navigate("/");
-                    }}
-                  >
-                    {t("nav.logout")}
-                  </button>
+                    {broadcastList.slice(0,5).map(c => {
+                      const land = c.landSnapshot || {};
+                      const image =
+                        land.images?.[0] ||
+                        land.coverImage ||
+                        land.image ||
+                        "/land-default.jpg";
+
+                      return (
+                        <div
+                          key={c.id}
+                          className="notif-item with-image"
+                          onClick={()=>{
+                            setNotifOpen(false);
+                            navigate(`/map?mode=${c.intent ? "sell":"buy"}&focus=${c.landId}`);
+                          }}
+                        >
+                          <div className="notif-thumb">
+                            <img src={image} alt="land" />
+
+                            {c.highlight === "featured" && (
+                              <span className="notif-badge">
+                                Featured
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="notif-content">
+                            <div className="notif-title">
+                              {land.owner || land.agent || "ข่าวประชาสัมพันธ์"}
+                            </div>
+
+                            <div className="notif-sub">
+                              {c.highlight === "featured"
+                                ? "รายการแนะนำ"
+                                : "ข่าวใหม่"}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {broadcastList.length > 5 && (
+                      <button
+                        className="notif-more"
+                        onClick={()=>{
+                          setNotifOpen(false);
+                          navigate("/news");
+                        }}
+                      >
+                        ดูทั้งหมด →
+                      </button>
+                    )}
+
+                  </div>
                 </div>
               )}
             </div>
-          ) : (
-            <div className="nav-auth">
-              <button
-                className="nav-auth-pill"
-                onClick={() => navigate("/login")}
-              >
-                {t("nav.login")} / {t("nav.signup")}
-              </button>
-            </div>
           )}
 
-          {/* Cart */}
-            {isLoggedIn && (
-              <Link to="/cart" className="cart-btn">
-                <span className="material-symbols-outlined cart-icon">
-                  shopping_cart
-                </span>
+          <div className="nav-user-group ">
+            {/* Profile / Auth */}
+            {isLoggedIn ? (
+              <div className="nav-profile" ref={ref}>
+                <button
+                  className="nav-profile-trigger"
+                  onClick={() => setOpen(v => !v)}
+                  aria-expanded={open}
+                >
+                  <div className="nav-avatar">
+                    {me?.photoURL
+                      ? <img src={me.photoURL} alt="avatar" />
+                      : <span>{avatarLetter}</span>
+                    }
+                  </div>
 
-                {cartCount > 0 && (
-                  <span className="cart-badge">{cartCount}</span>
+                  <span className="nav-username">{me?.name}</span>
+                </button>
+
+                {open && (
+                  <div className="nav-profile-menu">
+                    <div className="nav-profile-name">{me?.name}</div>
+                    <button onClick={() => go("/profile")}>{t("nav.profile")}</button>
+
+                    {isAdmin && (
+                      <>
+                        <div className="nav-profile-divider" />
+                        <div className="nav-profile-section">
+                          <div className="nav-profile-section-title">
+                            <ShieldCheck size={16} />
+                            {t("nav.admin.section")}
+                          </div>
+
+                          <button onClick={() => go("/admin?tab=dashboard")}>
+                            {t("nav.admin.dashboard")}
+                          </button>
+                          <button onClick={() => go("/admin?tab=broadcast")}>
+                            {t("nav.admin.broadcast")}
+                          </button>
+                          <button onClick={() => go("/admin?tab=lands")}>
+                            {t("nav.admin.lands")}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="nav-profile-divider" />
+                    <button
+                      className="danger"
+                      onClick={()=>{
+                        setOpen(false);
+                        setModeOpen(false);
+                        logout();
+                        navigate("/");
+                      }}
+                    >
+                      {t("nav.logout")}
+                    </button>
+                  </div>
                 )}
-              </Link>
+              </div>
+            ) : (
+              <div className="nav-auth">
+                <button
+                  className="nav-auth-pill"
+                  onClick={() => navigate("/login")}
+                >
+                  {t("nav.login")} / {t("nav.signup")}
+                </button>
+              </div>
             )}
-        </div>
 
-        {/* Language Switch */}
-        <div className="nav-lang">
-          {/*<span className="material-symbols-outlined lang-icon">language</span>*/}
+            {/* Cart */}
+              {isLoggedIn && (
+                <Link to="/cart" className="cart-btn">
+                  <span className="material-symbols-outlined cart-icon">
+                    shopping_cart
+                  </span>
 
-          <div className="lang-pill">
-            <button
-              className={currentLang === "th" ? "active" : ""}
-              onClick={() => changeLanguage("th")}
-            >
-              TH
-            </button>
+                  {cartCount > 0 && (
+                    <span className="cart-badge">{cartCount}</span>
+                  )}
+                </Link>
+              )}
+          </div>
 
-            <span className="sep">|</span>
+          {/* Language Switch */}
+          <div className="nav-lang">
+            {/*<span className="material-symbols-outlined lang-icon">language</span>*/}
 
-            <button
-              className={currentLang === "en" ? "active" : ""}
-              onClick={() => changeLanguage("en")}
-            >
-              EN
-            </button>
+            <div className="lang-pill">
+              <button
+                className={currentLang === "th" ? "active" : ""}
+                onClick={() => changeLanguage("th")}
+              >
+                TH
+              </button>
+
+              <span className="sep">|</span>
+
+              <button
+                className={currentLang === "en" ? "active" : ""}
+                onClick={() => changeLanguage("en")}
+              >
+                EN
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </header>
-  );
-}
+      </header>
+    );
+  }

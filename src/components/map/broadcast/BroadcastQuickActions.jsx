@@ -12,26 +12,39 @@ export default function BroadcastQuickActions({
 }) {
   if (!land?.id) return null;
 
-  // ✅ bind broadcast namespace
   const { t } = useTranslation("broadcast");
 
-  const canAdmin = role === "admin";
+  const isAdmin = role === "admin";
+  const isAgent = role === "agent";
+  const isLandlord = role === "landlord";
+
   const isConsignment = mode === "sell" && sellIntent === "seller";
 
   return (
     <div className="bc-quick">
-      {canAdmin && (
+      {(isAdmin || isAgent || isLandlord) && (
         <button
           className="bc-quick-btn"
           type="button"
           onClick={onAdminClick}
-          title={t("quick.adminTitle")}
+          title={
+            isAdmin
+              ? t("quick.adminTitle")
+              : isAgent
+              ? t("quick.agentTitle")
+              : t("quick.landlordTitle")
+          }
         >
-          📣 {t("quick.adminLabel")}
+          📣{" "}
+          {isAdmin
+            ? t("quick.adminLabel")
+            : isAgent
+            ? t("quick.agentLabel")
+            : t("quick.landlordLabel")}
         </button>
       )}
 
-      {isConsignment && !canAdmin && (
+      {isConsignment && !isAdmin && !isAgent && !isLandlord && (
         <button
           className="bc-quick-btn hot"
           type="button"

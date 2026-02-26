@@ -33,7 +33,20 @@ export default function BroadcastCreateModal({
   if (!open) return null;
 
   const isConsignor = createdByRole === "consignor";
+
+  const mustPayRoles = ["consignor", "agent", "landlord"];
+  const mustPay = mustPayRoles.includes(createdByRole);
+
+  const isAdminLike = ["admin","agent","landlord"].includes(createdByRole);
   const finalPrice = isConsignor ? 100 : Number(priceTHB || 0);
+  const ROLE_TITLE_MAP = {
+    admin: "create.title.admin",
+    agent: "create.title.agent",
+    landlord: "create.title.landlord",
+    consignor: "create.title.consignor",
+  };
+
+const titleKey = ROLE_TITLE_MAP[createdByRole] || "create.title.admin";
 
   return (
     <div className="bc-mask" onMouseDown={onClose}>
@@ -42,9 +55,7 @@ export default function BroadcastCreateModal({
         <div className="bc-head">
           <div>
             <div className="bc-title">
-              {isConsignor
-                ? t("create.title.consignor")
-                : t("create.title.admin")}
+              {t(titleKey)}
             </div>
             <div className="bc-sub">
               {land?.id
@@ -113,7 +124,7 @@ export default function BroadcastCreateModal({
                     type="checkbox"
                     checked={featured}
                     onChange={(e) => setFeatured(e.target.checked)}
-                    disabled={isConsignor}
+                    disabled={mustPay}
                   />
                   {t("create.field.featuredLabel")}
                 </label>
@@ -151,7 +162,7 @@ export default function BroadcastCreateModal({
                     return;
                   }
 
-                  if (isConsignor) {
+                  if (mustPay) {
                     const ok = window.confirm(
                       t("create.alert.confirmPay")
                     );
@@ -165,7 +176,7 @@ export default function BroadcastCreateModal({
                     scheduleDate,
                     createdByRole,
                     createdByUserId,
-                    highlight: isConsignor
+                    highlight: mustPay
                       ? "featured"
                       : featured
                       ? "featured"
@@ -189,7 +200,7 @@ export default function BroadcastCreateModal({
                   else onClose?.();
                 }}
               >
-                {isConsignor
+                {mustPay
                   ? t("create.action.submitPaid")
                   : t("create.action.submit")}
               </button>

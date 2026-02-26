@@ -3,6 +3,7 @@ import { addCampaign } from "../../../utils/broadcastLocal";
 import { addLineAdsQueue } from "../../../utils/lineAdsQueueLocal";
 import { reserveSlot } from "./broadcastSlots";
 import { getNextMWFDates } from "./broadcastScheduler";
+import { createNews } from "../../../utils/newsLocal";
 
 function trim(v) {
   return String(v ?? "").trim();
@@ -34,7 +35,13 @@ export function makeLandTitle(land) {
   const size = formatRNWFromSqw(land?.size);
   const total = num(land?.totalPrice);
   const price = num(land?.price);
-  const money = total > 0 ? total.toLocaleString("th-TH") : (price > 0 ? `~${price.toLocaleString("th-TH")}/ตร.วา` : "-");
+  const money =
+    total > 0
+      ? total.toLocaleString("th-TH")
+      : price > 0
+      ? `~${price.toLocaleString("th-TH")}/ตร.วา`
+      : "-";
+
   return `${who} • ${size} • ${money}`;
 }
 
@@ -42,16 +49,15 @@ export function makeUtmLink({ landId, mode, intent, channel }) {
   const base = `/map?mode=${encodeURIComponent(mode || "buy")}`;
   const intentQs = intent ? `&intent=${encodeURIComponent(intent)}` : "";
   const focus = landId ? `&focus=${encodeURIComponent(landId)}` : "";
-  const utm = `&utm_source=${encodeURIComponent(channel)}&utm_medium=broadcast&utm_campaign=${encodeURIComponent(mode || "buy")}`;
+  const utm = `&utm_source=${encodeURIComponent(
+    channel
+  )}&utm_medium=broadcast&utm_campaign=${encodeURIComponent(mode || "buy")}`;
+
   return `${base}${intentQs}${focus}${utm}`;
 }
 
 /**
- * createCampaign:
- * - channels: { web: boolean, lineAds: boolean }
- * - scheduleDate: YYYY-MM-DD
- * - createdByRole: "admin" | "consignor"
- * - mode: "buy_sell" | "consignment"
+ * createCampaign
  */
 export function createCampaign({
   land,
@@ -62,13 +68,14 @@ export function createCampaign({
   createdByUserId,
   highlight,
   priceTHB,
-  intent, // seller/investor
+  intent,
 }) {
   if (!land?.id) return { ok: false, reason: "NO_LAND" };
-  if (!channels?.web && !channels?.lineAds) return { ok: false, reason: "NO_CHANNEL" };
+  if (!channels?.web && !channels?.lineAds)
+    return { ok: false, reason: "NO_CHANNEL" };
   if (!scheduleDate) return { ok: false, reason: "NO_DATE" };
 
-  // reserve slots per channel
+  // reserve slots
   const need = [];
   if (channels.web) need.push({ channel: "web", mode });
   if (channels.lineAds) need.push({ channel: "line_ads", mode });
@@ -81,9 +88,25 @@ export function createCampaign({
   const nowISO = new Date().toISOString();
   const id = `BC_${Date.now()}`;
 
+  // ===== ROLE LOGIC =====
+  const isConsignor = createdByRole === "consignor";
+  const isAutoPublishRole = ["admin", "agent", "landlord"].includes(
+    createdByRole
+  );
+
+  let status = "scheduled";
+
+  if (isAutoPublishRole) {
+    status = "published";
+  } else if (isConsignor && Number(priceTHB || 0) > 0) {
+    status = "paid";
+  }
+
+  // ===== CAMPAIGN OBJECT =====
   const campaign = {
     id,
     landId: String(land.id),
+
     landSnapshot: {
       id: String(land.id),
       owner: land?.owner ?? "",
@@ -95,15 +118,20 @@ export function createCampaign({
       images: Array.isArray(land?.images) ? land.images : [],
     },
 
-    mode, // buy_sell | consignment
+    mode,
     intent: intent || null,
 
-    channels: { web: !!channels.web, lineAds: !!channels.lineAds },
-    highlight: highlight || "normal", // normal | featured
+    channels: {
+      web: !!channels.web,
+      lineAds: !!channels.lineAds,
+    },
+
+    highlight: highlight || "normal",
     priceTHB: Number(priceTHB || 0),
 
     scheduleDate,
-    status: createdByRole === "consignor" && Number(priceTHB || 0) > 0 ? "paid" : "scheduled",
+    status,
+    publishedAt: status === "published" ? nowISO : null,
 
     createdByRole,
     createdByUserId: createdByUserId || null,
@@ -113,13 +141,30 @@ export function createCampaign({
   };
 
   addCampaign(campaign);
+  // ===== create news when published =====
+  if (campaign.status === "published") {
+    createNews({
+      id: "NEWS_" + Date.now(),
+      title: makeLandTitle(land),
+      text: `ประกาศที่ดินใหม่ ${makeLandTitle(land)}`,
+      image:
+        land?.images?.[0] ||
+        land?.coverImage ||
+        land?.image ||
+        "/land-default.jpg",
+      createdAt: new Date().toISOString(),
+      source: "broadcast",
+      refId: campaign.id
+    });
+  }
 
-  // LINE Ads queue
+  // ===== LINE ADS QUEUE =====
   if (channels.lineAds) {
     const qid = `LAP_${Date.now()}`;
+
     const utmLink = makeUtmLink({
       landId: land.id,
-      mode: "sell", // โฆษณาควรเข้าหน้า sell/buy ตามที่คุณใช้จริง
+      mode: "sell",
       intent: intent || undefined,
       channel: "line_ads",
     });
@@ -142,9 +187,7 @@ export function createCampaign({
 export function pickNextAvailableMWF({ mode, channels }) {
   const dates = getNextMWFDates(12, new Date());
   for (const d of dates) {
-    // (ง่าย ๆ) ให้ createCampaign เป็นคน reserve ถ้าเต็มจะ fail
-    // ตรงนี้แค่คืนวันแรก ๆ ไปก่อน
     return d;
   }
   return null;
-}
+} 

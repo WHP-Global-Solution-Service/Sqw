@@ -1,0 +1,247 @@
+.contact-container {
+  background: #f8fafc; 
+  padding: 80px 10%;
+  font-family: 'Kanit', sans-serif; 
+}
+
+.contact-content {
+  display: flex;
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* หัวข้อหลัก */
+.contact-title {
+  text-transform: uppercase;
+  position: relative;
+  padding-bottom: 12px;
+  margin-bottom: 40px;
+  font-size: 32px;
+  font-weight: 700;
+  color: #0e2b4d;
+  display: inline-block;
+}
+
+.contact-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  background-color: #0d2e4f;
+  border-radius: 2px;
+}
+
+.contact-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.text-group {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== TEAM CARD (ซ้าย) ===== */
+.team-section { flex: 1.5; }
+
+.team-card {
+  display: flex;
+  gap: 25px;
+  align-items: center; /* ดันทุกอย่างให้กึ่งกลางแนวตั้ง */
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  margin-bottom: 25px;
+}
+
+.team-image {
+  width: 140px;
+  height: 140px;
+  border-radius: 18px;
+  object-fit: cover;
+  margin-top: 0; /* ลบอันเก่าออกเพื่อให้กึ่งกลางอัตโนมัติ */
+}
+
+.team-info h3 {
+  color: #0d2e4f;
+  font-size: 20px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+.team-columns { display: flex; gap: 50px; }
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px; 
+}
+
+.icon-blue { color: #123e6b; font-size: 16px; }
+
+.info-column h4 {
+  font-size: 15px;
+  color: #0d2e4f;
+  margin: 0;
+}
+
+.info-list {
+  list-style: none; /* เอา Bullet ปกติออก */
+  padding: 0;
+  margin: 0;
+}
+
+.info-list li {
+  font-size: 13.5px;
+  color: #64748b;
+  margin-bottom: 10px; 
+  line-height: 1.4;
+  list-style: none;
+  position: relative;
+  padding-left: 15px;
+}
+
+/* ===== CONTACT BOX (ขวา) ===== */
+.contact-box {
+  background: white;
+  flex: 0.8;
+  border-radius: 24px;
+  padding: 40px 30px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+  text-align: center;
+}
+
+.contact-heading {
+  text-transform: uppercase; /* แปลงเป็นตัวพิมพ์ใหญ่ทั้งหมด */
+  font-size: 22px;
+  color: #334155;
+  font-weight: 700; /* ปรับให้หนาขึ้นตามต้นฉบับ */
+  line-height: 1.5;
+  margin-bottom: 30px;
+}
+
+.contact-heading::after {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 2px; /* เส้นคั่นสีเทาใต้หัวข้อตามต้นฉบับ */
+  background: #e2e8f0;
+  margin: 15px auto 0;
+}
+
+.contact-person-section { margin-bottom: 30px; }
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 10px 0; /* ปรับระยะห่างให้สมดุล */
+}
+
+.contact-avatar {
+  width: 85px;
+  height: 85px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  object-fit: cover; 
+  object-position: center;
+}
+
+.online-dot {
+  position: absolute;
+  bottom: 5px; /* ปรับให้ทับขอบรูปพอดี */
+  right: 5px;  /* ปรับให้ทับขอบรูปพอดี */
+  width: 14px;
+  height: 14px;
+  background-color: #22c55e;
+  border: 2.5px solid white; /* เส้นขอบขาวจะช่วยให้ดูมีมิติเหมือนต้นฉบับ */
+  border-radius: 50%;
+}
+
+.person-display-name {
+  font-weight: 700;
+  font-size: 18px;
+  margin: 0;
+  color: #1e293b;
+}
+
+.person-role-id {
+  font-size: 11px; /* เล็กลง */
+  color: #94a3b8; /* จางลง */
+  margin-top: 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* ช่องทางติดต่อ */
+.contact-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contact-item {
+  background: #f8fafc; 
+  padding: 12px 16px;
+  border-radius: 16px; /* มนขึ้นตามต้นฉบับ */
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid transparent;
+  transition: 0.2s;
+}
+
+.contact-item:hover {
+  border-color: #e2e8f0;
+  background: white;
+}
+
+.icon-box-bg {
+  width: 44px; 
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.icon-box.line { background: #eefdf3; color: #00c300; }
+.icon-box.phone { background: #f1f5f9; color: #1e293b; }
+
+.line-bg { background: #e8f9ed; }
+.line-icon-color { color: #06c755; }
+.phone-bg { background: #eef2ff; }
+.phone-icon-color { color: #1e293b; }
+
+.text-group { text-align: left; }
+.label { font-size: 10px; color: #94a3b8; font-weight: 600; }
+.value { font-size: 15px; color: #1e293b; font-weight: 600; margin: 0; }
+
+.send-btn {
+  width: 100%;
+  background: #0d2e4f;
+  color: white;
+  border: none;
+  padding: 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.arrow-icon {
+  color: #cbd5e1;
+  font-size: 14px;
+}

@@ -8,6 +8,7 @@ import NewsDetail from "./pages/NewsDetail";
 import NewsList from "./pages/NewsList";
 import FooterSection from "./components/FooterSection";
 import MapPage from "./components/map/MapPage";
+import Contact from "./components/Contact";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/news/:id" element={<NewsDetail />} />
           <Route path="/news" element={<NewsList/>}/>
+          <Route path="/contact" element={<Contact />} />
 
           {/* guest only */}
           <Route path="/login" element={

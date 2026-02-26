@@ -382,6 +382,130 @@
   opacity: .9;
 }
 
+.pay-page{
+  position:fixed;
+  inset:0;
+  display:flex;
+  background:#f6f7fb;
+  z-index:9999;
+}
+
+/* LEFT */
+.pay-left{
+  flex:1.2;
+  background:white;
+  padding:48px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.pay-title{
+  font-size:24px;
+  font-weight:800;
+  margin-bottom:30px;
+}
+
+/* RIGHT */
+.pay-right{
+  width:420px;
+  background:#fafafa;
+  border-left:1px solid #e5e7eb;
+  padding:48px;
+}
+
+.summary-head{
+  font-size:22px;
+  font-weight:800;
+  margin-bottom:24px;
+}
+
+.summary-row{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+
+.summary-total{
+  border-top:1px solid #ddd;
+  margin-top:20px;
+  padding-top:18px;
+  font-weight:800;
+  display:flex;
+  justify-content:space-between;
+}
+
+/* BUTTONS */
+.pay-bottom{
+  display:flex;
+  justify-content:space-between;
+}
+
+.btn-outline{
+  border:1px solid #053974;
+  background:white;
+  color:#053974;
+  padding:12px 26px;
+  border-radius:8px;
+  font-weight:700;
+}
+
+.btn-primary{
+  background:#053974;
+  color:white;
+  border:none;
+  padding:12px 32px;
+  border-radius:8px;
+  font-weight:700;
+}
+
+/* ===== PAYMENT LIST STYLE ===== */
+
+.pm-list{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  margin-top:24px;
+}
+
+.pm-card{
+  border:1px solid #e5e7eb;
+  background:white;
+  border-radius:12px;
+  padding:18px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+  transition:all .15s ease;
+}
+
+.pm-card:hover{
+  border-color:#053974;
+}
+
+.pm-card.is-active{
+  border:2px solid #053974;
+  background:#eef4fb;
+}
+
+.pm-card-title{
+  font-weight:700;
+  font-size:16px;
+}
+
+.pm-card-desc{
+  font-size:13px;
+  opacity:.7;
+  margin-top:4px;
+}
+
+.pm-card-check{
+  font-size:18px;
+  font-weight:800;
+  color:#053974;
+}
+
 /* ==================================================
    Mobile
 ================================================== */

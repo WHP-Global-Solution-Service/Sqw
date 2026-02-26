@@ -107,35 +107,59 @@
 }
 
 /* dropdown layer */
+
+
+.map-layer-trigger{
+  height:40px;
+  padding:0 18px;
+  border-radius:999px;
+  border:none;
+  background:#fff;
+
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  font-weight:800;
+  color:#123b6a;
+
+  box-shadow:0 8px 24px rgba(0,0,0,.15);
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.map-layer-trigger:hover{
+  transform:translateY(-1px);
+}
+
+.map-layer-trigger .arrow{
+  font-family:"Material Symbols Outlined";
+  font-size:20px;
+  transition:.2s;
+}
+
+.arrow{
+  font-size:20px;
+  transition: transform .2s ease;
+}
+
+.map-layer-trigger.open .arrow{
+  transform: rotate(180deg);
+}
+
 .map-layer-dropdown{
-  position: fixed;
-  top: calc(var(--nav-h) + 60px);
-  right: 14px;
-  z-index: 99999;
-}
+  position:absolute;
+  top:50px;
+  right:0;
 
-.map-layer-trigger {
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 2px solid var(--brand);
-  background: var(--panel-bg);
-  cursor: pointer;
-  font-weight: 700;
-  box-shadow: var(--shadow);
-}
+  background:#ffffff; 
+  border:1px solid rgba(0,0,0,.06);  /* เปลี่ยนสีตรงนี้ */
+  border-radius:14px;
+  padding:8px;
+  width:170px;
 
-.map-layer-dropdown {
-  position: absolute;
-  top: 42px;
-  right: 0;
-  background: #2b2b2b;
-  border-radius: 10px;
-  padding: 8px;
-  min-width: 140px;
-  box-shadow: var(--shadow);
+  box-shadow:0 18px 40px rgba(0,0,0,.25);
 }
-
 .map-layer-item {
   width: 100%;
   padding: 8px 10px;
@@ -148,7 +172,7 @@
 }
 .map-layer-item:last-child { margin-bottom: 0; }
 .map-layer-item.active {
-  background: var(--brand);
+  background: #1A4B8C;
   color: #fff;
 }
 
@@ -424,7 +448,7 @@
 .search-pop{
   position: absolute;
   right: 56px;          /* ดันออกไปทางซ้ายของปุ่ม */
-  top: 50%;
+  top: 40%;
   transform: translateY(-50%);
   width: 420px;
   max-width: calc(100vw - 120px);
@@ -477,7 +501,7 @@
   padding: 0 14px;
   border-radius: 12px;
   border: 0;
-  background: #1a8f3a;
+  background: #053974;
   color: #fff;
   font-weight: 900;
   cursor: pointer;
@@ -488,6 +512,80 @@
   font-size: 12px;
   opacity: .65;
   line-height: 1.35;
+}
+
+/* ================= TOOL PANEL ================= */
+
+.tool-panel{
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 12px 32px rgba(0,0,0,.18);
+  padding:12px 8px;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+
+  margin-top:130px;   /* 👈 ปรับค่าตามต้องการ */
+}
+
+.tool-btn{
+  width:40px;
+  height:40px;
+  border:none;
+  background:transparent;
+  border-radius:12px;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+  color:#0f2a44;
+  transition:.15s ease;
+}
+
+.tool-btn:hover{
+  background:#f2f6f9;
+}
+
+.tool-btn:active{
+  transform:scale(.92);
+}
+
+/* ================= ZOOM PANEL ================= */
+
+.zoom-panel{
+  margin-top:14px;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 12px 32px rgba(0,0,0,.18);
+  padding:6px;
+
+  display:flex;
+  flex-direction:column;
+}
+
+.zoom-btn{
+  width:42px;
+  height:42px;
+  border:none;
+  background:transparent;
+  font-size:22px;
+  cursor:pointer;
+}
+
+/* ================= LOCATE ================= */
+
+.locate-btn{
+  margin-top:14px;
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  border:none;
+  background:#fff;
+  box-shadow:0 12px 32px rgba(0,0,0,.18);
+  cursor:pointer;
+  display:grid; 
+  place-items:center;
 }
 
 /* =========================

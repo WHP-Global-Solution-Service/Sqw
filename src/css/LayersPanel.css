@@ -1,81 +1,101 @@
 /* ให้ชิดขวาแบบในภาพ (ตอนนี้อยู่ซ้าย) */
 .layers-panel{
   position: fixed; 
-  top: calc(var(--nav-h) + var(--gap) + 148px);
-  right: 86px;   
-  left: auto;
+  top: calc(var(--nav-h) + var(--gap) + 120px);
+  right: 86px;
   z-index: 90;
 
-  width: min(560px, calc(100% - 28px));
+  width: 380px;
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 
 .layers-card{
-  background: #f3f3f3;             
-  border: 2px solid #bdbdbd;        
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(0,0,0,.18);
-  padding: 12px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  padding: 20px;
+  border: none;
 }
 
 .layers-header{
+  background: #123e6b;
+  color: #fff;
+  padding: 18px 20px;
+  margin: -20px -20px 20px -20px;
+  border-radius: 20px 20px 0 0;
   display: flex;
-  align-items: center;              /* ให้อยู่ระนาบเดียวกัน */
-  justify-content: space-between;   /* title ซ้าย / ✕ ขวา */
-  margin-bottom: 10px;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .layers-title{
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 800;
+  letter-spacing: .5px;
 }
 
-/* ปุ่มปิดให้เหมือนวงกลมในมุมขวา */
 .layers-close{
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 2px solid #111;
-  background: #fff;
-  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #fff;
   font-size: 22px;
-  line-height: 1;
+  cursor: pointer;
 }
 
-/* tabs ให้เป็น pill แบบในภาพ */
 .layers-tabs{
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 .layers-tab{
-  border: 1px solid #cfcfcf;
-  border-radius: 12px;
-  padding: 10px 10px;
-  cursor: pointer;
-  background: #e8e8e8;
-  font-weight: 800;
-  white-space: pre-line; /* คุณมีอยู่แล้ว */
-  text-align: center;
+  background: #f1f3f6;
+  border: 1px solid #d9e0ea;
+  border-radius: 16px;
+  padding: 18px 10px;
+  font-weight: 700;
+  color: #345;
 }
 
 .layers-tab.active{
-  background: var(--brand);
+  background: #123e6b;
   color: #fff;
-  border-color: rgba(0,0,0,.12);
-  box-shadow: 0 4px 10px rgba(0,0,0,.18);
+  border-color: #123e6b;
 }
 
 /* แถว slider ให้เหมือนตัวอย่าง */
 .layers-row{
   display: grid;
-  grid-template-columns: 90px 1fr 60px;
+  grid-template-columns: 120px 1fr 50px;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.layers-value{
+  text-align: right;
+  font-weight: 700;
+  color: #123e6b;
+}
+
+.layers-range{
+  appearance: none;
+  height: 6px;
+  border-radius: 6px;
+  background: #d9e0ea;
+  outline: none;
+}
+
+.layers-range::-webkit-slider-thumb{
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #123e6b;
+  cursor: pointer;
 }
 
 .layers-value{
@@ -94,8 +114,8 @@
 }
 
 .layers-check input:checked + .layers-checkmark{
-  background: var(--brand);
-  border-color: var(--brand);
+  background: #053974;
+  border-color: #053974;
 }
 
 /* ใส่ span เช็คบ็อกซ์ให้คลิกง่าย */

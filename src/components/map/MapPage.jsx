@@ -27,7 +27,7 @@ import { recommendLands } from "./recommend/recommendLands";
 import ModePickerModal from "./ModePickerModal";
 
 // ✅ Broadcast & Line ADs (Mode 2)
-import BroadcastFab from "./broadcast/BroadcastFab";
+//import BroadcastFab from "./broadcast/BroadcastFab";
 import BroadcastNewsModal from "./broadcast/BroadcastNewsModal";
 import BroadcastCreateModal from "./broadcast/BroadcastCreateModal";
 import BroadcastQuickActions from "./broadcast/BroadcastQuickActions";
@@ -944,8 +944,7 @@ export default function MapPage() {
         }}
       />
 
-      {/* 1) ปุ่มลอยข่าว */}
-      <BroadcastFab onClick={() => setNewsOpen(true)} />
+      
 
       {/* 2) ปุ่มในบริบท popup */}
       <BroadcastQuickActions

@@ -1,6 +1,6 @@
 /* ✅ FIX: ต้องมี . นำหน้า */
 :root{
-  --filter-offset-y: -56px; /* ค่าเป็นลบ = ขยับขึ้น */
+  --filter-offset-y: 1px; /* ค่าเป็นลบ = ขยับขึ้น */
 }
 
 .filter-panel{
@@ -8,7 +8,7 @@
   top:calc(var(--nav-h) + 24px + var(--filter-offset-y));
   right:86px;
   width:360px;
-  z-index:120;
+  z-index:9999 !important;
 }
 
 

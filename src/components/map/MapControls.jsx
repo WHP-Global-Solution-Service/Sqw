@@ -127,10 +127,13 @@ export default function MapControls({
       {/* ================= Layer dropdown ================= */}
       <div className="map-layer-menu">
         <button
-          className="map-layer-trigger"
+          className={`map-layer-trigger ${layerMenuOpen ? "open" : ""}`}
           onClick={() => openPanel("layer")}
         >
-          {layerLabel} ▾
+          <span>{layerLabel}</span>
+          <span className="material-symbols-outlined arrow">
+            expand_more
+          </span>
         </button>
 
         {layerMenuOpen && (
@@ -188,11 +191,12 @@ export default function MapControls({
         setDolOpacity={setDolOpacity}
       />
 
-      {/* ================= FAB ================= */}
-      <div className="map-fab-stack">
+      {/* ================= TOOL PANEL ================= */}
+      <div className="tool-panel">
+
         {/* SEARCH */}
-        <div className={`search-pop-wrap ${searchOpen ? "open" : ""}`}>
-          <button className="map-fab" onClick={() => openPanel("search")}>
+        <div className={`tool-btn-wrap ${searchOpen ? "open" : ""}`}>
+          <button className="tool-btn" onClick={() => openPanel("search")}>
             <span className="material-symbols-outlined">search</span>
           </button>
 
@@ -207,13 +211,13 @@ export default function MapControls({
         </div>
 
         {/* LAYERS */}
-        <button className="map-fab" onClick={() => openPanel("layers")}>
+        <button className="tool-btn" onClick={() => openPanel("layers")}>
           <span className="material-symbols-outlined">layers</span>
         </button>
 
         {/* FILTER */}
         <button
-          className="map-fab"
+          className="tool-btn"
           onClick={() => {
             closeAll();
             onOpenFilter?.();
@@ -224,7 +228,7 @@ export default function MapControls({
 
         {/* CHAT */}
         <button
-          className="map-fab"
+          className="tool-btn"
           onClick={() => {
             closeAll();
             onOpenChat?.();
@@ -234,12 +238,14 @@ export default function MapControls({
         </button>
 
         {/* TOOLS */}
-        <div className="tools-pop-wrap">
-          <button className="map-fab" onClick={() => openPanel("tools")}>
-            <span className="material-symbols-outlined">build</span>
+        <div className="tool-btn-wrap">
+          <button className="tool-btn" onClick={() => openPanel("tools")}>
+            <span className="material-symbols-outlined">draw</span>
           </button>
+        </div>
 
-          <MapToolsMenu
+      </div>
+      <MapToolsMenu
             open={toolsOpen}
             onClose={closeAll}
             showDrawing={showDrawing}
@@ -258,25 +264,23 @@ export default function MapControls({
               closeAll();
               onOpenRolePicker?.();
             }}
-            pageMode={pageMode} 
-          />
-        </div>
-      </div>
+            pageMode={pageMode}
+      />
 
       {/* ================= ZOOM ================= */}
-      <div className="map-zoom-box">
-        <button className="map-zoom-btn" onClick={onZoomIn}>
+      <div className="zoom-panel">
+        <button className="zoom-btn" onClick={onZoomIn}>
           <span className="material-symbols-outlined">add</span>
         </button>
 
-        <button className="map-zoom-btn" onClick={onZoomOut}>
+        <button className="zoom-btn" onClick={onZoomOut}>
           <span className="material-symbols-outlined">remove</span>
         </button>
       </div>
 
       {/* ================= LOCATE ================= */}
       <div className="map-locate-row">
-        <button className="map-target-btn" onClick={onLocate}>
+        <button className="locate-btn" onClick={onLocate}>
           <span className="material-symbols-outlined">my_location</span>
         </button>
       </div>

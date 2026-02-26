@@ -82,32 +82,27 @@
 
 
 .dashToggleAttached{
-  position:fixed;
-  bottom:80px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:70;
+  display:flex;
+  align-items:center;
+  gap:8px;
 
-  width:36px;
-  height:36px;
-  border-radius:50%;
+  padding:10px 16px;
+  border-radius:999px;
   border:none;
+  box-shadow:0 10px 24px rgba(0,0,0,.18);
 
-  background:white;
-  font-size:16px;
+  font-weight:800;
   cursor:pointer;
+}
 
-  box-shadow:0 6px 16px rgba(0,0,0,.2);
-  transition:.2s;
+.dashArrow{
+  font-size:18px;
 }
 
 .dashToggleAttached:hover{
-  transform:translateX(-50%) scale(1.1);
+  transform:none;
 }
 
-.dashToggle:hover{
-  transform:translateX(-50%) scale(1.05);
-}
 
 /* ===== Responsive ===== */
 

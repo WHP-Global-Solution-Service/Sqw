@@ -62,15 +62,9 @@ export default function DashboardStats({ lands = [] }) {
         className="dashToggleAttached"
         onClick={() => setOpen(v => !v)}
       >
-        {open ? "▼" : "▲"}
+        <span className="dashLabel">แสดงข้อมูลผลลัพธ์</span>
+        <span className="dashArrow">{open ? "▼" : "▲"}</span>
       </button>
-
-      {/* Mini bar ตอนพับ */}
-      {!open && (
-        <div className="dashMini">
-          แสดงข้อมูลผลลัพธ์
-        </div>
-      )}
 
       {/* Content */}
       <div className="dashContent">

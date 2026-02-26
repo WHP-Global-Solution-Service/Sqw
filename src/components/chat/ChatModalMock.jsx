@@ -30,9 +30,7 @@ export default function ChatModalMock({
   const scrollToBottom = () =>
     endRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  /* ===============================
-      Presence (online / offline)
-  =============================== */
+  /* presence */
   useEffect(() => {
     if (!open || !currentUid) return;
 
@@ -41,41 +39,28 @@ export default function ChatModalMock({
       photoURL: userProfile?.photoURL || "",
     });
 
-    return () => {
-      setUserOffline(currentUid);
-    };
+    return () => setUserOffline(currentUid);
   }, [open, currentUid, userProfile]);
 
-  /* ===============================
-      Online users
-  =============================== */
+  /* online users */
   useEffect(() => {
     if (!open) return;
-    return subscribeOnlineUsers((users) => {
-      //setOnlineUsers(users.filter((u) => u.uid !== currentUid));
-      setOnlineUsers(users);
-    });
-  }, [open, currentUid]);
+    return subscribeOnlineUsers(setOnlineUsers);
+  }, [open]);
 
-  /* ===============================
-      Inbox
-  =============================== */
+  /* inbox */
   useEffect(() => {
     if (!open || !currentUid) return;
     return subscribeP2PChatRooms(currentUid, setChatRooms);
   }, [open, currentUid]);
 
-  /* ===============================
-      Open peer from map
-  =============================== */
+  /* open peer */
   useEffect(() => {
     if (!open || !initialPeer?.uid) return;
     setSelectedUser(initialPeer);
   }, [open, initialPeer]);
 
-  /* ===============================
-      Subscribe chat room
-  =============================== */
+  /* subscribe chat */
   useEffect(() => {
     if (!open || !currentUid || !selectedUser?.uid) return;
 
@@ -98,9 +83,7 @@ export default function ChatModalMock({
     return () => unsub?.();
   }, [open, currentUid, selectedUser, userProfile?.name]);
 
-  /* ===============================
-      Actions
-  =============================== */
+  /* send */
   async function onSend() {
     if (!chatInput.trim() || !selectedUser) return;
 
@@ -114,6 +97,7 @@ export default function ChatModalMock({
     setChatInput("");
   }
 
+  /* delete */
   async function onDeleteRoom(room) {
     if (window.confirm("ต้องการลบห้องแชทนี้หรือไม่?")) {
       await deleteChatRoom(currentUid, room.otherUid);
@@ -130,15 +114,17 @@ export default function ChatModalMock({
   return (
     <div style={S.backdrop} onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
       <div style={S.modal}>
+        {/* header */}
         <div style={S.header}>
-          <div style={{ fontWeight: 800 }}>Chat Support (Mock)</div>
+          <div style={{ fontWeight: 800 }}>Chat</div>
           <button style={S.closeBtn} onClick={onClose}>✕</button>
         </div>
 
         <div style={S.body}>
-          {/* Left Sidebar */}
+          {/* LEFT */}
           <div style={S.left}>
-            <div style={S.sectionTitle}>ออนไลน์ (mock)</div>
+            <div style={S.sectionTitle}>ออนไลน์</div>
+
             <div style={S.list}>
               {onlineUsers.map((u) => (
                 <button
@@ -146,16 +132,14 @@ export default function ChatModalMock({
                   style={S.userRow(selectedUser?.uid === u.uid)}
                   onClick={() => setSelectedUser({ uid: u.uid, name: u.name || "" })}
                 >
-                  <div style={{ fontWeight: 700 }}>{u.name || `User-${u.uid.slice(0, 6)}`}</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>online</div>
+                  <div style={S.userName}>{u.name}</div>
+                  <div style={S.online}>ออนไลน์</div>
                 </button>
               ))}
-              {onlineUsers.length === 0 && (
-                <div style={S.empty}>ยังไม่มีคนออนไลน์ (เปิดอีกแท็บเพื่อทดสอบ)</div>
-              )}
             </div>
 
             <div style={{ ...S.sectionTitle, marginTop: 20 }}>Inbox</div>
+
             <div style={S.list}>
               {chatRooms.map((r) => (
                 <div key={r.roomId} style={S.roomRowWrap(selectedUser?.uid === r.otherUid)}>
@@ -163,37 +147,45 @@ export default function ChatModalMock({
                     style={S.roomRowBtn}
                     onClick={() => setSelectedUser({ uid: r.otherUid, name: r.otherName })}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <div style={{ fontWeight: 800 }}>{r.otherName}</div>
+                    <div style={S.roomTop}>
+                      <div style={S.roomName}>{r.otherName}</div>
                       {r.unreadCount > 0 && <span style={S.badge}>{r.unreadCount}</span>}
                     </div>
                     <div style={S.lastMsg}>{r.lastMessage}</div>
                   </button>
-                  <button style={S.trashBtn} title="ลบแชท" onClick={() => onDeleteRoom(r)}>
-                    🗑
-                  </button>
+
+                  <button style={S.trashBtn} onClick={() => onDeleteRoom(r)}>🗑</button>
                 </div>
               ))}
-              {chatRooms.length === 0 && <div style={S.empty}>ยังไม่มีห้องแชท</div>}
             </div>
           </div>
 
-          {/* Right Chat Area */}
+          {/* RIGHT */}
           <div style={S.right}>
-            {!selectedUser?.uid ? (
+            {!selectedUser ? (
               <div style={S.placeholder}>เลือกคนเพื่อเริ่มคุย</div>
             ) : (
               <>
+                {/* chat header */}
+                <div style={S.chatHeader}>
+                  <div style={S.chatUser}>
+                    <div style={S.avatar}/>
+                    <div>
+                      <div style={S.chatName}>{selectedUser.name}</div>
+                      <div style={S.status}>ออนไลน์</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* messages */}
                 <div style={S.messages}>
                   {messages.map((m) => {
                     const mine = m.fromUid === currentUid;
                     return (
                       <div key={m.id} style={S.msgRow(mine)}>
                         <div style={S.bubble(mine)}>
-                          <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 2 }}>
-                            {mine ? "คุณ" : (m.fromName || "อีกฝ่าย")}
-                          </div>
-                          <div>{m.text}</div>
+                          <div style={S.sender}>{mine ? "คุณ" : m.fromName}</div>
+                          {m.text}
                         </div>
                       </div>
                     );
@@ -201,15 +193,16 @@ export default function ChatModalMock({
                   <div ref={endRef} />
                 </div>
 
+                {/* input */}
                 <div style={S.inputBar}>
                   <input
                     style={S.input}
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="พิมพ์ข้อความ..."
-                    onKeyDown={(e) => (e.key === "Enter" ? onSend() : null)}
+                    onKeyDown={(e) => e.key === "Enter" && onSend()}
                   />
-                  <button style={S.sendBtn} onClick={onSend}>ส่ง</button>
+                  <button style={S.sendBtn} onClick={onSend}>➤</button>
                 </div>
               </>
             )}
@@ -222,186 +215,165 @@ export default function ChatModalMock({
   );
 }
 
+/* ================= STYLES ================= */
+
 const S = {
-  backdrop: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,.35)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999
+  backdrop:{
+    position:"fixed", inset:0, background:"rgba(0,0,0,.35)",
+    display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999
   },
-  modal: {
-    width: "min(900px, 92vw)",
-    height: "min(560px, 80vh)",
-    background: "#fff",
-    borderRadius: 14,
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
+
+  modal:{
+    width:"min(900px,92vw)",
+    height:"min(560px,80vh)",
+    background:"#fff",
+    borderRadius:18,
+    overflow:"hidden",
+    display:"flex",
+    flexDirection:"column",
+    boxShadow:"0 20px 40px rgba(0,0,0,0.15)"
   },
-  header: {
-    padding: "10px 16px",
-    borderBottom: "1px solid #eee",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between"
+
+  header:{
+    padding:"12px 18px",
+    borderBottom:"1px solid #eee",
+    display:"flex",
+    justifyContent:"space-between"
   },
-  closeBtn: {
-    border: "none",
-    background: "transparent",
-    fontSize: 18,
-    cursor: "pointer",
-    padding: 4
+
+  closeBtn:{ border:"none", background:"none", fontSize:18, cursor:"pointer" },
+
+  body:{ flex:1, display:"grid", gridTemplateColumns:"260px 1fr", minHeight:0 },
+
+  left:{
+    background:"#f4f7fb",
+    padding:12,
+    overflowY:"auto",
+    borderRight:"1px solid #eee"
   },
-  body: {
-    flex: 1,
-    display: "grid",
-    gridTemplateColumns: "280px 1fr",
-    minHeight: 0
+
+  right:{ display:"flex", flexDirection:"column", minHeight:0 },
+
+  sectionTitle:{
+    fontSize:11,
+    fontWeight:800,
+    opacity:.6,
+    marginBottom:8
   },
-  left: {
-    borderRight: "1px solid #eee",
-    padding: 12,
-    overflowY: "auto",
-    background: "#fcfcfc"
-  },
-  right: {
-    display: "flex",
-    flexDirection: "column",
-    minHeight: 0,
-    background: "#fff"
-  },
-  sectionTitle: {
-    fontWeight: 900,
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    opacity: 0.5,
-    marginBottom: 8
-  },
-  list: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 8
-  },
-  empty: {
-    padding: "8px 6px",
-    opacity: 0.5,
-    fontSize: 12,
-    textAlign: "center"
-  },
-  userRow: (active) => ({
-    border: `1px solid ${active ? "#111" : "#eee"}`,
-    background: active ? "#f0f0f0" : "#fff",
-    borderRadius: 10,
-    padding: "10px 12px",
-    cursor: "pointer",
-    textAlign: "left",
-    transition: "all 0.2s"
+
+  list:{ display:"flex", flexDirection:"column", gap:8 },
+
+  userRow:(active)=>({
+    border:"none",
+    borderRadius:12,
+    padding:"10px 12px",
+    background: active ? "#e6f0ff" : "#fff",
+    textAlign:"left",
+    cursor:"pointer"
   }),
-  roomRowWrap: (active) => ({
-    display: "grid",
-    gridTemplateColumns: "1fr 34px",
-    gap: 0,
-    border: `1px solid ${active ? "#111" : "#eee"}`,
-    background: active ? "#f0f0f0" : "#fff",
-    borderRadius: 10,
-    overflow: "hidden"
+
+  userName:{ fontWeight:700 },
+  online:{ fontSize:12, color:"#2ecc71" },
+
+  roomRowWrap:(active)=>({
+    display:"grid",
+    gridTemplateColumns:"1fr 32px",
+    borderRadius:12,
+    overflow:"hidden",
+    background: active ? "#e6f0ff" : "#fff"
   }),
-  roomRowBtn: {
-    border: "none",
-    background: "transparent",
-    padding: "10px 12px",
-    cursor: "pointer",
-    textAlign: "left"
+
+  roomRowBtn:{ border:"none", background:"none", padding:"10px", textAlign:"left" },
+  roomTop:{ display:"flex", justifyContent:"space-between" },
+  roomName:{ fontWeight:700 },
+
+  badge:{
+    background:"#ff4d4f",
+    color:"#fff",
+    borderRadius:20,
+    padding:"0 7px",
+    fontSize:11
   },
-  trashBtn: {
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    opacity: 0.4,
-    fontSize: 14,
-    "&:hover": { opacity: 1 }
+
+  lastMsg:{ fontSize:12, opacity:.6 },
+
+  trashBtn:{ border:"none", background:"none", cursor:"pointer" },
+
+  placeholder:{ flex:1, display:"grid", placeItems:"center", opacity:.4 },
+
+  chatHeader:{
+    padding:"12px 16px",
+    borderBottom:"1px solid #eee",
+    display:"flex",
+    alignItems:"center"
   },
-  badge: {
-    background: "#ff4d4f",
-    color: "#fff",
-    borderRadius: 10,
-    padding: "0 6px",
-    fontSize: 11,
-    fontWeight: "bold",
-    height: 18,
-    display: "flex",
-    alignItems: "center"
+
+  chatUser:{ display:"flex", gap:10, alignItems:"center" },
+
+  avatar:{
+    width:38, height:38,
+    borderRadius:"50%",
+    background:"#d8d8d8"
   },
-  lastMsg: {
-    fontSize: 12,
-    opacity: 0.6,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    marginTop: 4
+
+  chatName:{ fontWeight:700 },
+  status:{ fontSize:12, color:"#2ecc71" },
+
+  messages:{
+    flex:1,
+    padding:16,
+    overflowY:"auto",
+    background:"#f1f5f9",
+    display:"flex",
+    flexDirection:"column"
   },
-  placeholder: {
-    flex: 1,
-    display: "grid",
-    placeItems: "center",
-    opacity: 0.4,
-    fontSize: 14
-  },
-  messages: {
-    flex: 1,
-    padding: "16px",
-    overflowY: "auto",
-    background: "#f7f7f7",
-    display: "flex",
-    flexDirection: "column"
-  },
-  msgRow: (mine) => ({
-    display: "flex",
-    justifyContent: mine ? "flex-end" : "flex-start",
-    marginBottom: 12
+
+  msgRow:(mine)=>({
+    display:"flex",
+    justifyContent: mine ? "flex-end":"flex-start",
+    marginBottom:12
   }),
-  bubble: (mine) => ({
-    maxWidth: "80%",
-    borderRadius: mine ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
-    padding: "10px 14px",
-    background: mine ? "#111" : "#fff",
-    color: mine ? "#fff" : "#111",
-    boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
-    border: mine ? "none" : "1px solid #eee"
+
+  bubble:(mine)=>({
+    maxWidth:"75%",
+    borderRadius:18,
+    padding:"10px 14px",
+    background: mine ? "#2b6cb0":"#edf2f7",
+    color: mine ? "#fff":"#1a202c"
   }),
-  inputBar: {
-    display: "grid",
-    gridTemplateColumns: "1fr 80px",
-    gap: 10,
-    padding: 12,
-    borderTop: "1px solid #eee"
+
+  sender:{ fontSize:11, opacity:.7 },
+
+  inputBar:{
+    display:"grid",
+    gridTemplateColumns:"1fr 50px",
+    gap:10,
+    padding:12,
+    borderTop:"1px solid #eee"
   },
-  input: {
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: "10px 14px",
-    outline: "none",
-    fontSize: 14
+
+  input:{
+    border:"1px solid #e2e8f0",
+    borderRadius:999,
+    padding:"10px 16px",
+    background:"#f8fafc",
+    outline:"none"
   },
-  sendBtn: {
-    border: "none",
-    borderRadius: 10,
-    background: "#111",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 600
+
+  sendBtn:{
+    border:"none",
+    borderRadius:"50%",
+    background:"#2b6cb0",
+    color:"#fff",
+    fontSize:18,
+    cursor:"pointer"
   },
-  footer: {
-    padding: "6px 12px",
-    fontSize: 10,
-    opacity: 0.4,
-    borderTop: "1px solid #eee",
-    textAlign: "right",
-    background: "#fafafa"
-  },
+
+  footer:{
+    padding:"6px 12px",
+    fontSize:10,
+    opacity:.4,
+    borderTop:"1px solid #eee",
+    textAlign:"right"
+  }
 };

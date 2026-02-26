@@ -16,6 +16,8 @@ export default function MapToolsMenu({
   onClearDrawing,
   currentRole,
   pageMode,
+  onUndoDrawing,
+  onRedoDrawing,
 }) {
   const { t } = useTranslation("map");
   const rootRef = React.useRef(null);
@@ -89,67 +91,103 @@ export default function MapToolsMenu({
       aria-modal="true"
       aria-label="Map tools menu"
     >
-      <div className="mtm-drawCard">
-        <div className="mtm-drawHeader">
-          <span className="mtm-titleText">{t("draw")}</span>
+      <div className="mtm-bar">
 
-          <button type="button" className="mtm-x" onClick={onClose}>
-            ✕
-          </button>
+        {/* LEFT */}
+        <div className="mtm-section">
+          <span className="mtm-icon material-symbols-outlined nav-blue">
+            navigation
+          </span>
+
+          <div className="mtm-text">
+            <div className="mtm-sub">{t("draw")}</div>
+            <div className="mtm-title">{t("drawPolygon")}</div>
+          </div>
         </div>
 
+
+        {/* MODE TOGGLE */}
         {showEiaToggle && (
-          <button
-            type="button"
-            className={`mtm-chip ${currentMode === "eia" ? "is-eia" : ""}`}
-            onClick={onToggleDrawMode}
-          >
-            <span className="material-symbols-outlined">swap_horiz</span>
-            {currentMode === "eia" ? t("eiaMode") : t("normalMode")}
-          </button>
-        )}
-
-        {showDrawing && (
-          <div className="mtm-actionsCol">
+          <div className="mtm-section">
             <button
-            type="button"
-            className="mtm-btn mtm-btn--soft"
-            disabled={!canDraw}
-            onClick={handleStart}
+              className={`mtm-chip ${currentMode === "eia" ? "is-eia" : ""}`}
+              onClick={onToggleDrawMode}
             >
-              ▶ {t("drawStart")}
-            </button>
-
-            <button
-            type="button"
-            className="mtm-btn mtm-btn--green"
-            disabled={!drawMode || !canDraw}
-            onClick={handleFinish}
-            >
-              ✔ {t("drawFinish")}
-            </button>
-
-            <button
-            type="button"
-            className="mtm-btn mtm-btn--red"
-            disabled={!canDraw}
-            onClick={canDraw ? safe(onClearDrawing) : undefined}
-            >
-              🧍 {t("drawClear")}
+              <span className="material-symbols-outlined">swap_horiz</span>
+              {currentMode === "eia" ? t("eiaMode") : t("normalMode")}
             </button>
           </div>
         )}
-      </div>
 
-      <div className="mtm-list">
-        <button
-          type="button"
-          className="mtm-item"
-          onClick={safe(onOpenTools)}
-        >
-          <span className="material-symbols-outlined">build</span>
-          <span className="mtm-itemText">{t("tools")}</span>
-        </button>
+
+        {/* ACTIONS */}
+        {showDrawing && (
+          <div className="mtm-section">
+
+            <button
+              className="mtm-iconBtn"
+              disabled={!canDraw}
+              onClick={handleStart}
+            >
+              <span className="material-symbols-outlined">
+                play_arrow
+              </span>
+            </button>
+
+              {/* UNDO */}
+            <button
+              className="mtm-iconBtn"
+              disabled={!canDraw}
+              onClick={onUndoDrawing}
+            >
+              <span className="material-symbols-outlined">undo</span>
+            </button>
+
+            {/* REDO */}
+            <button
+              className="mtm-iconBtn"
+              disabled={!canDraw}
+              onClick={onRedoDrawing}
+            >
+              <span className="material-symbols-outlined">redo</span>
+            </button>
+
+            <button
+              className="mtm-iconBtn danger"
+              disabled={!canDraw}
+              onClick={canDraw ? safe(onClearDrawing) : undefined}
+            >
+              <span className="material-symbols-outlined">
+                delete
+              </span>
+            </button>
+
+            <div className="mtm-section right-actions">
+
+              {/* Cancel */}
+              <button
+                className="mtm-btn ghost"
+                onClick={onClose}
+              >
+                ยกเลิก
+              </button>
+
+              {/* Save */}
+              <button
+                className="mtm-btn primary"
+                disabled={!drawMode || !canDraw}
+                onClick={handleFinish}
+              >
+                <span className="material-symbols-outlined">check</span>
+                บันทึกที่ดิน
+              </button>
+
+            </div>
+
+
+          </div>
+        )}
+
       </div>
     </div>
   );

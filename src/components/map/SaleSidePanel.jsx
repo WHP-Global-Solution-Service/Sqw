@@ -366,22 +366,6 @@
     return (
       <aside className={`sale-panel ${open ? "" : "closed"}`}>
         <div className="sale-head">
-          <div>
-            <div className="sale-title">{headerTitle}</div>
-            <div className="sale-sub">
-              {t("role")}: <b>{role || "-"}</b>
-              {drawingEnabled 
-              ? <span className="pill ok">{t("sub.drawable")}</span>
-              : <span className="pill warn">{t("sub.notDrawable")}</span>}
-              {isEditing 
-              ? <span className="pill edit">{t("sub.editing")}</span> 
-              : <span className="pill new">{t("sub.new")}</span>}
-              {isEditing && !canEditCurrentLand 
-              ? <span className="pill warn">{t("sub.locked")}</span> 
-              : null}
-            </div>
-          </div>
-
           <button 
             className="sale-toggle" 
             type="button" 
@@ -391,16 +375,44 @@
           </button>
         </div>
 
+
         <div className="sale-body">
           {/* =============== FORM SECTION =============== */}
           <div className="sale-section">
             <button className="sec-title" type="button" onClick={() => setIsFormOpen((v) => !v)}>
               {isFormOpen ? "▲" : "▼"} {t("section.form")}
             </button>
-
             {isFormOpen && !isEiaMode && (
               <>
                 <div className="sec-sub">{t("section.formSub")}</div>
+
+                <div className="field">
+                  <label>{t("field.images")}</label>
+
+                  <div className="ig-grid">
+                    {(landData?.images || []).map((src,i)=>(
+                      <div key={i} className="ig-item">
+                        <img src={src} alt="" />
+                        <button type="button" onClick={()=>removeImage(i)}>×</button>
+                      </div>
+                    ))}
+
+                    {(landData?.images?.length ?? 0) < 5 && canEditCurrentLand && (
+                      <label className="ig-add">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          hidden
+                          onChange={(e)=>{
+                            handleImages(e.target.files);
+                            e.target.value="";
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
 
                 <div className="row2">
                   <div className="field">
@@ -614,10 +626,37 @@
           {/* ================= EIA FORM ================= */}
                 {isEiaMode && (
                   <div className="eia-section">
-                    <div className="sec-sub">ข้อมูล EIA (Admin เท่านั้น)</div>
+                    <div className="sec-sub">{t("section.eiaAdmin")}</div>
 
                     <div className="field">
-                      <label>ชื่อโครงการ</label>
+                      <label>{t("field.images")}</label>
+
+                      <div className="ig-grid">
+                        {(landData?.images || []).map((src,i)=>(
+                          <div key={i} className="ig-item">
+                            <img src={src} alt="" />
+                            <button type="button" onClick={()=>removeImage(i)}>×</button>
+                          </div>
+                        ))}
+
+                        {(landData?.images?.length ?? 0) < 5 && canEditCurrentLand && (
+                          <label className="ig-add">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              hidden
+                              onChange={(e)=>{
+                                handleImages(e.target.files);
+                                e.target.value="";
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label>{t("field.projectName")}</label>
                       <input
                         value={landData?.projectName ?? ""}
                         disabled={!canEditEia}
@@ -627,7 +666,7 @@
 
                     <div className="row2">
                       <div className="field">
-                        <label>Project Value (บาท)</label>
+                        <label>{t("field.projectValue")}</label>
                         <input
                           value={landData?.projectValue ?? ""}
                           disabled={!canEditEia}
@@ -636,7 +675,7 @@
                       </div>
 
                       <div className="field">
-                        <label>เงินลงทุน (บาท)</label>
+                        <label>{t("field.investment")}</label>
                         <input
                           value={landData?.investment ?? ""}
                           disabled={!canEditEia}
@@ -767,39 +806,7 @@
                 {isFormOpen && (
                   <>
 
-                  <div className="field">
-                  <label>รูปภาพ (สูงสุด 5 รูป)</label>
-
-                  <div className="ig-grid">
-
-                    {(landData?.images || []).map((src,i)=>(
-                      <div key={i} className="ig-item">
-                        <img src={src} alt="" />
-                        <button type="button" onClick={()=>removeImage(i)}>×</button>
-                      </div>
-                    ))}
-
-                    {(landData?.images?.length ?? 0) < 5 && canEditCurrentLand && (
-                      <label className="ig-add">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          hidden
-                          onChange={(e)=>{
-                            handleImages(e.target.files);
-                            e.target.value="";
-                          }}
-                        />
-                      </label>
-                    )}
-
-                  </div>
-                </div>
-                    <SummaryBlock mode={mode} data={landData} t={t} />
-
-                    
-
+                  <SummaryBlock mode={mode} data={landData} t={t} />
                   <div className="actions">
                     <button
                       className="sale-btn primary"

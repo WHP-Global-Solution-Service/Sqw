@@ -10,17 +10,19 @@ import {
 import MemberActions from "./MemberActions";
 import GuestActions from "./GuestActions";
 
+
 // -------------------------
 // contact field config
 // -------------------------
 const CONTACT_FIELDS = [
-  { key: "contactOwner", label: "field.owner", mask: "-----" },
-  { key: "broker", label: "field.agent", mask: "-----" },
-  { key: "phone", label: "field.phone", mask: "**********" },
-  { key: "line", label: "field.lineId", mask: "**********" },
-  { key: "frame", label: "field.landFrame", mask: "-----" },
-  { key: "chanote", label: "field.deed", mask: "-----" },
+  { key: "contactOwner", label: "field.owner", mask: "-----", icon: "person" },
+  { key: "broker", label: "field.agent", mask: "-----", icon: "badge" },
+  { key: "phone", label: "field.phone", mask: "**********", icon: "call" },
+  { key: "line", label: "field.lineId", mask: "**********", icon: "chat" },
+  { key: "frame", label: "field.landFrame", mask: "-----", icon: "crop_square" },
+  { key: "chanote", label: "field.deed", mask: "-----", icon: "description" },
 ];
+
 
 export default function LandDetailPanel({
   land,
@@ -34,14 +36,29 @@ export default function LandDetailPanel({
   isFavorite,
   onToggleFavorite,
   images,
+  onBroadcast
 }) {
-  // ✅ main namespace ของ component
   const { t } = useTranslation("land");
-  // ✅ common ใช้เฉพาะของกลาง
   const { t: tCommon, i18n } = useTranslation("common");
 
   const L = useMemo(() => normalizeLand(land), [land]);
   const unlockedSet = useMemo(() => new Set(unlockedFields), [unlockedFields]);
+ 
+  // --- [view] ---
+  const [currentViews, setCurrentViews] = useState(0);
+
+  useEffect(() => {
+    if (L?.id) {
+      setCurrentViews((L.views || 1200) + 1); // Mock views
+    }
+  }, [L?.id]);
+
+  const displayViews = currentViews >= 1000 ? (currentViews / 1000).toFixed(1) + " k" : currentViews;
+
+  // ฟังก์ชันกลาง: เมื่อกดปุ่มใดๆ ใน GuestActions ให้เปิด Modal ก่อน
+  const triggerGate = () => setIsGateOpen(true);
+  const [openBroadcast, setOpenBroadcast] = useState(false);
+  // ---------------------------
 
   const [favLocal, setFavLocal] = useState(() =>
     L?.id ? isFavInStore(L.id) : false
@@ -57,20 +74,16 @@ export default function LandDetailPanel({
 
   const handleFav = () => {
     if (!L?.id) return;
-
     const payload = {
       id: L.id,
       title: L.owner,
       owner: L.owner,
       image: L.images?.[0],
-
       size: L.area,
       price: L.pricePerWa ?? L.price,
-      location: L.location, // ⭐ สำคัญ
-
+      location: L.location,
       lat: L.lat,
-      lon: L.lon ?? L.lng,   // ⭐ สำคัญ
-
+      lon: L.lon ?? L.lng,
       updatedAt: L.updatedAt,
     };
 
@@ -78,7 +91,6 @@ export default function LandDetailPanel({
       onToggleFavorite(L.id, !fav, payload);
       return;
     }
-
     const next = toggleFavInStore(L.id, payload);
     setFavLocal(next);
   };
@@ -97,101 +109,97 @@ export default function LandDetailPanel({
     <div id="sqw-popup-root">
       <div className="sqw-popup">
         {/* ---------- HEADER ---------- */}
-        <div className="sqw-head">
-          <button
-            className={`sqw-fav ${fav ? "is-on" : ""}`}
-            type="button"
-            aria-label={fav ? t("favorite.off") : t("favorite.on")}
-            title={fav ? t("favorite.off") : t("favorite.on")}
-            onClick={handleFav}
-          >
-            <span
-              className="material-symbols-outlined"
-              aria-hidden="true"
-            >
-              favorite
-            </span>
+        <div className="sqw-header-top">
+          <button className={`sqw-fav ${fav ? "is-on" : ""}`} onClick={handleFav}>
+            <span className="material-symbols-outlined">favorite</span>
           </button>
 
-          <div className="sqw-pill">
-            {L.owner || t("ownerFallback")}
+          <div className="sqw-top-title">
+            {L.owner || "ข้อมูลที่ดิน"}
           </div>
 
-          <button
-            className="sqw-x"
-            type="button"
-            aria-label={tCommon("close")}
-            onClick={onClose}
-          >
-            ×
-          </button>
+          <button className="sqw-x" onClick={onClose}>×</button>
         </div>
 
-        {/* ---------- META ---------- */}
-        <div className="sqw-meta">
-          🕒 {t("postedDate", { date: postedDate })}
+        {/* ---------- META (DATE & VIEWS) ---------- */}
+        <div className="sqw-meta-row">
+          <div className="sqw-meta-item">
+            <span className="material-symbols-outlined">schedule</span>
+            {t("postedDate", { date: postedDate })}
+          </div>
+
+          <div className="sqw-meta-item">
+            <span className="material-symbols-outlined">visibility</span>
+            {displayViews} เข้าชม
+          </div>
+        </div>
+      <div className="sqw-main-box">
+
+        {/* IMAGE */}
+        <div className="sqw-image-section">
+          <div className="sqw-image-label">
+            {t("section.images", "รูปภาพและสิ่งปลูกสร้าง")}
+          </div>
+
+          <div className="sqw-slider-container">
+            {L.images?.length > 0 ? (
+              <ImageSlider images={L.images} />
+            ) : (
+              <div className="sqw-no-img">{tCommon("noImage")}</div>
+            )}
+          </div>
         </div>
 
-        {/* ---------- IMAGE ---------- */}
-        {L.images?.length > 0 && (
-          <ImageSlider images={L.images}/>
-        )}
-
-        {/* ---------- BASIC INFO ---------- */}
-        <div className="sqw-grid">
-          <InfoBox
-            label={t("field.size")}
-            value={`${L.area} ${t("unit.sqw")}`}
-          />
-          <InfoBox
-            label={t("field.rnw")}
-            value={L.raw}
-          />
-          <InfoBox
-            label={t("field.frontage")}
-            value={`${L.frontage ?? L.width ?? "-"} ${t("unit.meter")}`}
-          />
-          <InfoBox
-            label={t("field.roadWidth")}
-            value={`${L.roadWidth} ${t("unit.meter")}`}
-          />
+        {/* PRICE */}
+        <div className="sqw-price-block">
+          <div className="sqw-main-price">
+            ฿ {L.totalPrice?.toLocaleString() || "-"}
+          </div>
+          <div className="sqw-sub-price">
+            {t("price.perSqw")}: ฿{" "}
+            {L.pricePerWa?.toLocaleString() ??
+              L.price?.toLocaleString() ??
+              "-"}
+          </div>
         </div>
 
-        <div className="sqw-divider" />
+        {/* GRID */}
+        <div className="sqw-info-grid">
+          <div className="sqw-info-item">
+            <div className="label">{t("field.size")}</div>
+            <div className="value">
+              {L.area || "-"} {t("unit.sqw")}
+            </div>
+          </div>
 
-        {/* ---------- PRICE ---------- */}
-        <div className="sqw-row">
-          <span>{t("price.perSqw")}</span>
-          <span className="sqw-row-v">
-            {L.pricePerWa ?? L.price} {tCommon("unit.baht")}
-          </span>
+          <div className="sqw-info-item">
+            <div className="label">{t("field.rnw")}</div>
+            <div className="value">{L.raw || "-"}</div>
+          </div>
         </div>
-        <div className="sqw-row">
-          <span>{t("price.total")}</span>
-          <span className="sqw-row-v">
-            {L.totalPrice} {tCommon("unit.baht")}
-          </span>
-        </div>
 
-        <div className="sqw-divider" />
+      </div>   
 
-        {/* ---------- CONTACT ---------- */}
+
+      {/* CONTACT SECTION */}
+      <div className="sqw-contact-section">
         <div className="sqw-h">{t("section.contact")}</div>
 
-        <div className="sqw-kv">
-          {CONTACT_FIELDS.map((f) => (
-            <Fragment key={f.key}>
-              <div className="k">{tCommon(f.label)}</div>
-              <div className="v">
-                {showValue(f.key, L[f.key], f.mask)}
-              </div>
-            </Fragment>
-          ))}
-        </div>
-
-        <div className="sqw-divider" />
+        {CONTACT_FIELDS.map((f) => (
+          <div className="sqw-contact-row" key={f.key}>
+            <span className="c-label">{tCommon(f.label)}</span>
+            <span className="material-symbols-outlined c-icon">
+              {f.icon}
+            </span>
+            <span className="c-value">
+              {showValue(f.key, L[f.key], f.mask)}
+            </span>
+          </div>
+        ))}
+      </div>
 
         {/* ---------- ACTIONS ---------- */}
+      <div className="sqw-actions">
         {isMember ? (
           <MemberActions
             quotaUsed={quotaUsed}
@@ -214,6 +222,14 @@ export default function LandDetailPanel({
             onOpenUnlockPicker={() => onOpenUnlockPicker?.(L.id)}
           />
         )}
+      </div>
+        <button
+          className="btn-broadcast-heavy"
+          onClick={() => onBroadcast?.(L)}
+        >
+          <span className="material-symbols-outlined">campaign</span>
+          broadcast
+        </button>
       </div>
     </div>
   );
@@ -276,16 +292,17 @@ function ImageSlider({ images = [] }) {
 
         {images.length > 1 && (
           <>
-            <button className="sqw-arrow left" onClick={prev}>‹</button>
-            <button className="sqw-arrow right" onClick={next}>›</button>
+            <button className="sqw-arrow left" onClick={prev}>
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+
+            <button className="sqw-arrow right" onClick={next}>
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
           </>
         )}
-
-        {/* index */}
-        <div className="sqw-index">
-          {i+1} / {images.length}
-        </div>
       </div>
+
       {/* fullscreen modal */}
       {fullscreen && (
         <div className="sqw-full" onClick={()=>setFullscreen(false)}>

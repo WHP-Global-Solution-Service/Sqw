@@ -18,9 +18,11 @@
   "section": {
     "form": "ฟอร์มข้อมูลแปลง",
     "formSub": "ข้อมูลการประเมินแปลง (ระบบสามารถให้ข้อมูลอัตโนมัติ)",
-    "list": "รายการแปลงของฉัน"
+    "list": "รายการแปลงของฉัน",
+    "eiaAdmin": "ข้อมูล EIA (Admin เท่านั้น)" 
   },
   "field": {
+    "images": "รูปภาพ (สูงสุด 5 รูป)",
     "sizeSqw": "ขนาดที่ดิน (ตร.วา)",
     "sizeRNW": "ขนาดที่ดิน (ไร่ / งาน / วา)",
     "width": "หน้ากว้างติดถนน (ม.)",
@@ -32,23 +34,39 @@
     "phone": "โทรศัพท์",
     "lineId": "LINE ID",
     "landFrame": "กรอบที่ดิน",
-    "deed": "ข้อมูลโฉนด / ระวาง"
+    "deed": "ข้อมูลโฉนด / ระวาง",
+    "projectName": "ชื่อโครงการ",
+    "projectValue": "มูลค่าโครงการ (บาท)",
+    "investment": "เงินลงทุน (บาท)",
+    "projectType": "ประเภทโครงการ",
+    "usableArea": "พื้นที่ใช้สอย (ตร.ม.)",
+    "landAreaText": "ขนาดที่ดิน (ข้อความ)",
+    "projectStatus": "สถานภาพโครงการ",
+    "endDate": "วันที่สิ้นสุด",
+    "region": "ภาค",
+    "province": "จังหวัด",
+    "district": "เขต/อำเภอ",
+    "subdistrict": "แขวง/ตำบล",
+    "newsLink": "Link ข่าวสาร",
+    "eiaLink": "Link EIA",
+    "reviewLink": "Link รีวิว"
   },
   "placeholder": {
     "owner": "ชื่อเจ้าของ",
     "agent":"ชื่อนายหน้า",
     "phone": "08x-xxx-xxxx",
     "lineId": "@lineid หรือ lineid",
-    "rai": "ไร่",
-    "ngan": "งาน",
-    "wah": "วา"
+    "rai": "1",
+    "ngan": "1",
+    "wah": "1"
   },
   "summary": {
     "size": "ขนาด",
     "unitSqw": "ตร.วา",
     "perSqw": "ราคาต่อตารางวา",
     "total": "ราคารวม",
-    "day":"วันที่"
+    "status": "สถานะ",
+    "project": "โครงการ"
   },
   "unit": {
     "baht": "บ."
@@ -78,7 +96,10 @@
     "focus": "โฟกัสบนแผนที่",
     "edit": "แก้ไข",
     "delete": "ลบ",
-    "empty": "ยังไม่มีข้อมูลแปลง"
+    "empty": "ยังไม่มีข้อมูลแปลง",
+    "value": "มูลค่า",
+    "status": "สถานะ",
+    "date": "วันที่"
   },
   "status":{
     "approved":"อนุมัติแล้ว",

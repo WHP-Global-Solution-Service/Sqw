@@ -47,8 +47,8 @@ export default function UnlockPickerModal({
         inset: 0,
         background: "rgba(0,0,0,.35)",
         zIndex: 1000001,
-        display: "grid",
-        placeItems: "center",
+        placeItems: "start center",
+        paddingTop: 68,
         padding: 16,
       }}
       onClick={onCancel}

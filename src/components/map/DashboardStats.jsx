@@ -57,63 +57,57 @@ export default function DashboardStats({ lands = [] }) {
   return (
     <div className={`dashbar ${open ? "open" : "collapsed"}`}>
 
-      {/* Toggle button */}
+      {/* TOGGLE (ลอยกลางจริง) */}
       <button
-        className="dashToggleAttached"
+        className="dashToggleFloating"
         onClick={() => setOpen(v => !v)}
       >
-        <span className="dashLabel">แสดงข้อมูลผลลัพธ์</span>
-        <span className="dashArrow">{open ? "▼" : "▲"}</span>
+        <span>แสดงข้อมูลผลลัพธ์</span>
+        <span className={`dashArrow ${open ? "up" : ""}`}>▼</span>
       </button>
 
-      {/* Content */}
-      <div className="dashContent">
-        {open && (
-          <>
-            <div className="dashcard">
-              <div className="dashlabel">{t("totalLand")}</div>
-              <div className="dashvalue">{formatInt(stats.totalListings)}</div>
-              <div className="dashunit">{t("unit.listing")}</div>
-            </div>
+      {/* CONTENT (ลอยเหนือปุ่ม) */}
+      {open && (
+        <div className="dashContent">
 
-            <div className="dashcard">
-              <div className="dashlabel">{t("totalArea")}</div>
-              <div className="dashvalue">
-                {rnw.rai.toLocaleString("th-TH")}
-              </div>
-              <div className="dashunit">
-                {rnw.ngan} {t("unit.ngan")} {rnw.wah} {t("unit.wah")}
-              </div>
-            </div>
+          <div className="dashcard">
+            <div className="dashlabel">{t("totalLand")}</div>
+            <div className="dashvalue">{formatInt(stats.totalListings)}</div>
+            <div className="dashunit">{t("unit.listing")}</div>
+          </div>
 
-            <div className="dashcard">
-              <div className="dashlabel">{t("totalValue")}</div>
-              <div className="dashvalue">
-                {formatInt(stats.totalValue)}
-              </div>
-              <div className="dashunit">
-                {tCommon("unit.baht")}
-              </div>
+          <div className="dashcard">
+            <div className="dashlabel">{t("totalArea")}</div>
+            <div className="dashvalue">
+              {rnw.rai.toLocaleString("th-TH")}
             </div>
+            <div className="dashunit">
+              {rnw.ngan} {t("unit.ngan")} {rnw.wah} {t("unit.wah")}
+            </div>
+          </div>
 
-            <div className="dashcard">
-              <div className="dashlabel">เจ้าของที่</div>
-              <div className="dashvalue">
-                {formatInt(stats.landlordCount)}
-              </div>
-              <div className="dashunit">รายการ</div>
-            </div>
+          <div className="dashcard">
+            <div className="dashlabel">{t("totalValue")}</div>
+            <div className="dashvalue">{formatInt(stats.totalValue)}</div>
+            <div className="dashunit">{tCommon("unit.baht")}</div>
+          </div>
 
-            <div className="dashcard">
-              <div className="dashlabel">นายหน้า</div>
-              <div className="dashvalue">
-                {formatInt(stats.agentCount)}
-              </div>
-              <div className="dashunit">รายการ</div>
-            </div>
-          </>
-        )}
-      </div>
+          <div className="dashcard">
+            <div className="dashlabel">เจ้าของที่</div>
+            <div className="dashvalue">{formatInt(stats.landlordCount)}</div>
+            <div className="dashunit">รายการ</div>
+          </div>
+
+          <div className="dashcard">
+            <div className="dashlabel">นายหน้า</div>
+            <div className="dashvalue">{formatInt(stats.agentCount)}</div>
+            <div className="dashunit">รายการ</div>
+          </div>
+
+        </div>
+      )}
+
+      
 
     </div>
   );

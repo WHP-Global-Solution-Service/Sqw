@@ -843,6 +843,13 @@ export default function MapPage() {
               onOpenUnlockPicker={unlockFlow.onOpenUnlockPicker}
               onUnlockAll={unlockFlow.onUnlockAll}
               onChatSeller={handleChatFromPopup}
+              onBroadcast={(land) => {
+                if (!land?.id) {
+                  alert("กรุณาเลือกที่ดินก่อน");
+                  return;
+                }
+                openCreate(role === "admin" ? "admin" : "consignor");
+              }}
             />
           )}
         </MapPopup>
@@ -947,26 +954,6 @@ export default function MapPage() {
       
 
       {/* 2) ปุ่มในบริบท popup */}
-      <BroadcastQuickActions
-        land={selectedLand}
-        role={role}
-        mode={mode}
-        sellIntent={intent}
-        onAdminClick={() => {
-          if (!selectedLand) {
-            alert(t("broadcast.selectLandFirst"));
-            return;
-          }
-          openCreate("admin");
-        }}
-        onConsignorClick={() => {
-          if (!selectedLand) {
-            alert(t("broadcast.selectLandFirst"));
-            return;
-          }
-          openCreate("consignor");
-        }}
-      />
 
       {/* 3) Modal ข่าว */}
       <BroadcastNewsModal

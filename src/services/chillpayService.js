@@ -4,7 +4,7 @@ export async function processChillPayPayment(vm, land) {
         const amount = land.totalPrice || 100;
         const orderId = `LAND-${land.id}-${Date.now()}`;
 
-        if (vm.chillpay.useBackend) {
+        if (vm.chillpay && vm.chillpay.useBackend) {
             await callBackendPaymentAPI(vm, orderId, amount, land);
         } else {
             await processDemoPayment(vm, orderId, amount, land);

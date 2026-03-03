@@ -279,14 +279,14 @@ export default {
       viewerImages: [],
       currentImageIndex: 0,
 
-      /* // ChillPay configuration
+      // ChillPay configuration (default safe values)
       chillpay: {
         merchantCode: 'M037016',
-        apiKey: 'Oh7XNjDQowUfM7G020YIU1gt7jNXxIdUaCm8UL8XFXvEzElamuzurR1HGuuxLP8',
+        apiKey: '',
         sandboxUrl: 'https://sandbox-pgw.chillpay.co/api/v3',
-        backendUrl: 'http://localhost:3001', // Backend server URL
-        useBackend: true, // true = ใช้ backend, false = demo mode
-      }, */
+        backendUrl: 'http://localhost:3001', // Backend server URL (set to your backend when enabled)
+        useBackend: false, // default to Demo Mode to avoid errors when backend is disabled
+      },
       // Login-after-mode state
       showLoginModalAfterMode: false,
       pendingMode: null,
@@ -906,11 +906,11 @@ export default {
       // SHA-256 hashes of valid credentials (encrypted for security)
       const validUserHash = 'd3f9dc0d9846096862d143a8ef241b641f99df3387909de864415868985e52d6';
       const validPasswordHash = '70ed6e68d82de1068aa5f201eceac02deef8b58bb4754f39dda183dc2e0bd8f3';
-      
+
       // Hash the user input
       const userHash = await this.hashString(this.preAuthUser);
       const passwordHash = await this.hashString(this.preAuthPassword);
-      
+
       if (userHash === validUserHash && passwordHash === validPasswordHash) {
         this.isPreAuthenticated = true;
         this.preAuthError = '';

@@ -1,7 +1,7 @@
 <template>
   <div id="app" :class="{ 'mode-sale': currentMode === 'sale' }">
     <!-- Pre-Authentication Gate Modal -->
-    <div v-if="!isPreAuthenticated" class="preauth-overlay">
+    <!-- <div v-if="!isPreAuthenticated" class="preauth-overlay">
       <div class="preauth-box">
         <div class="preauth-icon">🔐</div>
         <h2 class="preauth-title">กรุณาใส่รหัสเข้าใช้งาน</h2>
@@ -34,7 +34,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <header class="app-header">
       <LoginBar
@@ -458,7 +458,7 @@
       </div>
     </div>
 
-    <div v-else-if="currentMode === 'sale'">
+    <div v-else-if="currentMode === 'sale1'">
       <nav class="navbar">
         <!-- Form Section -->
         <div class="form-section">
@@ -809,7 +809,7 @@
       </nav>
     </div>
 
-    <div v-else-if="currentMode === 'eia'">
+    <div v-else-if="currentMode === 'eia1'">
       <nav class="navbar">
         <!-- Form Section -->
         <div class="form-section">
@@ -1355,7 +1355,7 @@
         </button>
 
         <!-- Draw (pencil) Button -->
-        <button
+        <!-- <button
           ref="drawBtn"
           class="control-btn draw-btn"
           :class="{ active: showDrawMenu }"
@@ -1373,7 +1373,7 @@
             />
             <path d="M14 7l3 3" />
           </svg>
-        </button>
+        </button> -->
       </div>
 
       <!-- Draw Panel: moved out as floating popup (see below) -->

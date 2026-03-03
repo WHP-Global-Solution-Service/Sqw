@@ -1,14 +1,19 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="th">
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <link rel="icon" href="<%= BASE_URL %>favicon.ico">
-    <script src="https://api.longdo.com/services"></script>
-    <script src="https://mr-stob.online/kml/kmltolongdomap.js"></script>
-    <script src="https://mr-stob.online/kml/togeojson.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <!-- DNS Prefetch & Preconnect for faster loading -->
+    <link rel="dns-prefetch" href="//api.longdo.com">
+    <link rel="dns-prefetch" href="//firebaseio.com">
+    <link rel="preconnect" href="https://api.longdo.com" crossorigin>
+    
+    <!-- External scripts with defer for non-blocking load -->
+    <script defer src="https://api.longdo.com/services"></script>
+    <!-- Turf.js removed - using npm package instead -->
 
     <title><%= htmlWebpackPlugin.options.title %></title>
   </head>

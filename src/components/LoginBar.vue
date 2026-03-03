@@ -4,6 +4,14 @@
     <div class="left">
       <div class="brand">
         <div class="brand-logo" title="SQW">SQW</div>
+        <div
+          class="mode-indicator"
+          v-if="currentMode"
+          @click="changeModeRequest"
+          title="คลิกเพื่อเปลี่ยนโหมด"
+        >
+          {{ displayMode }}
+        </div>
       </div>
     </div>
 
@@ -11,6 +19,9 @@
       <div class="auth-area">
         <div v-if="user" class="user-block">
           <div class="user-pill">
+            <button class="contact-btn" @click="openContact" title="Contact us">
+              Contact us
+            </button>
             <div class="avatar">
               {{
                 (user.displayName || user.email || shortUid)
@@ -25,6 +36,7 @@
               <div class="user-sub">ออนไลน์</div>
             </div>
           </div>
+
           <button class="logout-btn" @click="doLogout" title="ออกจากระบบ">
             ออก
           </button>
@@ -44,10 +56,10 @@
               type="password"
               placeholder="รหัสผ่าน"
             />
-            <button class="login-btn" @click="doLoginEmail">เข้าสู่ระบบ</button>
+            <button class="login-btn" @click="doLoginEmail">Login</button>
           </div>
           <div class="actions">
-            <button class="reg-btn" @click="doRegister">สมัคร</button>
+            <!-- <button class="reg-btn" @click="doRegister">สมัคร</button> -->
             <button
               class="google-btn"
               @click="doLoginGoogle"
@@ -87,12 +99,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, defineProps } from "vue";
 import {
   onAuthChanged,
   loginWithGoogle,
   loginWithEmail,
-  registerWithEmail,
+  /* registerWithEmail, */
   logout as doSignOut,
   updateOnlineStatus,
   clearOnlineStatus,
@@ -103,6 +115,30 @@ const user = ref(null);
 const email = ref("");
 const password = ref("");
 const error = ref("");
+
+// เพิ่ม props เพื่อรับค่า mode จาก parent
+const props = defineProps({
+  currentMode: {
+    type: String,
+    default: null,
+  },
+});
+
+// คำนวณข้อความที่จะแสดง
+const displayMode = computed(() => {
+  if (!props.currentMode) return "";
+  if (props.currentMode === "sale") return "ซื้อขายที่ดิน";
+  if (props.currentMode === "eia") return "Future project & EIA Map Base";
+  return "ขายฝากที่ดิน";
+});
+
+// Emit สำหรับเปลี่ยนโหมด
+// eslint-disable-next-line no-undef
+const emit = defineEmits(["change-mode", "open-contact"]);
+
+function changeModeRequest() {
+  emit("change-mode");
+}
 
 let unsub = null;
 onMounted(() => {
@@ -147,7 +183,7 @@ async function doLoginEmail() {
     error.value = tidy(e);
   }
 }
-async function doRegister() {
+/* async function doRegister() {
   error.value = "";
   try {
     // derive a friendly display name from the email local-part if not provided
@@ -162,7 +198,7 @@ async function doRegister() {
   } catch (e) {
     error.value = tidy(e);
   }
-}
+} */
 async function doLogout() {
   error.value = "";
   try {
@@ -174,6 +210,15 @@ async function doLogout() {
 }
 function tidy(e) {
   return (e?.message || String(e)).replace("Firebase: ", "");
+}
+
+function openContact() {
+  try {
+    emit("open-contact");
+  } catch (e) {
+    // fallback: open a mailto link
+    window.open("mailto:info@sqw.example?subject=Contact%20Us", "_blank");
+  }
 }
 </script>
 
@@ -250,6 +295,24 @@ function tidy(e) {
   position: relative;
 }
 
+.mode-indicator {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-indicator:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
 .auth-area {
   display: flex;
   align-items: center;
@@ -276,6 +339,20 @@ function tidy(e) {
   color: #111;
   cursor: pointer;
   transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.contact-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(90deg, #f59e0b, #d97706) !important;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.contact-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 .login-btn {
   background: #111;
@@ -363,6 +440,7 @@ function tidy(e) {
   .login-input {
     padding: 6px 8px;
     font-size: 13px;
+    width: 20vw;
   }
   .brand-logo {
     font-size: 16px;

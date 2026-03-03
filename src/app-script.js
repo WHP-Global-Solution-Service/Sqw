@@ -8,40 +8,130 @@ import {
   subscribeP2PChatRooms,
   updateOnlineStatus,
   markMessagesAsRead,
+  deleteChatRoom,
   saveLand,
   deleteLand,
   subscribeLandsAll,
-  saveFloodZone,
-  deleteFloodZone,
-  subscribeFloodZonesAll,
+  saveEiaProject,
+  deleteEiaProject,
+  subscribeEiaProjectsAll,
+  getUserProfile,
+  loginWithGoogle,
+  checkRedirectResult,
+  recordUniqueVisitor,
+  recordDailyVisitor,
+  subscribeDailyVisitors,
+  subscribeAllTimeVisitors,
+  recordAllTimeVisitor,
+  recordVisitorLogin,
+  recordVisitorLogout,
+  setupVisitorDisconnect,
+  subscribeVisitorLogs,
+  getVisitorLogDates,
+  forceLogoutUser,
+  subscribeForceLogout,
+  clearForceLogoutFlag,
+  forceLogoutAllUsers,
+  logout,
+  updateHeartbeat,
+  subscribeAppVersion,
+  setAppVersion,
+  clearForceReloadFlag,
+  cleanupStaleUsers,
+  cleanupOldVisitorLogs,
 } from "./firebase";
 
 import LoginBar from "./components/LoginBar.vue";
 import * as turf from "@turf/turf";
+import { thailandLocations } from "./data/thailand-locations.js";
+import * as chillpayService from "./services/chillpayService.js";
 /* eslint-disable no-empty */
 export default {
   name: "App",
   components: { LoginBar },
   data() {
     return {
-      // --- Flood Zone layer ---
-      floodMode: false,
-      floodLevel: 'medium',   // 'low' | 'medium' | 'high'
-      showFloodLayer: true,
-      floodPoints: [],        // [{lon,lat}, ...] ระหว่างวาด
-      floodPolyline: null,    // เส้นชั่วคราว
-      floodPolygon: null,     // ชิ้นที่กำลังวาดอยู่
-      floodOverlays: [],      // โพลิกอนน้ำท่วมที่วาดเสร็จแล้วทั้งหมด
-      selectedFlood: null,             // โพลิกอนที่ถูกเลือก
-      selectedFloodHighlight: null,    // เส้นไฮไลท์ชิ้นที่เลือก
-      waterAmount: 1,
-      savedFloods: [],   // โซนน้ำท่วมที่โหลดมาจาก DB (public)
-      floodsUnsub: null, // ตัว unsubscribe
-      floodSummary: { low: 0, medium: 0, high: 0, none: 0 },
-      _floodPolysCache: [],   // แคช polygon ของน้ำท่วม
+      // --- Pre-Authentication Gate ---
+      isPreAuthenticated: false,
+      preAuthUser: '',
+      preAuthPassword: '',
+      preAuthError: '',
 
+      // --- EIA Projects ---
+      eiaMode: false,
+      eiaDrawMode: false,
+      eiaDrawPoints: [],
+      eiaDrawPolyline: null,
+      eiaDrawPolygon: null,
+      eiaOverlays: [],
+      savedEiaProjects: [],
+      eiaProjectsUnsub: null,
+      selectedEiaProject: null,
+      showEiaPopup: false,
+      eiaProjectData: {
+        projectStartDate: '',
+        ownerNameTo: '',
+        projectName: '',
+        projectValue: '',        // มูลค่าโครงการ (ล้านบาท)
+        projectImage: '',        // รูปภาพโครงการ (base64)
+        projectImageName: '',    // ชื่อไฟล์รูปภาพ
+        landSizeRai: '',         // ขนาดที่ดิน (ไร่)
+        landSizeNgan: '',        // ขนาดที่ดิน (งาน)
+        landSizeWah: '',         // ขนาดที่ดิน (วา)
+        usableArea: '',          // พื้นที่ใช้สอย (ตร.ม.)
+        reportNumber: '',
+        engineerNumber: '',
+        approvalDate: '',
+        approvalNumber: '',
+        projectType: '',
+        projectSubType: '',
+        reviewStatus: '',
+        projectStatus: '',
+        region: '',
+        province: '',
+        district: '',
+        subdistrict: '',
+        projectLink: '',
+        projectLink2: '',
+        lastUpdated: null,
+        isHighlighted: false,    // true = Highlight Project (เหลือง), false = Future Project (เขียว)
+      },
+      editingEiaId: null,
+
+      // สีสำหรับ EIA Projects (เขียว = ปกติ/Future Project)
+      eiaColor: '#39ff14',
+      eiaColorRgb: '57,255,20',
+      eiaColorUrlEncoded: '%2339ff14',
+      // สีสำหรับ Highlight Project (เหลือง)
+      eiaHighlightColor: '#FFD700',
+      eiaHighlightColorRgb: '255,215,0',
+      eiaHighlightColorUrlEncoded: '%23FFD700',
+
+      // EIA Filters
+      eiaFilters: {
+        projectValueMin: '',
+        projectValueMax: '',
+        landSizeRaiMin: '',
+        landSizeRaiMax: '',
+        usableAreaMin: '',
+        usableAreaMax: '',
+        region: '',
+        province: '',
+        projectStatus: '',
+      },
+      hasAppliedEiaFilters: false, // flag ว่าเคยกด filter EIA หรือไม่
+
+      // EIA Filter Panel Draggable
+      eiaFilterPanelX: window.innerWidth - 400,
+      eiaFilterPanelY: 160,
+      isDraggingEiaFilter: false,
+      dragStartX: 0,
+      dragStartY: 0,
 
       currentMode: null,
+      isLoadingDetails: false,
+      // When entering EIA mode, show a one-time area selection modal
+      showSelectAreaModal: false,
       raiModel: "",
       nganModel: "",
       wahModel: "",
@@ -60,6 +150,8 @@ export default {
       mapMarkers: [], // Store actual marker objects
       showMarkerInfo: false,
       selectedMarker: null,
+      showEiaInfo: false,
+      selectedEiaForInfo: null,
       markerInfoPosition: { x: 0, y: 0 },
       map: null,
       selectedMapType: "hybrid",
@@ -86,10 +178,12 @@ export default {
         road: "",
         landFrame: "",
         deedInformation: "",
+        images: [],
       },
 
       savedLands: [],
       filteredLands: [],
+      hasAppliedFilters: false, // flag ว่าเคยกด filter หรือไม่
 
       currentLocation: {
         lat: 13.7563,
@@ -99,6 +193,7 @@ export default {
       showSearch: false,
       showFilters: false,
       showLayers: false,
+      showDrawMenu: false,
       searchQuery: "",
       filters: {
         landType: "",
@@ -131,9 +226,13 @@ export default {
         name: "",
         joinedAt: null,
       },
+      isAdmin: false,
       tempUserName: "",
       hasNewMessage: false,
       unreadCount: 0,
+      lastMessageFrom: "",  // ชื่อคนที่ส่งข้อความมาล่าสุด
+      unreadFromUsers: [],   // รายชื่อคนที่มีข้อความยังไม่อ่าน
+      chatTabMode: 'recent', // 'recent' = แชทล่าสุด, 'online' = คนออนไลน์
       lastSeenMessageId: null,
       onlineUsers: [],
       selectedUser: null,
@@ -158,25 +257,201 @@ export default {
       showDisclaimer: true,
       // show a centered modal after selecting sale/pledge mode
       showModeDisclaimerModal: false,
+      // Show a sale-specific notice after acknowledging the general disclaimer
+      showSaleNoticePopup: false,
+      // Coming soon modal for pledge mode
+      showComingSoonModal: false,
+      // Purchase / details modals (mock payment)
+      showPurchaseModal: false,
+      purchaseLandPending: null, // land id being purchased
+      showFullDetailsModal: false,
+      fullDetailsLand: null,
+      // Contact modal
+      showContactModal: false,
       kmlState: null,        // ผลลัพธ์จาก kmlToLongdoMap (overlays, bound)
       kmlOverlays: [],       // สำรองไว้กรณีต้องจัดการเองเป็นรายชิ้น
       kmlFeatures: [],
       bkkRect: null,
       kmlOpacity: 0.6,   // 0–1
 
+      // Image viewer
+      showImageViewer: false,
+      viewerImages: [],
+      currentImageIndex: 0,
+
+      // ChillPay configuration (default safe values)
+      chillpay: {
+        merchantCode: 'M037016',
+        apiKey: '',
+        sandboxUrl: 'https://sandbox-pgw.chillpay.co/api/v3',
+        backendUrl: 'http://localhost:3001', // Backend server URL (set to your backend when enabled)
+        useBackend: false, // default to Demo Mode to avoid errors when backend is disabled
+      },
+      // Login-after-mode state
+      showLoginModalAfterMode: false,
+      pendingMode: null,
+      chillpayProcessing: false,
+
+      // Portrait mode for contact image
+      isPortrait: window.innerHeight > window.innerWidth,
+
+      // Loading state for login
+      isLoadingLogin: false,
+
+      // Daily visitors tracking
+      dailyVisitors: {
+        date: '',
+        uniqueCount: 0,
+        totalCount: 0,
+      },
+      dailyVisitorsUnsub: null,
+      hasRecordedVisit: false,
+
+      // All-time visitors (รวมทั้งหมดตั้งแต่เปิดเว็บ)
+      allTimeVisitors: 3500,
+      allTimeVisitorsUnsub: null,
+
+      // Session timeout (1 hour = 3600000 ms)
+      /* sessionTimeoutMs: 1 * 60 * 60 * 1000, */
+      sessionTimeoutMs: 30 * 60 * 1000,
+      sessionTimeoutId: null,
+      loginTimestamp: null,
+
+      // Admin Panel
+      showAdminPanel: false,
+      visitorLogs: [],
+      visitorLogsUnsub: null,
+      selectedLogDate: '',
+      availableLogDates: [],
+      currentSessionId: null,
+      // SHA-256 hash ของรหัสผ่าน (ไม่เก็บรหัสตรงๆ)
+      adminPasswordHash: 'f776f5ed7b9ba54ba2a750f5841806fe6057fd17ddd870663cfb0e9ea7020625',
+      // Force logout subscription
+      forceLogoutUnsub: null,
+
+      // App Version Control
+      appVersion: '1.0.1', // เปลี่ยนทุกครั้งที่ deploy
+      appVersionUnsub: null,
+
+      // Heartbeat interval
+      heartbeatInterval: null,
+
     };
   },
 
   async mounted() {
+    // Check if already pre-authenticated in this session
+    if (sessionStorage.getItem('sqw_preauth') === 'true') {
+      this.isPreAuthenticated = true;
+    }
+
     this.initMap();
-    this.authUnsubscribe = onAuthChanged((u) => {
+
+    // === Subscribe App Version (บังคับ reload เมื่อมี version ใหม่) ===
+    this.appVersionUnsub = subscribeAppVersion(this.appVersion, async (newVersion, forceReload) => {
+      console.log('New app version detected:', newVersion);
+
+      if (forceReload) {
+        // ล้าง flag ก่อน reload
+        await clearForceReloadFlag();
+        // บังคับ reload ทันที
+        alert('มีการอัพเดทระบบใหม่ หน้าจะรีเฟรชอัตโนมัติ');
+        window.location.reload(true);
+      } else {
+        // แจ้งเตือนให้ user เลือก reload
+        const shouldReload = confirm(
+          `🔄 มีเวอร์ชันใหม่ (${newVersion})\n\n` +
+          'กด OK เพื่ออัพเดท หรือ Cancel เพื่อใช้งานต่อ\n' +
+          '(แนะนำให้อัพเดทเพื่อหลีกเลี่ยงปัญหา)'
+        );
+        if (shouldReload) {
+          window.location.reload(true);
+        }
+      }
+    });
+
+    // Portrait mode detection for contact image
+    this._handleResize = () => {
+      this.isPortrait = window.innerHeight > window.innerWidth;
+    };
+    window.addEventListener('resize', this._handleResize);
+
+    // Listen for hash changes (for admin route)
+    this._handleHashChange = () => {
+      if (window.location.hash === '#/admin' && this.currentUserId) {
+        this.openAdminPanel();
+      } else if (this.showAdminPanel && window.location.hash !== '#/admin') {
+        this.closeAdminPanel();
+      }
+    };
+    window.addEventListener('hashchange', this._handleHashChange);
+
+    // ตรวจสอบผลลัพธ์จาก Google redirect login (สำหรับมือถือ)
+    try {
+      const redirectUser = await checkRedirectResult();
+      if (redirectUser) {
+        console.log('Redirect login success:', redirectUser.email);
+        // ถ้ามี pending mode หลังจาก redirect login สำเร็จ
+        const pendingMode = sessionStorage.getItem('pendingLoginMode');
+        if (pendingMode) {
+          sessionStorage.removeItem('pendingLoginMode');
+          // รอให้ onAuthChanged ทำงานก่อน แล้วค่อย finalize
+          setTimeout(() => {
+            this.showLoginModalAfterMode = false;
+            this.finalizeModeSelection(pendingMode);
+          }, 500);
+        }
+      }
+    } catch (e) {
+      console.warn('checkRedirectResult error:', e);
+    }
+
+    this.authUnsubscribe = onAuthChanged(async (u) => {
       // ออกจากระบบ → เคลียร์ state/ยกเลิก subscribe เดิมทั้งหมด
       if (!u) {
+        // ตรวจสอบว่าเคย login อยู่หรือไม่ (มี loginTimestamp = เคย login)
+        const wasLoggedIn = sessionStorage.getItem('loginTimestamp') !== null;
+
+        // บันทึก logout ใน visitor log
+        const sessionId = sessionStorage.getItem('visitorSessionId');
+        if (sessionId) {
+          await recordVisitorLogout(sessionId);
+        }
+
         this.resetP2PState();
         this.currentUserId = null;
         this.userProfile = { name: "", joinedAt: null };
+        this.isAdmin = false;
+        this.isLoadingLogin = false;
+        // เคลียร์ session timeout
+        this.clearSessionTimeout();
+        // เคลียร์ session storage
+        sessionStorage.removeItem('loginTimestamp');
+        sessionStorage.removeItem('visitorSessionId');
+        sessionStorage.removeItem('adminUnlocked');
+        // เคลียร์ admin panel
+        this.closeAdminPanel();
+
+        // reload หน้าเฉพาะเมื่อกด logout หรือ session timeout (เคย login อยู่)
+        if (wasLoggedIn) {
+          window.location.reload();
+        }
         return;
       }
+
+      // เริ่มแสดง loading overlay
+      this.isLoadingLogin = true;
+
+      // ถ้า login สำเร็จจาก redirect และมี pending mode
+      const pendingMode = sessionStorage.getItem('pendingLoginMode');
+      if (pendingMode) {
+        sessionStorage.removeItem('pendingLoginMode');
+        this.showLoginModalAfterMode = false;
+        setTimeout(() => {
+          this.finalizeModeSelection(pendingMode);
+        }, 100);
+      }
+
       const ack = localStorage.getItem("ackDisclaimer");
       if (ack === "yes") this.showDisclaimer = false;
 
@@ -185,6 +460,21 @@ export default {
       if (switched) this.resetP2PState();
 
       this.currentUserId = u.uid;
+      // determine admin flag from user profile or specific admin emails
+      const adminEmails = ['thossaporn.thippayasak@gmail.com', 'admin@sqw.in.th']; // เพิ่ม email admin ที่นี่
+      const isEmailAdmin = adminEmails.includes(u.email?.toLowerCase());
+
+      try {
+        const prof = await getUserProfile(u.uid);
+        try {
+          this.isAdmin = isEmailAdmin || !!(prof && (prof.isAdmin === true || prof.role === 'admin'));
+        } catch (e) { this.isAdmin = isEmailAdmin; }
+      } catch (e) {
+        console.warn('getUserProfile failed', e);
+        this.isAdmin = isEmailAdmin;
+      }
+
+      console.log('Admin check:', { email: u.email, isAdmin: this.isAdmin });
 
       // เติมชื่อจากบัญชี (ถ้ายังไม่มีชื่อในช่องแชท)
       if (!this.userProfile.name) {
@@ -195,21 +485,161 @@ export default {
       // ดัน presence ขึ้น พร้อมชื่อ
       this.updateUserOnlineStatus();
 
+      // บันทึกการเข้าใช้งานทุกครั้ง (นับทุกครั้งที่เข้า)
+      if (!this.hasRecordedVisit) {
+        this.hasRecordedVisit = true;
+        recordDailyVisitor(u.uid); // นับทุกครั้งที่เข้า
+        recordUniqueVisitor(u.uid); // นับ unique ต่อวันด้วย
+        recordAllTimeVisitor(); // นับยอดรวมทั้งหมดตั้งแต่เปิดเว็บ
+      }
+
+      // บันทึก visitor log (ทุกครั้งที่ login)
+      if (!sessionStorage.getItem('visitorSessionId')) {
+        const sessionId = await recordVisitorLogin(u.uid, u.displayName || u.email);
+        if (sessionId) {
+          sessionStorage.setItem('visitorSessionId', sessionId);
+          this.currentSessionId = sessionId;
+          await setupVisitorDisconnect(sessionId);
+          // เริ่ม Heartbeat ทุก 30 วินาที
+          this.startHeartbeat(sessionId);
+        }
+      } else {
+        // ถ้ามี sessionId อยู่แล้ว (refresh หน้า) → เริ่ม heartbeat ต่อ
+        const existingSessionId = sessionStorage.getItem('visitorSessionId');
+        this.currentSessionId = existingSessionId;
+        this.startHeartbeat(existingSessionId);
+      }
+
+      // Subscribe force logout (ถ้า admin สั่งตัด จะถูก logout ทันที)
+      this.subscribeToForceLogout(u.uid);
+
+      // เช็ค URL hash สำหรับ admin panel
+      this.checkAdminRoute();
+
+      // เริ่ม session timeout (บังคับ logout หลัง 3 ชม.)
+      this.startSessionTimeout();
+
       // เริ่ม subscribe ส่วนต่าง ๆ ของ P2P
       this.initP2PFacade();
 
+      // เช็คว่ามี payment response หรือไม่ (หลัง redirect กลับมา)
+      this.checkPaymentResponse();
+
+      // เพิ่ม listener สำหรับรับข้อมูลจาก payment popup
+      this.setupPaymentMessageListener();
+
       // === subscribe lands ของฉัน ===
+      let landsLoaded = false;
+      let eiaLoaded = false;
+
+      const checkLoadingComplete = () => {
+        if (landsLoaded && eiaLoaded) {
+          // รอให้ render เสร็จก่อนปิด loading
+          setTimeout(() => {
+            this.isLoadingLogin = false;
+          }, 500);
+        }
+      };
+
       this.landsUnsub = subscribeLandsAll((list) => {
         this.savedLands = Array.isArray(list) ? list : [];
         this.renderLandsOnMap();
-        this.$nextTick(() => this.checkLandsFloodStatus());
+        landsLoaded = true;
+        checkLoadingComplete();
+      });
+
+      // === subscribe EIA projects ===
+      this.eiaProjectsUnsub = subscribeEiaProjectsAll((list) => {
+        this.savedEiaProjects = Array.isArray(list) ? list : [];
+        // Render if in EIA mode OR just render anyway (will check mode inside)
+        this.renderEiaProjectsOnMap();
+        eiaLoaded = true;
+        checkLoadingComplete();
       });
     });
-    // === subscribe flood zones (public) ===
-    this.floodsUnsub = subscribeFloodZonesAll((list) => {
-      this.savedFloods = Array.isArray(list) ? list : [];
-      this.renderFloodsOnMap();
-      this.$nextTick(() => this.checkLandsFloodStatus());
+    // === subscribe daily visitors count ===
+    this.dailyVisitorsUnsub = subscribeDailyVisitors((data) => {
+      this.dailyVisitors = data;
+    });
+
+    // === subscribe all-time visitors count ===
+    this.allTimeVisitorsUnsub = subscribeAllTimeVisitors((count) => {
+      this.allTimeVisitors = count;
+    });
+
+    // enable dragging for popup panels after initial render
+    this.$nextTick(() => {
+      try { if (typeof this.enableDraggables === 'function') this.enableDraggables(); } catch (e) { console.debug('enableDraggables call failed', e); }
+
+      // Position floating draw panel next to the draw button when opened.
+      try {
+        // create a placement helper attached to this instance so we can remove listeners later
+        this._positionDrawPanel = () => {
+          try {
+            const btn = (this.$refs && this.$refs.drawBtn) || document.querySelector('.control-btn.draw-btn');
+            const panel = (this.$refs && this.$refs.drawPanel) || document.querySelector('.floating-draw');
+            if (!btn || !panel) return;
+
+            // ensure panel uses viewport-fixed coordinates so placement is predictable
+            panel.style.position = 'fixed';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+
+            const btnRect = btn.getBoundingClientRect();
+            const panelRect = panel.getBoundingClientRect();
+
+            // Prefer placing the panel to the left of the button (controls are on the right side)
+            const gap = 8; // px
+            let left = Math.round(btnRect.left - panelRect.width - gap);
+            // If not enough space on left, place to the right of the button
+            if (left < 8) left = Math.round(btnRect.right + gap);
+
+            // Align vertically with the button's top (or ensure it stays inside viewport)
+            let top = Math.round(btnRect.top);
+            if (top + panelRect.height > window.innerHeight - 8) {
+              top = Math.max(8, window.innerHeight - panelRect.height - 8);
+            }
+
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+            panel.style.zIndex = 9999;
+          } catch (e) {
+            // ignore
+          }
+        };
+
+        // reposition on resize / scroll
+        window.addEventListener('resize', this._positionDrawPanel);
+        window.addEventListener('scroll', this._positionDrawPanel, true);
+
+        // watch the showDrawMenu flag and position when it opens
+        try {
+          this.$watch && this.$watch('showDrawMenu', (val) => {
+            if (val) {
+              this.$nextTick(() => {
+                try { this._positionDrawPanel(); } catch (_) { }
+                try {
+                  // ensure the draw panel is draggable even if it was not processed earlier
+                  const dp = (this.$refs && this.$refs.drawPanel) || document.querySelector('.floating-draw');
+                  if (dp) {
+                    const handle = dp.querySelector('.panel-header') || dp;
+                    try { this._makeDraggable(dp, handle); } catch (_) { }
+                  }
+                } catch (_) { }
+              });
+            }
+          });
+        } catch (e) { }
+
+        // also ensure draw panel gets draggable initialization now (if present)
+        try {
+          const dpNow = (this.$refs && this.$refs.drawPanel) || document.querySelector('.floating-draw');
+          if (dpNow) {
+            const h = dpNow.querySelector('.panel-header') || dpNow;
+            try { this._makeDraggable(dpNow, h); } catch (_) { }
+          }
+        } catch (_) { }
+      } catch (e) { console.debug('position draw panel setup failed', e); }
     });
   },
 
@@ -220,6 +650,33 @@ export default {
     if (this.onlineStatusInterval) clearInterval(this.onlineStatusInterval);
     if (this.typingTimer) clearTimeout(this.typingTimer);
     if (this.authUnsubscribe) this.authUnsubscribe();
+    if (this.landsUnsub) this.landsUnsub();
+    if (this.eiaProjectsUnsub) this.eiaProjectsUnsub();
+    if (this.visitorLogsUnsub) this.visitorLogsUnsub();
+    if (this.forceLogoutUnsub) this.forceLogoutUnsub();
+    if (this.appVersionUnsub) this.appVersionUnsub();
+    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    if (this.allTimeVisitorsUnsub) this.allTimeVisitorsUnsub();
+    // cleanup session timeout
+    this.clearSessionTimeout();
+    // cleanup portrait resize listener
+    if (this._handleResize) {
+      window.removeEventListener('resize', this._handleResize);
+      this._handleResize = null;
+    }
+    // cleanup hashchange listener
+    if (this._handleHashChange) {
+      window.removeEventListener('hashchange', this._handleHashChange);
+      this._handleHashChange = null;
+    }
+    // cleanup draw panel listeners
+    try {
+      if (this._positionDrawPanel) {
+        window.removeEventListener('resize', this._positionDrawPanel);
+        window.removeEventListener('scroll', this._positionDrawPanel, true);
+        this._positionDrawPanel = null;
+      }
+    } catch (e) { }
   },
 
   computed: {
@@ -355,21 +812,906 @@ export default {
         totalValueMillion: totalValue / 1e6,
       };
     },
+
+    // Available districts based on selected province
+    availableDistricts() {
+      const province = this.eiaProjectData.province?.trim();
+      if (!province || !thailandLocations[province]) {
+        return [];
+      }
+      return Object.keys(thailandLocations[province]).sort();
+    },
+
+    // Available subdistricts based on selected province and district
+    availableSubdistricts() {
+      const province = this.eiaProjectData.province?.trim();
+      const district = this.eiaProjectData.district?.trim();
+      if (!province || !district || !thailandLocations[province] || !thailandLocations[province][district]) {
+        return [];
+      }
+      return thailandLocations[province][district].sort();
+    },
+
+    // Filtered EIA Projects
+    filteredEiaProjects() {
+      const projects = this.savedEiaProjects || [];
+      const filters = this.eiaFilters;
+
+      const toNum = (v) => (v === '' || v == null ? null : Number(String(v).replace(/,/g, '')));
+
+      const valueMin = toNum(filters.projectValueMin);
+      const valueMax = toNum(filters.projectValueMax);
+      const raiMin = toNum(filters.landSizeRaiMin);
+      const raiMax = toNum(filters.landSizeRaiMax);
+      const areaMin = toNum(filters.usableAreaMin);
+      const areaMax = toNum(filters.usableAreaMax);
+
+      return projects.filter((p) => {
+        // กรองมูลค่าโครงการ (ล้านบาท)
+        const projectValue = Number(p.projectValue);
+        const valueOK =
+          (valueMin == null || (Number.isFinite(projectValue) && projectValue >= valueMin)) &&
+          (valueMax == null || (Number.isFinite(projectValue) && projectValue <= valueMax));
+
+        // กรองขนาดที่ดิน (ไร่)
+        const landRai = Number(p.landSizeRai) || 0;
+        const raiOK =
+          (raiMin == null || landRai >= raiMin) &&
+          (raiMax == null || landRai <= raiMax);
+
+        // กรองพื้นที่ใช้สอย (ตร.ม.)
+        const usableArea = Number(p.usableArea) || 0;
+        const areaOK =
+          (areaMin == null || usableArea >= areaMin) &&
+          (areaMax == null || usableArea <= areaMax);
+
+        // กรองภูมิภาค
+        const regionOK = !filters.region || p.region === filters.region;
+
+        // กรองจังหวัด
+        const provinceOK = !filters.province || p.province === filters.province;
+
+        // กรองสถานะโครงการ
+        const statusOK = !filters.projectStatus || p.projectStatus === filters.projectStatus;
+
+        return valueOK && raiOK && areaOK && regionOK && provinceOK && statusOK;
+      });
+    },
+
+    // EIA Statistics
+    eiaStatistics() {
+      // ใช้ข้อมูลที่กรองแล้วเสมอ (filteredEiaProjects จะกรองตาม filter หรือคืนค่าทั้งหมดถ้าไม่มี filter)
+      const projects = this.filteredEiaProjects || [];
+
+      // จำนวนโครงการ
+      const totalProjects = projects.length;
+
+      // มูลค่าโครงการรวม (ล้านบาท)
+      const totalValue = projects.reduce((sum, project) => {
+        const value = Number(project.projectValue);
+        return sum + (Number.isFinite(value) && value > 0 ? value : 0);
+      }, 0);
+
+      return {
+        totalProjects,
+        totalValue,
+        totalValueFormatted: this.formatProjectValue(totalValue),
+      };
+    },
   },
 
   methods: {
+    // Pre-Authentication verification (encrypted)
+    async verifyPreAuth() {
+      // SHA-256 hashes of valid credentials (encrypted for security)
+      const validUserHash = 'd3f9dc0d9846096862d143a8ef241b641f99df3387909de864415868985e52d6';
+      const validPasswordHash = '70ed6e68d82de1068aa5f201eceac02deef8b58bb4754f39dda183dc2e0bd8f3';
+
+      // Hash the user input
+      const userHash = await this.hashString(this.preAuthUser);
+      const passwordHash = await this.hashString(this.preAuthPassword);
+
+      if (userHash === validUserHash && passwordHash === validPasswordHash) {
+        this.isPreAuthenticated = true;
+        this.preAuthError = '';
+        // Store in sessionStorage to persist during session
+        sessionStorage.setItem('sqw_preauth', 'true');
+      } else {
+        this.preAuthError = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+      }
+    },
+
+    // Hash string using SHA-256
+    async hashString(str) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    },
+
+    // ===== Session Timeout Methods =====
+    // เริ่มนับเวลา session (3 ชม. แล้วบังคับ logout)
+    startSessionTimeout() {
+      // เคลียร์ timer เดิมก่อน (ถ้ามี)
+      this.clearSessionTimeout();
+
+      // บันทึกเวลา login
+      this.loginTimestamp = Date.now();
+
+      // เช็คว่ามี session เก่าที่เก็บไว้หรือไม่ (กรณี refresh หน้า)
+      const savedLoginTime = sessionStorage.getItem('loginTimestamp');
+      if (savedLoginTime) {
+        const elapsed = Date.now() - parseInt(savedLoginTime, 10);
+        if (elapsed >= this.sessionTimeoutMs) {
+          // หมดเวลาแล้ว → logout ทันที
+          this.forceLogout();
+          return;
+        }
+        // ยังไม่หมดเวลา → ใช้เวลาที่เหลือ
+        this.loginTimestamp = parseInt(savedLoginTime, 10);
+        const remaining = this.sessionTimeoutMs - elapsed;
+        this.sessionTimeoutId = setTimeout(() => this.forceLogout(), remaining);
+      } else {
+        // session ใหม่
+        sessionStorage.setItem('loginTimestamp', String(this.loginTimestamp));
+        this.sessionTimeoutId = setTimeout(() => this.forceLogout(), this.sessionTimeoutMs);
+      }
+
+      console.log('Session timeout started: 3 hours');
+    },
+
+    // เคลียร์ timer session
+    clearSessionTimeout() {
+      if (this.sessionTimeoutId) {
+        clearTimeout(this.sessionTimeoutId);
+        this.sessionTimeoutId = null;
+      }
+      this.loginTimestamp = null;
+    },
+
+    /* ========================
+       ADMIN PANEL METHODS
+       ======================== */
+
+    // เช็ค URL hash สำหรับเปิด admin panel
+    checkAdminRoute() {
+      if (window.location.hash === '#/admin') {
+        this.openAdminPanel();
+      }
+    },
+
+    // Hash password ด้วย SHA-256
+    async hashPassword(password) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+
+    // เปิด Admin Panel (ต้องใส่รหัส)
+    async openAdminPanel() {
+      // ถ้ายังไม่ได้ login
+      if (!this.currentUserId) {
+        alert('กรุณาเข้าสู่ระบบก่อน');
+        return;
+      }
+
+      // ถ้าเคยใส่รหัสถูกแล้วใน session นี้
+      const adminUnlocked = sessionStorage.getItem('adminUnlocked');
+      if (!adminUnlocked) {
+        // ถามรหัสผ่าน
+        const inputPassword = prompt('กรุณาใส่รหัสผ่าน Admin:');
+        if (!inputPassword) {
+          window.location.hash = '';
+          return;
+        }
+        // Hash input แล้วเทียบกับ hash ที่เก็บไว้
+        const inputHash = await this.hashPassword(inputPassword);
+        if (inputHash !== this.adminPasswordHash) {
+          alert('รหัสผ่านไม่ถูกต้อง');
+          window.location.hash = '';
+          return;
+        }
+        // จำไว้ว่าใส่รหัสถูกแล้ว
+        sessionStorage.setItem('adminUnlocked', 'true');
+      }
+
+      this.showAdminPanel = true;
+      window.location.hash = '#/admin';
+
+      // ลบ visitor logs ที่เกิน 7 วัน
+      await cleanupOldVisitorLogs(7);
+
+      // โหลดรายการวันที่ที่มี log
+      this.availableLogDates = await getVisitorLogDates();
+
+      // ตั้งค่าวันนี้เป็นค่าเริ่มต้น
+      const today = new Date().toISOString().split('T')[0];
+      this.selectedLogDate = today;
+
+      // subscribe visitor logs ของวันนี้
+      this.subscribeToVisitorLogs(today);
+    },
+
+    // ปิด Admin Panel
+    closeAdminPanel() {
+      this.showAdminPanel = false;
+      if (window.location.hash === '#/admin') {
+        window.location.hash = '';
+      }
+
+      // ยกเลิก subscribe
+      if (this.visitorLogsUnsub) {
+        this.visitorLogsUnsub();
+        this.visitorLogsUnsub = null;
+      }
+      this.visitorLogs = [];
+    },
+
+    // เปลี่ยนวันที่ดู log
+    changeLogDate(date) {
+      this.selectedLogDate = date;
+      this.subscribeToVisitorLogs(date);
+    },
+
+    // Subscribe visitor logs ของวันที่เลือก
+    subscribeToVisitorLogs(date) {
+      // ยกเลิก subscribe เก่า
+      if (this.visitorLogsUnsub) {
+        this.visitorLogsUnsub();
+      }
+
+      this.visitorLogsUnsub = subscribeVisitorLogs(date, (logs) => {
+        this.visitorLogs = logs;
+      });
+    },
+
+    // Format timestamp เป็นเวลาอ่านง่าย (สำหรับ visitor log)
+    formatVisitorTime(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    },
+
+    // Format duration เป็นชั่วโมง:นาที:วินาที
+    formatDuration(seconds) {
+      if (!seconds || seconds <= 0) return '-';
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+
+      if (hrs > 0) {
+        return `${hrs}ชม. ${mins}น. ${secs}วิ.`;
+      } else if (mins > 0) {
+        return `${mins}น. ${secs}วิ.`;
+      }
+      return `${secs}วิ.`;
+    },
+
+    // คำนวณ duration สำหรับ user ที่ยังออนไลน์อยู่
+    getLiveDuration(loginAt) {
+      if (!loginAt) return '-';
+      const now = Date.now();
+      const seconds = Math.floor((now - loginAt) / 1000);
+      return this.formatDuration(seconds);
+    },
+
+    // Subscribe เพื่อรับคำสั่ง force logout จาก admin
+    subscribeToForceLogout(uid) {
+      // ยกเลิก subscription เดิม
+      if (this.forceLogoutUnsub) {
+        this.forceLogoutUnsub();
+      }
+
+      this.forceLogoutUnsub = subscribeForceLogout(uid, async (data) => {
+        if (data && data.timestamp) {
+          console.log('Force logout received from admin');
+          // ลบ flag ก่อน logout
+          await clearForceLogoutFlag(uid);
+          // แจ้งเตือนและ logout
+          alert('คุณถูกบังคับออกจากระบบโดยผู้ดูแล');
+          await logout();
+          window.location.reload();
+        }
+      });
+    },
+
+    // Admin สั่งตัด login ของ user
+    async adminForceLogoutUser(log) {
+      if (!log || !log.uid) {
+        alert('ไม่พบข้อมูลผู้ใช้');
+        return;
+      }
+
+      // ไม่ให้ตัดตัวเอง
+      if (log.uid === this.currentUserId) {
+        alert('ไม่สามารถตัด login ตัวเองได้');
+        return;
+      }
+
+      const confirmMsg = `ต้องการบังคับให้ "${log.displayName || 'Unknown'}" ออกจากระบบหรือไม่?`;
+      if (!confirm(confirmMsg)) return;
+
+      const success = await forceLogoutUser(log.uid);
+      if (success) {
+        alert(`สั่งตัด login ของ "${log.displayName}" เรียบร้อย`);
+      } else {
+        alert('เกิดข้อผิดพลาด ไม่สามารถตัด login ได้');
+      }
+    },
+
+    // Admin สั่งตัด login ทุกคน (ยกเว้นตัวเอง)
+    async adminForceLogoutAll() {
+      const onlineCount = this.visitorLogs.filter(l => l.status === 'online' && l.uid !== this.currentUserId).length;
+
+      if (onlineCount === 0) {
+        alert('ไม่มีผู้ใช้ออนไลน์ที่สามารถตัดได้');
+        return;
+      }
+
+      const confirmMsg = `⚠️ ต้องการบังคับให้ทุกคน (${onlineCount} คน) ออกจากระบบหรือไม่?\n\n(ยกเว้นตัวคุณเอง)`;
+      if (!confirm(confirmMsg)) return;
+
+      const result = await forceLogoutAllUsers(this.currentUserId);
+      if (result.success) {
+        alert(`✅ สั่งตัด login ทั้งหมด ${result.count} คนเรียบร้อย`);
+      } else {
+        alert('เกิดข้อผิดพลาด ไม่สามารถตัด login ได้');
+      }
+    },
+
+    // === Heartbeat Methods ===
+    startHeartbeat(sessionId) {
+      // เคลียร์ interval เดิม
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+      }
+
+      // อัพเดททันที
+      updateHeartbeat(sessionId);
+
+      // อัพเดททุก 30 วินาที
+      this.heartbeatInterval = setInterval(() => {
+        updateHeartbeat(sessionId);
+      }, 30 * 1000);
+
+      console.log('Heartbeat started for session:', sessionId);
+    },
+
+    stopHeartbeat() {
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+      }
+    },
+
+    // Admin: ล้าง users ที่ไม่ active (ไม่มี heartbeat เกิน 2 นาที)
+    async adminCleanupStaleUsers() {
+      const confirmMsg = '⚠️ ต้องการล้าง users ที่ไม่ active (ไม่มี heartbeat เกิน 2 นาที) หรือไม่?';
+      if (!confirm(confirmMsg)) return;
+
+      const result = await cleanupStaleUsers();
+      if (result.success) {
+        alert(`✅ ล้าง users ที่ไม่ active แล้ว ${result.count} คน`);
+      } else {
+        alert('❌ เกิดข้อผิดพลาด');
+      }
+    },
+
+    // Admin: บังคับ reload ทุกคน (ตั้ง version ใหม่)
+    async adminForceReloadAll() {
+      const newVersion = prompt('ใส่ version ใหม่ (เช่น 1.0.2):', this.appVersion);
+      if (!newVersion) return;
+
+      const forceReload = confirm('บังคับ reload ทันทีหรือไม่?\n\nOK = reload ทันที\nCancel = แค่แจ้งเตือน');
+
+      const success = await setAppVersion(newVersion, forceReload);
+      if (success) {
+        alert(`✅ ตั้งค่า version ${newVersion} เรียบร้อย\n${forceReload ? 'ทุกคนจะถูก reload ทันที' : 'ทุกคนจะได้รับแจ้งเตือน'}`);
+      } else {
+        alert('❌ เกิดข้อผิดพลาด');
+      }
+    },
+
+    // บังคับ logout และ reload หน้า (session timeout)
+    async forceLogout() {
+      console.log('Session expired - forcing logout');
+
+      // เคลียร์ session storage
+      sessionStorage.removeItem('loginTimestamp');
+
+      try {
+        // logout จาก Firebase
+        await logout();
+      } catch (e) {
+        console.warn('forceLogout error:', e);
+      }
+
+      // แจ้งเตือนผู้ใช้
+      alert('เซสชันหมดอายุ (เกิน 30 นาที) กรุณาเข้าสู่ระบบใหม่');
+
+      // reload หน้า
+      window.location.reload();
+    },
+
+    // Format project value with comma (no decimals)
+    formatProjectValue(value) {
+      if (!value || isNaN(value)) return '0';
+      const num = Number(value);
+      return num.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+    },
+
+    // Format input value for display with comma (while typing)
+    formatProjectValueInput(value) {
+      if (!value) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle project value input (remove commas and store raw number)
+    handleProjectValueInput(event) {
+      const input = event.target.value;
+      // Remove commas and parse
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.projectValue = num;
+      } else if (cleaned === '' || cleaned === '.') {
+        this.eiaProjectData.projectValue = '';
+      }
+    },
+
+    // Format investment input for display with comma (while typing)
+    formatInvestmentInput(value) {
+      if (!value && value !== 0) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle investment input (remove commas and store raw number)
+    handleInvestmentInput(event) {
+      const input = event.target.value;
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.investment = num;
+      } else if (cleaned === '' || cleaned === '.') {
+        this.eiaProjectData.investment = '';
+      }
+    },
+
+    // Handle wah input - auto convert to ngan if over 99
+    handleWahInput() {
+      let wah = Number(this.eiaProjectData.landSizeWah) || 0;
+
+      if (wah > 99) {
+        const extraNgan = Math.floor(wah / 100);
+        const remainingWah = wah % 100;
+
+        this.eiaProjectData.landSizeWah = remainingWah;
+
+        const currentNgan = Number(this.eiaProjectData.landSizeNgan) || 0;
+        this.eiaProjectData.landSizeNgan = currentNgan + extraNgan;
+
+        // Trigger ngan check
+        this.handleNganInput();
+      }
+    },
+
+    // Handle ngan input - auto convert to rai if over 3
+    handleNganInput() {
+      let ngan = Number(this.eiaProjectData.landSizeNgan) || 0;
+
+      if (ngan > 3) {
+        const extraRai = Math.floor(ngan / 4);
+        const remainingNgan = ngan % 4;
+
+        this.eiaProjectData.landSizeNgan = remainingNgan;
+
+        const currentRai = Number(this.eiaProjectData.landSizeRai) || 0;
+        this.eiaProjectData.landSizeRai = currentRai + extraRai;
+      }
+    },
+
+    // Format number input for display (rai field)
+    formatNumberInput(value) {
+      if (!value) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle rai input
+    handleRaiInput(event) {
+      const input = event.target.value;
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.landSizeRai = num;
+      } else if (cleaned === '') {
+        this.eiaProjectData.landSizeRai = '';
+      }
+    },
+
+    // Format number input with decimal for display (usable area field)
+    formatNumberInputWithDecimal(value) {
+      if (!value) return '';
+      const num = Number(value);
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-US');
+    },
+
+    // Handle usable area input
+    handleUsableAreaInput(event) {
+      const input = event.target.value;
+      const cleaned = input.replace(/,/g, '');
+      const num = parseFloat(cleaned);
+
+      if (!isNaN(num)) {
+        this.eiaProjectData.usableArea = num;
+      } else if (cleaned === '' || cleaned === '.') {
+        this.eiaProjectData.usableArea = '';
+      }
+    },
+
+    // Make popup panels draggable by their header. Applies to common popup selectors.
+    enableDraggables() {
+      try {
+        const selectors = ['.search-panel', '.filters-panel', '.filters-panel-eia', '.layers-panel', '.chat-popup', '.floating-draw', '.purchase-box', '.mode-disclaimer-box'];
+        selectors.forEach((sel) => {
+          document.querySelectorAll(sel).forEach((el) => {
+            // choose header-like handle
+            const handle = el.querySelector('.panel-header') || el.querySelector('.chat-header') || el.querySelector('.purchase-text') || el;
+            this._makeDraggable(el, handle);
+          });
+        });
+      } catch (e) {
+        console.debug('enableDraggables error', e);
+      }
+    },
+
+    _makeDraggable(el, handle) {
+      if (!el || !handle) return;
+      // allow reinitialization if handle changed
+      try {
+        console.debug && console.debug('init _makeDraggable', { el, handle });
+      } catch (_) { }
+      if (el.__draggableInitialized && el.__draggableHandle === handle) return;
+      el.__draggableInitialized = true;
+      el.__draggableHandle = handle;
+
+      try { handle.style.cursor = 'move'; } catch (_) { }
+      const onMouseDown = (e) => {
+        // only left button
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        try { console.debug && console.debug('draggable onMouseDown', { el, handle }); } catch (_) { }
+        e.preventDefault();
+        try { e.stopPropagation(); } catch (_) { }
+
+        // mark dragging state so other handlers (map clicks) ignore interactions
+        try { this.__isDragging = true; } catch (_) { }
+        // also temporarily disable pointer events on the map element to avoid accidental clicks
+        const mapEl = document.getElementById && document.getElementById('map');
+        const _oldMapPointer = mapEl ? mapEl.style.pointerEvents : null;
+        if (mapEl) mapEl.style.pointerEvents = 'none';
+
+        const rect = el.getBoundingClientRect();
+        const startX = (e.touches ? e.touches[0].clientX : e.clientX);
+        const startY = (e.touches ? e.touches[0].clientY : e.clientY);
+        const offsetX = startX - rect.left;
+        const offsetY = startY - rect.top;
+
+        // switch to fixed positioning (viewport) so movement coordinates match clientX/Y
+        el.style.position = 'fixed';
+        el.style.left = rect.left + 'px';
+        el.style.top = rect.top + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+        el.style.zIndex = 9999;
+
+        const onMove = (ev) => {
+          const cx = (ev.touches ? ev.touches[0].clientX : ev.clientX);
+          const cy = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+          el.style.left = (cx - offsetX) + 'px';
+          el.style.top = (cy - offsetY) + 'px';
+        };
+
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('touchend', onUp);
+          try { this.__isDragging = false; } catch (_) { }
+          if (mapEl) {
+            try { mapEl.style.pointerEvents = _oldMapPointer || ''; } catch (_) { }
+          }
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+      };
+
+      handle.addEventListener('mousedown', onMouseDown);
+      handle.addEventListener('touchstart', onMouseDown, { passive: false });
+    },
 
     selectMode(mode) {
+      // ถ้าเป็นโหมด pledge ให้แสดง coming soon popup แทน
+      if (mode === 'pledge' /* || mode === 'sale' */) {
+        this.showComingSoonModal = true;
+        return;
+      }
+
+      // If user is not logged in, show login modal first
+      if (!this.currentUserId) {
+        this.pendingMode = mode;
+        this.showLoginModalAfterMode = true;
+        return;
+      }
+
+      this.finalizeModeSelection(mode);
+    },
+
+    finalizeModeSelection(mode) {
       this.currentMode = mode;
       // Show the centered disclaimer modal after mode selection
       this.showModeDisclaimerModal = true;
+
+      // If entering EIA mode, show the select-area modal
+      this.showSelectAreaModal = (mode === 'eia');
+
+      // Refresh map overlays based on mode
+      setTimeout(() => {
+        if (mode === 'sale') {
+          this.renderLandsOnMap();
+          this.renderEiaProjectsOnMap(); // ลบ EIA overlays
+        } else if (mode === 'eia') {
+          this.renderEiaProjectsOnMap();
+          this.renderLandsOnMap(); // ลบ land overlays
+        }
+      }, 100);
     },
     acceptModeDisclaimer() {
-      // Dismiss the modal; user has acknowledged the notice
+      // Dismiss the general modal; user has acknowledged the notice
       this.showModeDisclaimerModal = false;
+      // If the selected mode is sale, show a sale-specific notice popup
+      try {
+        if (this.currentMode === 'sale') {
+          this.showSaleNoticePopup = true;
+        }
+      } catch (e) {
+        console.warn('acceptModeDisclaimer popup error', e);
+      }
+    },
+    closeComingSoon() {
+      this.showComingSoonModal = false;
     },
     backToModeSelect() {
       this.currentMode = null;
+    },
+
+    // Open contact modal triggered from LoginBar
+    openContact() {
+      try {
+        this.showContactModal = true;
+      } catch (e) {
+        console.warn('openContact error', e);
+      }
+    },
+
+    // Image error handler for contact panel fallback (used in template)
+    onContactImageError(e) {
+      try {
+        if (e && e.target) e.target.src = '/img/bangkok_56.png';
+      } catch (err) {
+        console.warn('contact image fallback failed', err);
+      }
+    },
+
+    // --- Purchase / details (mock payment) ---
+    requestPurchase(landId) {
+      try {
+        if (!this.currentUserId) {
+          alert('กรุณาเข้าสู่ระบบก่อนซื้อข้อมูล');
+          return;
+        }
+        const land = this.getLandById(landId);
+        if (!land) {
+          alert('ไม่พบรายการที่ต้องการ');
+          return;
+        }
+        // Owner sees full details without purchase
+        if (this.currentUserId && String(land.ownerUid) === String(this.currentUserId)) {
+          this.showFullDetails(land);
+          return;
+        }
+        if (this.hasPurchased(landId, this.currentUserId)) {
+          this.showFullDetails(land);
+          return;
+        }
+        // Show mock payment modal
+        this.purchaseLandPending = landId;
+        this.showPurchaseModal = true;
+      } catch (e) {
+        console.error('requestPurchase error', e);
+      }
+    },
+
+    cancelPurchase() {
+      this.purchaseLandPending = null;
+      this.showPurchaseModal = false;
+    },
+
+    async confirmPurchase() {
+      try {
+        const landId = this.purchaseLandPending;
+        if (!landId) return;
+        const uid = this.currentUserId;
+        if (!uid) { alert('กรุณาเข้าสู่ระบบ'); return; }
+
+        // เช็คซ้ำว่าซื้อแล้วหรือยัง
+        if (this.hasPurchased(landId, uid)) {
+          alert('✅ คุณซื้อข้อมูลนี้ไปแล้ว');
+          this.showPurchaseModal = false;
+          const land = this.getLandById(landId);
+          if (land) this.showFullDetails(land);
+          return;
+        }
+
+        const land = this.getLandById(landId);
+        if (!land) {
+          alert('ไม่พบข้อมูลแปลง');
+          return;
+        }
+
+        // เริ่มชำระเงินผ่าน ChillPay
+        this.chillpayProcessing = true;
+        await this.processChillPayPayment(land);
+
+      } catch (e) {
+        console.error('confirmPurchase error', e);
+        alert('เกิดข้อผิดพลาดขณะชำระเงิน: ' + (e.message || e));
+        this.chillpayProcessing = false;
+      }
+    },
+
+    // --- Login modal handlers (shown when selecting mode) ---
+    async loginWithGoogleFromModal() {
+      try {
+        const user = await loginWithGoogle();
+
+        if (user) {
+          const mode = this.pendingMode || null;
+          this.pendingMode = null;
+          this.showLoginModalAfterMode = false;
+          if (mode) this.finalizeModeSelection(mode);
+        }
+      } catch (e) {
+        console.error('Google login error:', e);
+        // Handle errors silently or show alert for blocked popups
+        if (e.code === 'auth/popup-blocked') {
+          alert('Popup ถูกบล็อก กรุณาอนุญาต Popup สำหรับเว็บนี้');
+        }
+      }
+    },
+
+    async processChillPayPayment(land) {
+      return chillpayService.processChillPayPayment(this, land);
+    },
+
+    async callBackendPaymentAPI(orderId, amount, land) {
+      return chillpayService.callBackendPaymentAPI(this, orderId, amount, land);
+    },
+
+    async processDemoPayment(orderId, amount, land) {
+      return chillpayService.processDemoPayment(this, orderId, amount, land);
+    },
+
+    showDemoPaymentPage(orderId, amount, land) {
+      return chillpayService.showDemoPaymentPage(this, orderId, amount, land);
+    },
+
+    async generateMD5(text) {
+      return chillpayService.generateMD5(text);
+    },
+
+    monitorPaymentPopup(paymentWindow, orderId) {
+      return chillpayService.monitorPaymentPopup(this, paymentWindow, orderId);
+    },
+
+    getPaymentOrder(orderId) {
+      return chillpayService.getPaymentOrder(this, orderId);
+    },
+
+    savePaymentOrder(orderId, landId) {
+      return chillpayService.savePaymentOrder(this, orderId, landId);
+    },
+
+    checkPaymentResponse() {
+      return chillpayService.checkPaymentResponse(this);
+    },
+
+    setupPaymentMessageListener() {
+      return chillpayService.setupPaymentMessageListener(this);
+    },
+
+    completePayment(orderId) {
+      return chillpayService.completePayment(this, orderId);
+    },
+
+    hasPurchased(landId, uid) {
+      return chillpayService.hasPurchased(this, landId, uid);
+    },
+
+    getLandById(id) {
+      if (!id) return null;
+      const tid = String(id);
+      const findIn = (arr) => Array.isArray(arr) ? arr.find(x => String(x.id) === tid) : null;
+      let found = findIn(this.savedLands) || findIn(this.filteredLands);
+      if (found) return found;
+      // try markers
+      for (const m of this.mapMarkers || []) {
+        try { if (m && m.data && String(m.data.id) === tid) return m.data; } catch (_) { }
+      }
+      return null;
+    },
+
+    async showFullDetails(land) {
+      try {
+        // แสดงหน้าโหลดก่อน แล้ว preload รูปทั้งหมด (ถ้ามี) ก่อนแสดง modal
+        this.isLoadingDetails = true;
+        this.showFullDetailsModal = false;
+
+        // helper: preload one image (data URL or url)
+        const preloadImage = (src, timeout = 5000) => new Promise((resolve) => {
+          if (!src) return resolve();
+          const img = new Image();
+          let done = false;
+          const t = setTimeout(() => { if (!done) { done = true; resolve(); } }, timeout);
+          img.onload = () => { if (!done) { done = true; clearTimeout(t); resolve(); } };
+          img.onerror = () => { if (!done) { done = true; clearTimeout(t); resolve(); } };
+          img.src = src;
+        });
+
+        if (land && Array.isArray(land.images) && land.images.length) {
+          // preload all images but don't wait forever
+          const loaders = land.images.map((i) => preloadImage(i.data));
+          try {
+            await Promise.race([
+              Promise.all(loaders),
+              new Promise((res) => setTimeout(res, 6000)),
+            ]);
+          } catch (e) {
+            // ignore preload errors
+            console.warn('Image preload warning', e);
+          }
+        }
+
+        // เมื่อ preload เสร็จ (หรือ timeout) ให้แสดงรายละเอียด
+        this.fullDetailsLand = land;
+        this.showFullDetailsModal = true;
+      } catch (e) {
+        console.error('showFullDetails error', e);
+      } finally {
+        this.isLoadingDetails = false;
+      }
     },
 
     clearSelectedLand() {
@@ -378,8 +1720,229 @@ export default {
         size: "", width: "", road: "", price: "", totalPrice: "",
         landFrame: "", deedInformation: "",
         owner: "", agent: "", phone: "", lineId: "", raiModel: "", nganModel: "", wahModel: "",
+        images: [],
       };
       this.clearDrawing(); // เอา polygon highlight จากการเลือกก่อนหน้าออก
+    },
+
+    async handleImageUpload(event) {
+      const files = Array.from(event.target.files);
+      const maxImages = 5;
+      const currentCount = (this.landData.images || []).length;
+      const availableSlots = maxImages - currentCount;
+
+      if (availableSlots <= 0) {
+        alert('สามารถอัปโหลดได้สูงสุด 5 รูปเท่านั้น');
+        return;
+      }
+
+      const filesToProcess = files.slice(0, availableSlots);
+
+      for (const file of filesToProcess) {
+        if (!file.type.startsWith('image/')) continue;
+
+        try {
+
+          // Resize และ compress รูปก่อนเก็บ
+          const compressedBase64 = await this.compressImage(file);
+          if (!this.landData.images) this.landData.images = [];
+          this.landData.images.push({
+            data: compressedBase64,
+            name: file.name,
+            uploadedAt: Date.now()
+          });
+
+        } catch (e) {
+          console.error('Error uploading image:', e);
+          alert('เกิดข้อผิดพลาดในการอัปโหลดรูป: ' + file.name);
+        }
+      }
+
+      // Reset input
+      event.target.value = '';
+    },
+
+    // Compress และ resize รูปให้เล็กที่สุด (พยายามให้ไม่เกิน 1MB)
+    async compressImage(file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) {
+      const targetBytes = 1024 * 1024; // 1MB
+
+      function canvasToBlob(canvas, type, q) {
+        return new Promise((res) => canvas.toBlob(res, type, q));
+      }
+
+      function blobToDataURL(blob) {
+        return new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = rej;
+          r.readAsDataURL(blob);
+        });
+      }
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = async () => {
+            try {
+              // คำนวณขนาดเริ่มต้นโดยรักษา aspect ratio
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height) {
+                if (width > maxWidth) {
+                  height = Math.round((height * maxWidth) / width);
+                  width = maxWidth;
+                }
+              } else {
+                if (height > maxHeight) {
+                  width = Math.round((width * maxHeight) / height);
+                  height = maxHeight;
+                }
+              }
+
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+
+              // Loop: ลด quality ก่อน ถ้ายังไม่พอ ลดขนาดมิติแล้วลองอีกครั้ง
+              let outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+              let q = quality;
+              let lastBlob = null;
+              let attempts = 0;
+
+              // Limits to avoid infinite loop
+              const minQuality = 0.12;
+              const minWidth = 200;
+              const reductionFactor = 0.85;
+
+              while (attempts < 20) {
+                attempts++;
+
+                canvas.width = Math.max(1, Math.round(width));
+                canvas.height = Math.max(1, Math.round(height));
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // If PNG and very large, try converting to JPEG to save size (lossy)
+                let tryType = outputType;
+                if (outputType === 'image/png' && attempts > 2) tryType = 'image/jpeg';
+
+                // await blob from canvas
+                // Note: toBlob ignores quality for PNG
+                const blob = await canvasToBlob(canvas, tryType, q);
+                if (!blob) break;
+
+                lastBlob = blob;
+                // If within target, return dataURL
+                if (blob.size <= targetBytes) {
+                  const dataUrl = await blobToDataURL(blob);
+
+                  resolve(dataUrl);
+                  return;
+                }
+
+                // Not small enough: try reduce quality first (only for JPEG)
+                if (tryType === 'image/jpeg' && q > minQuality) {
+                  q = Math.max(minQuality, q * reductionFactor);
+                  // try again with same dimensions
+                  continue;
+                }
+
+                // If quality is already low or PNG, downscale dimensions and retry
+                if (width > minWidth && height > minWidth) {
+                  width = Math.round(width * reductionFactor);
+                  height = Math.round(height * reductionFactor);
+                  // reset quality to a reasonable mid value when downscaling
+                  q = Math.min(0.9, Math.max(minQuality, q));
+                  continue;
+                }
+
+                // If we've exhausted attempts and still too big, break and return best-effort (lastBlob)
+                break;
+              }
+
+              // Fallback: return last blob as dataURL (even if >1MB)
+              if (lastBlob) {
+                const dataUrl = await blobToDataURL(lastBlob);
+                console.warn('compressImage: reached max attempts, returning best-effort image');
+                resolve(dataUrl);
+                return;
+              }
+
+              reject(new Error('compressImage: failed to generate image'));
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.onerror = (ev) => reject(new Error('Image load error'));
+          img.src = e.target.result;
+        };
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(file);
+      });
+    },
+
+    fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    },
+
+    removeImage(index) {
+      if (this.landData.images && this.landData.images[index]) {
+        this.landData.images.splice(index, 1);
+      }
+    },
+
+    async handleEiaImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+        return;
+      }
+
+      try {
+
+        const compressedBase64 = await this.compressImage(file);
+        this.eiaProjectData.projectImage = compressedBase64;
+        this.eiaProjectData.projectImageName = file.name;
+
+      } catch (e) {
+        console.error('Error uploading EIA image:', e);
+        alert('เกิดข้อผิดพลาดในการอัปโหลดรูป');
+      }
+
+      // Reset input
+      event.target.value = '';
+    },
+
+    openImageViewer(images, startIndex = 0) {
+      this.viewerImages = images || [];
+      this.currentImageIndex = startIndex;
+      this.showImageViewer = true;
+    },
+
+    closeImageViewer() {
+      this.showImageViewer = false;
+      this.viewerImages = [];
+      this.currentImageIndex = 0;
+    },
+
+    nextImage() {
+      if (this.currentImageIndex < this.viewerImages.length - 1) {
+        this.currentImageIndex++;
+      }
+    },
+
+    prevImage() {
+      if (this.currentImageIndex > 0) {
+        this.currentImageIndex--;
+      }
     },
 
     // ---- ใช้แทน formatPrice ที่หายไป ----
@@ -691,12 +2254,6 @@ export default {
             opacity: this.opacity ?? 0.85,
           });
 
-          console.log(
-            "[DOL WMS] constructed is longdo.Layer?",
-            lyr instanceof window.longdo.Layer,
-            lyr
-          );
-
           this.wmsDol = lyr;
           if (this.dolEnabled) this.map.Layers.add(this.wmsDol);
         });
@@ -716,17 +2273,13 @@ export default {
         HYBRID: B.HYBRID,
         SATELLITE: B.SATELLITE,
         GRAY: B.GRAY,
+        // ArcGIS layers (ฟรี)
+        ARCGIS_WORLD_IMAGERY: B.ARCGIS_WORLD_IMAGERY,
+        ARCGIS_WORLD_STREET_MAP: B.ARCGIS_WORLD_STREET_MAP,
+        ARCGIS_WORLD_TOPO_MAP: B.ARCGIS_WORLD_TOPO_MAP,
       };
-      const target = resolve(dict[key] || B.HYBRID);
+      const target = resolve(dict[key] || B.ARCGIS_WORLD_IMAGERY || B.SATELLITE || B.HYBRID);
 
-      console.log(
-        "setBase =>",
-        key,
-        "type=",
-        typeof dict[key],
-        "target=",
-        target
-      );
       try {
         if (this.map.Layers?.setBase) this.map.Layers.setBase(target);
         else if (this.map.Layers?.base) this.map.Layers.base(target);
@@ -769,6 +2322,150 @@ export default {
       } catch (e) {
         console.error("deleteLand failed:", e);
         alert("ลบไม่สำเร็จ");
+      }
+    },
+
+    makeEiaMarkerDetailHtml(project = {}) {
+      try {
+        const esc = (v) =>
+          v == null
+            ? ""
+            : String(v)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+
+        const escOrNA = (v) => {
+          if (v == null || v === "" || (Array.isArray(v) && v.length === 0)) return 'N/A';
+          return esc(v);
+        };
+
+        const displayDate = (() => {
+          try {
+            if (!project.lastUpdated) return '-';
+            const d = new Date(project.lastUpdated);
+            if (Number.isNaN(d.getTime())) return '-';
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = String(d.getFullYear());
+            return `${dd}/${mm}/${yyyy}`;
+          } catch (e) {
+            return '-';
+          }
+        })();
+
+        // Format land size
+        const landSize = (() => {
+          const r = project.landSizeRai || '';
+          const n = project.landSizeNgan || '';
+          const w = project.landSizeWah || '';
+          if (!r && !n && !w) return '';
+
+          // Format rai with comma
+          const formattedRai = r ? Number(r).toLocaleString('en-US') : '0';
+          return `${formattedRai}-${n || '0'}-${w || '0'}`;
+        })();
+
+        // Format project value
+        const formattedValue = project.projectValue ? this.formatProjectValue(project.projectValue) : '';
+        // Format investment
+        const formattedInvestment = project.investment ? this.formatProjectValue(project.investment) : '';
+
+        // Format usable area with comma
+        const formattedUsableArea = project.usableArea ? Number(project.usableArea).toLocaleString('en-US') : '';
+
+        // กำหนดสีและ label ตาม isHighlighted
+        const isHighlight = project.isHighlighted;
+        const badgeColor = isHighlight ? '#FFD700' : '#39ff14';
+        const badgeText = isHighlight ? 'Highlight Project' : 'Future Project';
+        const badgeBgGradient = isHighlight
+          ? 'linear-gradient(135deg, #FFD700, #FFA500)'
+          : 'linear-gradient(135deg, #39ff14, #00cc00)';
+
+        const html = `
+          <div style="font-family: Inter, Arial, Helvetica, sans-serif; background:#ffffff; color:#111; width:100%; max-width: 50vw; max-height: 50vh; overflow-y: auto; box-sizing: border-box;">
+            <div style="padding:4px 8px 0 8px; display:flex;align-items:center;justify-content:space-between;gap:4px;color:#666;font-size:10px;">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="12" cy="12" r="11" stroke="#666" stroke-width="1" fill="#fff" />
+                  <path d="M11.25 7.5h1.5v1.5h-1.5V7.5zM12 10.5c-.414 0-.75.336-.75.75v3c0 .414.336.75.75.75s.75-.336.75-.75v-3c0-.414-.336-.75-.75-.75z" fill="#666" />
+                </svg>
+                <div>ข้อมูลวันที่ ${escOrNA(displayDate)}</div>
+              </div>
+              <div style="display:inline-flex;align-items:center;gap:4px;background:${badgeBgGradient};color:#000;padding:2px 6px;border-radius:4px;font-weight:600;font-size:9px;">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${badgeColor};border:1px solid #333;"></span>
+                ${badgeText}
+              </div>
+            </div>
+            <div style="padding:4px 8px 0 8px;">
+              <div style="font-weight:800;font-size:16px;line-height:1.2;color:#ffffff;background:linear-gradient(135deg, #f59e0b, #d97706);padding:8px 10px;border-radius:6px;box-shadow:0 2px 6px rgba(102,126,234,0.3);word-wrap:break-word;">${escOrNA(project.projectName)}</div>
+            </div>
+            
+            <div style="padding:6px 8px 2px 8px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px;">
+              <div style="font-weight:600;color:#666;font-size:11px;">Project Value</div>
+              <div style="font-size:15px;font-weight:800;color:#000;">${project.projectValue ? formattedValue : 'N/A'} <span style="font-size:10px">ล้านบาท</span></div>
+            </div>
+
+            <div style="padding:2px 8px 4px 8px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px;">
+              <div style="font-weight:600;color:#666;font-size:11px;">เงินลงทุน</div>
+              <div style="font-size:13px;font-weight:700;color:#000;">${project.investment ? formattedInvestment : 'N/A'} <span style="font-size:9px">ล้านบาท</span></div>
+            </div>
+
+            <div style="padding:0 8px 6px 8px;">
+              ${project.projectImage ? (`<img src="${esc(project.projectImage)}" alt="Project" style="width:100%;border-radius:6px;max-height:120px;object-fit:cover;" />`) : `<div style="width:100%;border-radius:6px;height:60px;background:#f3f4f6;color:#777;display:flex;align-items:center;justify-content:center;font-size:11px;">ไม่มีรูป</div>`}
+            </div>
+
+            <div style="padding:0 8px 6px 8px;display:flex;flex-wrap:wrap;gap:6px;">
+              <div style="flex:1;min-width:80px;background:#f9fafb;padding:6px;border-radius:6px;text-align:center;">
+                <div style="font-size:9px;color:#666;margin-bottom:1px;">ขนาดที่ดิน</div>
+                <div style="font-weight:800;font-size:13px;color:#111;">${landSize || 'N/A'}<br/><span style="font-size:9px;font-weight:400;">ไร่</span></div>
+              </div>
+              <div style="flex:1;min-width:80px;background:#f9fafb;padding:6px;border-radius:6px;text-align:center;">
+                <div style="font-size:9px;color:#666;margin-bottom:1px;">พื้นที่ใช้สอย</div>
+                <div style="font-weight:800;font-size:13px;color:#111;">${project.usableArea ? formattedUsableArea : 'N/A'}<br/><span style="font-size:9px;font-weight:400;">ตร.ม.</span></div>
+              </div>
+            </div>
+
+            <div style="padding:0 8px 6px 8px;">
+              <div style="text-align:center;background:#f0f0f0;padding:4px;border-radius:5px;font-size:9px;font-weight:600;color:#666;">สถานภาพโครงการ<br/><span style="color:#000;font-size:10px;">${escOrNA(project.projectStatus)}</span></div>
+            </div>
+
+            <hr style="border:none;border-top:1px solid #eee;margin:4px 0;">
+
+            <div style="padding:0 8px 6px 8px; font-size:10px; color:#333;">
+              <div style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-bottom:2px;gap:2px;"><div style="font-weight:600">วันสิ้นสุด:</div><div style="text-align:right;">${escOrNA(project.ownerNameTo)}</div></div>
+              <div style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-bottom:2px;gap:2px;"><div style="font-weight:600">ภาค:</div><div style="text-align:right;">${escOrNA(project.region)}</div></div>
+              <div style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-bottom:2px;gap:2px;"><div style="font-weight:600">จังหวัด:</div><div style="text-align:right;">${escOrNA(project.province)}</div></div>
+              <div style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-bottom:2px;gap:2px;"><div style="font-weight:600">เขต/อำเภอ:</div><div style="text-align:right;">${escOrNA(project.district)}</div></div>
+              <div style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-bottom:2px;gap:2px;"><div style="font-weight:600">แขวง/ตำบล:</div><div style="text-align:right;">${escOrNA(project.subdistrict)}</div></div>
+            </div>
+
+            <div style="padding:0 8px 8px 8px;display:flex;flex-wrap:wrap;gap:4px;">
+              ${project.projectLink2 ? (`<a href="${esc(project.projectLink2)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg, #f59e0b, #d97706);color:#fff;padding:5px 8px;border-radius:5px;font-weight:600;text-decoration:none;font-size:10px;text-align:center;flex:1;min-width:80px;">Link ข่าวสาร</a>`) : ``}
+              ${project.projectLink ? (`<a href="${esc(project.projectLink)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg, #f59e0b, #d97706);color:#fff;padding:5px 8px;border-radius:5px;font-weight:600;text-decoration:none;font-size:10px;text-align:center;flex:1;min-width:80px;">Link EIA</a>`) : ``}
+            </div>
+
+            <!-- Legend สีหมุด -->
+            <div style="padding:4px 8px 8px 8px;border-top:1px solid #eee;margin-top:4px;">
+              <div style="font-size:9px;color:#666;margin-bottom:4px;font-weight:600;">ความหมายสีหมุด:</div>
+              <div style="display:flex;gap:12px;font-size:9px;color:#555;">
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#39ff14;border:1px solid #333;"></span>
+                  <span>เขียว = Future Project</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#FFD700;border:1px solid #333;"></span>
+                  <span>เหลือง = Highlight Project</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `.trim();
+
+        return html;
+      } catch (e) {
+        console.error('makeEiaMarkerDetailHtml error:', e);
+        return `<div style="padding:14px;color:#666;">ไม่สามารถแสดงข้อมูลได้</div>`;
       }
     },
 
@@ -874,73 +2571,118 @@ export default {
         const deed = esc(item.deedInformation || item.detail || "");
         const jsUid = String(item.ownerUid || item.ownerUid || '').replace(/'/g, "\\'");
         const jsName = String(displayOwner || '').replace(/'/g, "\\'");
+        const jsLandId = String(item.id || '').replace(/'/g, "\\'");
+
+        // determine last-updated date (try common fields), fallback to 27/11/2025
+        const dateRaw = item.updatedAt || item.updated_at || item.date || item.createdAt || item.created_at || item.postedAt || item.publishedAt || null;
+        const displayDate = (() => {
+          try {
+            if (!dateRaw) return '27/11/2025';
+            const d = new Date(dateRaw);
+            if (Number.isNaN(d.getTime())) {
+              const sr = String(dateRaw || '').trim();
+              const normalized = sr.replace(/[-.\s]+/g, '/');
+              const parts = normalized.split('/');
+              if (parts.length >= 3) {
+                let day = parts[0].padStart(2, '0');
+                let month = parts[1].padStart(2, '0');
+                let year = parts[2];
+                if (year.length === 2) {
+                  const ynum = parseInt(year, 10);
+                  year = (ynum >= 50 ? '19' + year : '20' + year);
+                }
+                return `${day}/${month}/${year}`;
+              }
+              return '27/11/2025';
+            }
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = String(d.getFullYear());
+            return `${dd}/${mm}/${yyyy}`;
+          } catch (e) {
+            return '27/11/2025';
+          }
+        })();
 
         const html = `
-          <div style="font-family: Inter, Arial, Helvetica, sans-serif;background:#ffffff;border: none;overflow: visible;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-              <div style="font-weight:800;font-size:14px;color:#000000FF;line-height:1.05">${esc(title)}</div>
+          <div style="font-family: Inter, Arial, Helvetica, sans-serif; background:#ffffff; color:#111; width:100%;">
+            <div style="padding:8px 14px 0 14px; display:flex;align-items:center;gap:8px;color:#666;font-size:12px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="11" stroke="#666" stroke-width="1" fill="#fff" />
+                <path d="M11.25 7.5h1.5v1.5h-1.5V7.5zM12 10.5c-.414 0-.75.336-.75.75v3c0 .414.336.75.75.75s.75-.336.75-.75v-3c0-.414-.336-.75-.75-.75z" fill="#666" />
+              </svg>
+              <div>วันที่ลงข้อมูล ${esc(displayDate)}</div>
+            </div>
+            <div style="padding:6px 14px 0 14px;">
+              <div style="font-weight:800;font-size:18px;line-height:1.05;color:#111">${esc(title)}</div>
+              <div style="font-size:12px;color:#666;margin-top:4px">${esc(item.address || item.title || '')}</div>
             </div>
 
-            <div style="display:flex;gap:8px;margin-bottom:10px">
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF;margin-bottom:4px">ขนาดที่ดิน</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(area)} ตร.วา</div>
-                </div>
-
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF;margin-bottom:4px">หน้ากว้างติดถนน</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(frontage)} ม.</div>
-                </div>
+            <div style="padding:12px 14px; display:flex; gap:8px; margin-top:10px;">
+              <div style="flex:1; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">ขนาดที่ดิน</div>
+                <div style="font-weight:800;font-size:20px;color:#000;margin-top:6px">${fmt(area)} ตร.วา</div>
               </div>
-
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ขนาด (ไร่/งาน/วา)</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${esc(rai)} / ${esc(ngan)} / ${esc(wah)}</div>
-                </div>
-
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ขนาดถนน</div>
-                  <div style="font-weight:700;font-size:14px;color:#1D1D1DFF">${fmt(road)} ม.</div>
-                </div>
+              <div style="width:100px; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">ไร่/งาน/วา</div>
+                <div style="font-weight:700;font-size:16px;color:#000;margin-top:6px">${esc(rai)} - ${esc(ngan)} - ${esc(wah)}</div>
               </div>
             </div>
 
-            <div style="display:flex;gap:8px;margin-bottom:10px">
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ราคา/ตร.วา</div>
-                  <div style="font-weight:600;font-size:12px;color:#1D1D1DFF">${fmt(pricePer, 'money')} บ.</div>
-                </div>
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">โทร</div>
-                  <div style="font-weight:700;color:#1D1D1DFF">${esc(phone) || '-'}</div>
-                </div>
+            <div style="padding:0 14px 12px 14px; margin-top:8px; display:flex; gap:8px;">
+              <div style="flex:1; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">หน้ากว้างติดถนน</div>
+                <div style="font-weight:700;font-size:16px;color:#000;margin-top:6px">${fmt(frontage)} ม.</div>
               </div>
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">ราคารวม</div>
-                  <div style="font-weight:600;font-size:12px;color:#1D1D1DFF">${fmt(total, 'money')} บ.</div>
-                </div>
-                
-                <div style="background:rgba(176,196,222,0.5);height:40px;padding:8px;border-radius:10px;display:flex;flex-direction:column;overflow:visible">
-                  <div style="font-size:12px;color:#000000FF">LINE ID</div>
-                  <div style="font-weight:700;color:#1D1D1DFF">${esc(lineId) || '-'}</div>
-                </div>
+              <div style="flex:1; background:#f5f6f7; padding:10px; border-radius:8px; text-align:center;">
+                <div style="font-size:12px;color:#333">ขนาดถนน</div>
+                <div style="font-weight:700;font-size:16px;color:#000;margin-top:6px">${fmt(road)} ม.</div>
               </div>
+            </div>
+
+            <hr style="border:none;border-top:1px solid #eee;margin:8px 0;">
+
+            <div style="padding:0 14px 12px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div style="font-size:12px;color:#333">ราคา/ตร.วา</div>
+                <div style="font-weight:700;color:#000">${fmt(pricePer, 'money')} บ.</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:12px;color:#333">ราคารวม</div>
+                <div style="font-weight:800;font-size:18px;color:#000">${fmt(total, 'money')} บ.</div>
+              </div>
+            </div>
+
+            <hr style="border:none;border-top:1px solid #eee;margin:6px 0;">
+
+            <div style="padding:0 14px 12px 14px; font-size:13px; color:#333;">
+              <div style="margin-bottom:6px;font-weight:700">ข้อมูลติดต่อ</div>
+              <div style="display:flex;justify-content:space-between"><div>เจ้าของ</div><div>${displayOwner || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>นายหน้า</div><div>${displayAgent || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>โทร</div><div>${esc(phone) || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>LINE ID</div><div>${esc(lineId) || '-'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>กรอบที่ดิน</div><div>${'NaN'}</div></div>
+              <div style="display:flex;justify-content:space-between"><div>ข้อมูลโฉนด/ระวาง</div><div>${'NaN'}</div></div>
+            </div>
+
+            ${item.images && item.images.length > 0 ? `
+            <div style="padding:0 14px 12px 14px;">
+              <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:8px">รูปภาพประกอบ (${item.images.length})</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">
+                ${item.images.map((img, idx) => `
+                  <img src="${img.data}" alt="Image ${idx + 1}" 
+                    style="width:100%;height:80px;object-fit:cover;border-radius:6px;border:2px solid #e5e7eb;cursor:pointer;"
+                    onclick="window.viewLandImages && window.viewLandImages('${jsLandId}', ${idx})"
+                  />
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
+            <div style="padding:12px;display:flex;gap:8px;justify-content:space-between;">
+              ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">แชทผู้ขาย</a>` : ''}
+              <a href="javascript:void(0)" onclick="(window.requestPurchase||function(){} )('${jsLandId}');return false" style="flex:1;background:#3b82f6;color:#fff;padding:10px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;text-align:center">คลิ้กเพื่อดูปลดล็อคข้อมูล</a>
             </div>
             
-            ${landFrame ? `<div style="font-size:12px;color:#000000FF;margin-bottom:6px">กรอบที่ดิน</div>
-              <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:#e6eef8;font-size:13px;margin-bottom:8px;overflow:visible">${landFrame}</div>` : ""}
-
-            ${deed ? `<div style="font-size:12px;color:#000000FF;margin-bottom:4px">ข้อมูลโฉนด / ระวาง</div>
-              <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:#cfe8ff;font-size:12px;max-height:none;overflow:visible">${deed}</div>` : ""}
-
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
-              ${item.ownerUid ? `<a href="javascript:void(0)" onclick="window.openChatWith('${jsUid}','${jsName}');return false" style="background:#3b82f6;color:#FFFFFFFF;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">แชทผู้ขาย</a>` : ''}
-              <a href="javascript:void(0)" style="background:#3b82f6;color:#FFFFFFFF;padding:8px 12px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">ดูรายละเอียด</a>
-            </div>
           </div>
         `.trim();
 
@@ -961,16 +2703,23 @@ export default {
     renderLandsOnMap() {
       if (!this.map) return;
 
+      // แสดงเฉพาะในโหมดซื้อขายที่ดิน
+      if (this.currentMode !== 'sale') {
+        // ล้าง overlay ถ้าอยู่ใน mode อื่น
+        try { this.landOverlays.forEach(o => this.map.Overlays.remove(o)); }
+        catch (e) { }
+        this.landOverlays = [];
+        return;
+      }
+
       // ล้าง overlay เดิม
       try { this.landOverlays.forEach(o => this.map.Overlays.remove(o)); }
       catch (e) { console.debug("renderLandsOnMap: remove overlays failed:", e); }
       this.landOverlays = [];
 
-      // ใช้ผลกรองถ้ามี ไม่งั้นใช้ทั้งหมด
-      const lands =
-        (this.filteredLands && this.filteredLands.length
-          ? this.filteredLands
-          : this.savedLands) || [];
+      // ถ้าเคยกด filter แล้ว ให้ใช้ filteredLands (แม้จะว่างก็แสดงหมุดตามนั้น)
+      // ถ้ายังไม่เคยกด filter ให้แสดงทั้งหมดจาก savedLands
+      const lands = this.hasAppliedFilters ? this.filteredLands : this.savedLands;
 
       // ปักหมุด + วาด polygon ของทุกแปลง
       lands.forEach((land) => {
@@ -1025,49 +2774,7 @@ export default {
       });
     },
 
-    renderFloodsOnMap() {
-      if (!this.map) return;
 
-      // เคลียร์ overlay น้ำท่วมเดิมทั้งหมด
-      try { this.floodOverlays.forEach(ov => this.map.Overlays.remove(ov)); } catch (_) { }
-      this.floodOverlays = [];
-
-      const zones = this.savedFloods || [];
-      zones.forEach(z => {
-        if (z?.geometry?.type === "Polygon" && Array.isArray(z.geometry.coordinates)) {
-          const pts = z.geometry.coordinates.map(([lon, lat]) => ({ lon, lat }));
-          if (pts.length >= 3) {
-            // สไตล์ตาม level + waterAmount ปัจจุบัน
-            const oldAmount = this.waterAmount;
-            this.waterAmount = z.waterAmount ?? this.waterAmount;  // ใช้ค่าที่บันทึกไว้เป็น base
-            const style = this.getFloodStyle(z.level || 'medium');
-            this.waterAmount = oldAmount;
-
-            const poly = new window.longdo.Polygon(pts, {
-              lineWidth: 2,
-              lineColor: style.lineColor,
-              fillColor: style.fillColor,
-            });
-            poly.__isFlood = true;
-            poly.__points = pts;
-            poly._onMap = false;
-            poly.__flood = {
-              id: z.id,
-              level: z.level || 'medium',
-              ownerUid: z.ownerUid || null,
-            };
-
-            this.attachFloodEvents(poly);
-
-            if (this.showFloodLayer) {
-              this.map.Overlays.add(poly);
-              poly._onMap = true;
-            }
-            this.floodOverlays.push(poly);
-          }
-        }
-      });
-    },
 
 
     // ...existing code...
@@ -1134,6 +2841,152 @@ export default {
           }
         }
 
+        try {
+          this.map.Event.bind("ready", () => {
+
+
+            // ----------------- FORCE FREE SATELLITE AS DEFAULT BASE -----------------
+            // ใช้ ArcGIS หรือ Longdo Satellite ซึ่งฟรี (Google/Mapbox ต้องเสียเงิน)
+            try {
+              let satelliteLayer = null;
+              const L = window.longdo.Layers;
+
+              // ลำดับความสำคัญ: ArcGIS (ฟรี) > Longdo Satellite (ฟรี) > HYBRID
+              if (L.ARCGIS_WORLD_IMAGERY) {
+                satelliteLayer = typeof L.ARCGIS_WORLD_IMAGERY === 'function' ? L.ARCGIS_WORLD_IMAGERY() : L.ARCGIS_WORLD_IMAGERY;
+                this.selectedMapType = 'arcgis-imagery';
+                console.log('Using ArcGIS World Imagery (free)');
+              } else if (L.SATELLITE) {
+                satelliteLayer = typeof L.SATELLITE === 'function' ? L.SATELLITE() : L.SATELLITE;
+                this.selectedMapType = 'longdo-satellite';
+                console.log('Using Longdo Satellite (free)');
+              } else if (L.HYBRID) {
+                satelliteLayer = typeof L.HYBRID === 'function' ? L.HYBRID() : L.HYBRID;
+                this.selectedMapType = 'longdo-hybrid';
+                console.log('Using Longdo Hybrid (free)');
+              }
+
+              if (satelliteLayer) {
+                if (this.map.Layers?.setBase) {
+                  this.map.Layers.setBase(satelliteLayer);
+                } else if (this.map.Layers?.base) {
+                  this.map.Layers.base(satelliteLayer);
+                }
+
+                // เพิ่ม layer ถนน/ป้ายชื่อซ้อนทับ (ฟรี)
+                try {
+                  // ลอง ArcGIS labels ก่อน
+                  if (L.ARCGIS_WORLD_TRANSPORTATION) {
+                    const roadLayer = typeof L.ARCGIS_WORLD_TRANSPORTATION === 'function' ? L.ARCGIS_WORLD_TRANSPORTATION() : L.ARCGIS_WORLD_TRANSPORTATION;
+                    this.map.Layers.add(roadLayer);
+                    console.log('Added ArcGIS Transportation overlay');
+                  }
+                  if (L.ARCGIS_WORLD_PLACE) {
+                    const placeLayer = typeof L.ARCGIS_WORLD_PLACE === 'function' ? L.ARCGIS_WORLD_PLACE() : L.ARCGIS_WORLD_PLACE;
+                    this.map.Layers.add(placeLayer);
+                    console.log('Added ArcGIS Place labels overlay');
+                  }
+                  // ถ้าไม่มี ArcGIS overlay ใช้ Longdo POI_TRANSPARENT แทน
+                  if (!L.ARCGIS_WORLD_TRANSPORTATION && !L.ARCGIS_WORLD_PLACE && L.POI_TRANSPARENT) {
+                    const poiLayer = typeof L.POI_TRANSPARENT === 'function' ? L.POI_TRANSPARENT() : L.POI_TRANSPARENT;
+                    this.map.Layers.add(poiLayer);
+                    console.log('Added Longdo POI overlay');
+                  }
+                } catch (overlayErr) {
+                  console.debug('Failed to add road/label overlay:', overlayErr);
+                }
+              }
+
+            } catch (e) {
+              console.warn('Failed to init satellite base, keep default Longdo base:', e);
+            }
+            // ---------------------------------------------------------------
+
+            // เพิ่ม marker ตามเดิม
+            try { this.addMarkersToMap(); } catch (e) { console.error("addMarkersToMap failed", e); }
+
+            // Defensive cleanup: remove Longdo attribution/logo nodes if present.
+            // CSS rules already attempt to hide these, but some builds inject
+            // elements in ways CSS may not catch — remove as a JS fallback.
+            try {
+              const candidates = [
+                '.ldmap_logo', '.ldmap_footer', '.ldmap_attribution',
+                '.ldmap_credit', '.ldmap_copyright', '.ldmap_poweredby',
+                '.ldmap_tile_copyright', '.ldmap_attrib',
+                'a[href*="longdo"]', 'img[alt*="Longdo"]'
+              ];
+              candidates.forEach((sel) => {
+                document.querySelectorAll(sel).forEach((n) => {
+                  try { n.remove(); }
+                  catch (_) { n.style && (n.style.display = 'none'); }
+                });
+              });
+            } catch (e) {
+              console.debug('cleanup remove attribution failed:', e);
+            }
+
+            // Inject runtime CSS and a MutationObserver to force Longdo popups
+            try {
+              if (!document.getElementById('sqw-longdo-popup-style')) {
+                const css = `
+          .ldmap_placeholder.ldmap_frame.ldmap_popup { overflow: visible !important; max-height: none !important; max-width: 720px !important; width: auto !important; }
+          .ldmap_placeholder.ldmap_frame.ldmap_popup, .ldmap_placeholder.ldmap_frame.ldmap_popup * { overflow: visible !important; max-height: none !important; height: auto !important; }
+        `;
+                const s = document.createElement('style');
+                s.id = 'sqw-longdo-popup-style';
+                s.appendChild(document.createTextNode(css));
+                document.head.appendChild(s);
+              }
+
+              const fixPopupNode = (node) => {
+                try {
+                  node.style.overflow = 'visible';
+                  node.style.maxHeight = 'none';
+                  node.style.height = 'auto';
+                  node.style.width = 'auto';
+                  node.style.maxWidth = '720px';
+                  node.querySelectorAll('*').forEach((ch) => {
+                    try {
+                      ch.style.overflow = 'visible';
+                      ch.style.maxHeight = 'none';
+                      ch.style.height = 'auto';
+                    } catch (_) { }
+                  });
+                } catch (_) { }
+              };
+
+              // Patch existing popups
+              document
+                .querySelectorAll('.ldmap_placeholder.ldmap_frame.ldmap_popup')
+                .forEach(fixPopupNode);
+
+              // Observe DOM to patch future popups created by Longdo
+              const mo = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                  for (const n of m.addedNodes) {
+                    if (n && n.nodeType === 1) {
+                      const el = /** @type {Element} */ (n);
+                      if (el.classList && el.classList.contains('ldmap_placeholder')) {
+                        fixPopupNode(el);
+                      }
+                      // sometimes wrapper is added deeper
+                      el.querySelectorAll &&
+                        el.querySelectorAll('.ldmap_placeholder')
+                          .forEach(fixPopupNode);
+                    }
+                  }
+                }
+              });
+              mo.observe(document.body, { childList: true, subtree: true });
+            } catch (e) {
+              console.debug('longdo popup override injection failed:', e);
+            }
+          });
+        } catch (e) {
+          console.warn("binding ready event failed", e);
+        }
+
+
         // basic map setup (safe ops)
         try {
           this.map.location(
@@ -1154,32 +3007,51 @@ export default {
         // Add markers after map ready
         try {
           this.map.Event.bind("ready", () => {
-            console.log("Map is ready, adding markers...");
+
             try { this.addMarkersToMap(); } catch (e) { console.error("addMarkersToMap failed", e); }
 
-            // Try to force ESRI imagery as base if available (try several common keys)
+            // Try to force free satellite as base (ArcGIS/Longdo ฟรี)
             try {
-              const tryEsriKeys = [
-                'imagery', 'satellite', 'World_Imagery', 'satellite-roads', 'road',
-                'ดาวเทียม', 'ถนน', 'ESRI - ดาวเทียม', 'ESRI - ถนน', 'esri.satellite'
-              ];
-              if (window.longdo?.Layers && typeof window.longdo.Layers.ESRI === 'function') {
-                for (const k of tryEsriKeys) {
+              const L = window.longdo?.Layers;
+              if (L) {
+                let satelliteLayer = null;
+                // ลำดับความสำคัญ: ArcGIS (ฟรี) > Longdo Satellite (ฟรี) > HYBRID
+                if (L.ARCGIS_WORLD_IMAGERY) {
+                  satelliteLayer = typeof L.ARCGIS_WORLD_IMAGERY === 'function' ? L.ARCGIS_WORLD_IMAGERY() : L.ARCGIS_WORLD_IMAGERY;
+                  this.selectedMapType = 'arcgis-imagery';
+                } else if (L.SATELLITE) {
+                  satelliteLayer = typeof L.SATELLITE === 'function' ? L.SATELLITE() : L.SATELLITE;
+                  this.selectedMapType = 'longdo-satellite';
+                } else if (L.HYBRID) {
+                  satelliteLayer = typeof L.HYBRID === 'function' ? L.HYBRID() : L.HYBRID;
+                  this.selectedMapType = 'longdo-hybrid';
+                }
+
+                if (satelliteLayer) {
+                  if (this.map.Layers?.setBase) this.map.Layers.setBase(satelliteLayer);
+                  else if (this.map.Layers?.base) this.map.Layers.base(satelliteLayer);
+                  console.log('Satellite layer set:', this.selectedMapType);
+
+                  // เพิ่ม layer ถนน/ป้ายชื่อซ้อนทับ (ฟรี)
                   try {
-                    const layer = window.longdo.Layers.ESRI(k);
-                    if (layer) {
-                      try {
-                        if (this.map.Layers?.setBase) this.map.Layers.setBase(layer);
-                        else if (this.map.Layers?.base) this.map.Layers.base(layer);
-                        this.selectedMapType = 'esri-' + String(k).replace(/\s+/g, '-').toLowerCase();
-                        console.log('ESRI base set with key:', k);
-                        break;
-                      } catch (inner) { console.debug('setBase with ESRI key failed', k, inner); }
+                    if (L.ARCGIS_WORLD_TRANSPORTATION) {
+                      const roadLayer = typeof L.ARCGIS_WORLD_TRANSPORTATION === 'function' ? L.ARCGIS_WORLD_TRANSPORTATION() : L.ARCGIS_WORLD_TRANSPORTATION;
+                      this.map.Layers.add(roadLayer);
                     }
-                  } catch (_) { /* try next */ }
+                    if (L.ARCGIS_WORLD_PLACE) {
+                      const placeLayer = typeof L.ARCGIS_WORLD_PLACE === 'function' ? L.ARCGIS_WORLD_PLACE() : L.ARCGIS_WORLD_PLACE;
+                      this.map.Layers.add(placeLayer);
+                    }
+                    if (!L.ARCGIS_WORLD_TRANSPORTATION && !L.ARCGIS_WORLD_PLACE && L.POI_TRANSPARENT) {
+                      const poiLayer = typeof L.POI_TRANSPARENT === 'function' ? L.POI_TRANSPARENT() : L.POI_TRANSPARENT;
+                      this.map.Layers.add(poiLayer);
+                    }
+                  } catch (overlayErr) {
+                    console.debug('Failed to add road/label overlay:', overlayErr);
+                  }
                 }
               }
-            } catch (e) { console.debug('ESRI base detection routine failed', e); }
+            } catch (e) { console.debug('Satellite base detection routine failed', e); }
 
             // Defensive cleanup: remove Longdo attribution/logo nodes if present.
             // CSS rules already attempt to hide these, but some builds inject
@@ -1250,11 +3122,53 @@ export default {
 
         // Click handler (defensive)
         try {
+          // Overlay click handler: ensure EIA marker clicks open the EIA form/popup
+          try {
+            this.map.Event.bind("overlayClick", (overlay) => {
+              try {
+                if (!overlay) return;
+                if (overlay.__isEiaProject) {
+                  if (!this.drawMode) {
+                    try { this.currentMode = 'eia'; this.isFormOpen = true; } catch (_) { }
+                    this.editEiaProject(overlay.__eiaProject);
+                    this.selectedEiaForInfo = overlay.__eiaProject;
+                    this.showEiaInfo = true;
+                    try {
+                      if (overlay.__eiaProject && overlay.__eiaProject.location && this.map) {
+                        this.map.location({ lon: overlay.__eiaProject.location.lon, lat: overlay.__eiaProject.location.lat }, true);
+                      }
+                    } catch (_) { }
+                  }
+                  return;
+                }
+                // If overlay is a land, open sale mode and select it (populates left form)
+                if (overlay.__land) {
+                  try { this.currentMode = 'sale'; } catch (_) { }
+                  try { this.isFormOpen = true; } catch (_) { }
+                  try { this.selectLand(overlay.__land); } catch (e) { console.debug('overlayClick selectLand', e); }
+                  try { if (overlay.__land.location) this.map.location(overlay.__land.location, true); } catch (_) { }
+                  return;
+                }
+              } catch (e) {
+                console.error('overlayClick (initMap) error:', e);
+              }
+            });
+          } catch (e) { console.warn('binding overlayClick in initMap failed', e); }
+
           this.map.Event.bind("click", (ev) => {
             try {
+              // If a UI panel is being dragged, ignore map clicks
+              if (this.__isDragging) return;
+
               this.showMarkerInfo = false;
-              if (!this.drawMode && !this.floodMode) {
+
+              if (!this.drawMode) {
                 this.clearSelectedLand();
+                // ล้างฟอร์ม EIA เมื่อคลิกพื้นที่อื่น
+                if (this.currentMode === 'eia' && !this.eiaDrawMode) {
+                  this.clearEiaForm();
+                  this.closeEiaInfo();
+                }
                 return;
               }
               const p = this.getClickLocation ? this.getClickLocation(ev) : null;
@@ -1262,9 +3176,6 @@ export default {
               if (this.drawMode) {
                 this.drawPoints.push({ lon: p.lon, lat: p.lat });
                 this.redrawDrawing();
-              } else if (this.floodMode) {
-                this.floodPoints.push({ lon: p.lon, lat: p.lat });
-                this.redrawFloodDrawing();
               }
               try {
                 const dot = new window.longdo.Circle(p, 1, { fillColor: "rgba(0,0,0,0.7)" });
@@ -1275,9 +3186,31 @@ export default {
           });
         } catch (e) { console.warn("binding click event failed", e); }
 
-        // expose selectSaleType for popup buttons if present
+        // expose selectSaleType / openChatWith / requestPurchase for popup buttons if present
         try { window.selectSaleType = this.selectSaleType.bind(this); } catch (e) { }
         try { window.openChatWith = this.openChatWith?.bind(this) || (() => { }); } catch (e) { }
+        try { window.requestPurchase = this.requestPurchase?.bind(this) || (() => { }); } catch (e) { }
+        try { window.openImageViewer = this.openImageViewer?.bind(this) || (() => { }); } catch (e) { }
+        try {
+          window.openLeftDetails = (landId) => {
+            try {
+              const land = this.getLandById ? this.getLandById(landId) : null;
+              if (!land) return;
+              // ensure in sale mode and open left form
+              try { this.currentMode = 'sale'; } catch (_) { }
+              try { this.isFormOpen = true; } catch (_) { }
+              try { this.selectLand(land); } catch (_) { }
+            } catch (e) { console.debug('openLeftDetails error', e); }
+          };
+        } catch (e) { }
+        try {
+          window.viewLandImages = (landId, startIndex = 0) => {
+            const land = this.getLandById(landId);
+            if (land && land.images && land.images.length > 0) {
+              this.openImageViewer(land.images, startIndex);
+            }
+          };
+        } catch (e) { }
 
         // hide some UI components if available (safe)
         try { this.map.Ui?.Zoombar?.visible(false); this.map.Ui?.DPad?.visible(false); } catch (e) { }
@@ -1327,6 +3260,11 @@ export default {
     addMarkersToMap() {
       if (!this.map) return;
 
+      // ถ้าไม่มี markers array หรือว่าง ให้ข้ามการทำงาน
+      if (!this.markers || !Array.isArray(this.markers) || this.markers.length === 0) {
+        return;
+      }
+
       // เคลียร์หมุดเดิม
       this.clearAllMarkers();
 
@@ -1369,9 +3307,9 @@ export default {
             this.onLandOverlayClick(overlay.__land, overlay);
             return;
           }
-          if (overlay && overlay.__isFlood) {
-            if (!this.drawMode && !this.floodMode) {
-              this.selectFloodPolygon(overlay);
+          if (overlay && overlay.__isEiaProject) {
+            if (!this.drawMode) {
+              this.onEiaProjectClick(overlay.__eiaProject);
             }
             return;
           }
@@ -1395,7 +3333,7 @@ export default {
         this.map.location(markerData.location, true);
       }
 
-      console.log("Marker clicked:", markerData);
+
     },
 
     clearAllMarkers() {
@@ -1462,11 +3400,9 @@ export default {
       }
 
       const text = this.chatInput.trim();
-      console.log('sendMessage: sending', { to: this.selectedUser.uid, from: this.currentUserId, text });
 
       try {
         const res = await sendChatMessage(text, this.currentUserId, this.userProfile.name, this.selectedUser.uid);
-        console.log('sendMessage: sent', res);
         // clear input after success
         this.chatInput = "";
       } catch (e) {
@@ -1580,6 +3516,18 @@ export default {
       });
     },
 
+    formatDateTime(timestamp) {
+      if (!timestamp) return "";
+      const date = new Date(timestamp);
+      return date.toLocaleString("th-TH", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    },
+
     scrollToBottom() {
       if (this.$refs.chatBody)
         this.$refs.chatBody.scrollTop = this.$refs.chatBody.scrollHeight;
@@ -1597,23 +3545,33 @@ export default {
       if (!this.currentUserId) return;
 
       if (this.onlineUsersUnsubscribe) this.onlineUsersUnsubscribe();
-      console.log('initP2PFacade: subscribing to presence for', this.currentUserId);
       this.onlineUsersUnsubscribe = subscribeOnlineUsers((users) => {
-        try { console.log('initP2PFacade: presence callback, total=', (users || []).length); } catch (_) { }
+
         this.onlineUsers = users.filter((u) => u.uid !== this.currentUserId);
-        try { console.log('initP2PFacade: onlineUsers set to', this.onlineUsers.map(u => u.uid)); } catch (_) { }
+
       });
 
       if (this.chatRoomsUnsubscribe) this.chatRoomsUnsubscribe();
       this.chatRoomsUnsubscribe = subscribeP2PChatRooms(
         this.currentUserId,
         (rooms) => {
+          const prevUnread = this.unreadCount;
           this.chatRooms = rooms;
           this.unreadCount = rooms.reduce(
             (sum, r) => sum + (r.unreadCount || 0),
             0
           );
           this.hasNewMessage = this.unreadCount > 0;
+
+          // เก็บรายชื่อคนที่มี unread messages (ใช้ชื่อจริงจาก otherName)
+          const unreadRooms = rooms.filter(r => r.unreadCount > 0);
+          this.unreadFromUsers = unreadRooms.map(r => r.otherName);
+
+          // ถ้ามี unread ใหม่ แสดง notification
+          if (this.unreadCount > prevUnread && unreadRooms.length > 0) {
+            this.lastMessageFrom = unreadRooms[0].otherName;
+            this.showChatNotification(this.lastMessageFrom);
+          }
         }
       );
 
@@ -1635,6 +3593,28 @@ export default {
         console.error("Failed to update online status:", e);
       }
     },
+
+    // แสดง notification เมื่อมีข้อความใหม่
+    showChatNotification(fromName) {
+      // เล่นเสียง
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2JkZuUjHxwZWJjbnuIlJqXjoF0aGVodH+MmZqXjoF0aWdpdoOQm5qUin5zaGhsfYqWm5eSiHtvamtxf4yYm5WOgndtam1zgY2Ym5OLf3JramxxgIyXmpOKfnFqa3F/jJeZk4p+c2tscIGMl5mSiXxxaWtwgIyXmZKJfHFpa3B/jJeZkol8');
+        audio.volume = 0.3;
+        audio.play().catch(() => { });
+      } catch (_) { }
+
+      // แสดง browser notification (ถ้าได้รับอนุญาต)
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('💬 ข้อความใหม่', {
+          body: `${fromName} ส่งข้อความถึงคุณ`,
+          icon: '/img/icons/android-chrome-192x192.png',
+          tag: 'chat-notification'
+        });
+      } else if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    },
+
     setChatMode(mode) {
       this.chatMode = mode;
       if (mode === "rooms" && this.p2pChatUnsubscribe) {
@@ -1650,6 +3630,46 @@ export default {
       this.chatMode = "chat";
       this.startRoomWith(user.uid);
     },
+    // เปิด chat room จากรายการแชทล่าสุด (Messenger style)
+    openChatRoom(room) {
+      this.selectedUser = {
+        uid: room.otherUid,
+        name: room.otherName,
+      };
+      this.chatMode = "chat";
+      this.startRoomWith(room.otherUid);
+    },
+    // ยืนยันและลบห้องแชท
+    async confirmDeleteChat(room) {
+      const confirmed = confirm(`ต้องการลบการสนทนากับ "${room.otherName}" หรือไม่?\n\nข้อความทั้งหมดจะถูกลบจากฝั่งของคุณ`);
+      if (!confirmed) return;
+      try {
+        await deleteChatRoom(this.currentUserId, room.otherUid);
+        // ถ้ากำลังดูห้องนี้อยู่ ให้กลับไปหน้า rooms
+        if (this.currentChatRoom === room.otherUid) {
+          this.backToRooms();
+        }
+        alert('ลบการสนทนาเรียบร้อยแล้ว');
+      } catch (e) {
+        console.error('Delete chat failed', e);
+        alert('เกิดข้อผิดพลาด: ' + e.message);
+      }
+    },
+    // แปลงเวลาเป็น "5 นาทีที่แล้ว" style
+    formatTimeAgo(timestamp) {
+      if (!timestamp) return '';
+      const now = Date.now();
+      const diff = now - timestamp;
+      const mins = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (mins < 1) return 'เมื่อกี้';
+      if (mins < 60) return `${mins} นาที`;
+      if (hours < 24) return `${hours} ชม.`;
+      if (days < 7) return `${days} วัน`;
+      return new Date(timestamp).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+    },
     selectChatRoom(room) {
       const other = this.onlineUsers.find((u) => u.uid === room.otherUid);
       if (other) {
@@ -1657,7 +3677,7 @@ export default {
       } else {
         this.selectedUser = {
           uid: room.otherUid,
-          name: `User-${room.otherUid.slice(0, 6)}`,
+          name: room.otherName || `User-${room.otherUid.slice(0, 6)}`,
         };
         this.chatMode = "chat";
         this.startRoomWith(room.otherUid);
@@ -1725,11 +3745,12 @@ export default {
         );
         this.currentLocation = { lat: 13.7563, lon: 100.5234 };
         this.map.zoom(12, true);
+        // close the select-area modal if open
+        try { this.showSelectAreaModal = false; } catch (e) { }
       }
     },
 
     reloadAPI() {
-      console.log("Reloading API...");
       this.initMap();
     },
     // โหลด KML จาก URL
@@ -1863,18 +3884,43 @@ export default {
       this.drawPoints = [];
       this.redrawDrawing();
       this.updateSnapPoints();
-      try { document.getElementById('map').style.cursor = 'crosshair'; } catch (e) { }
+      try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
     },
     finishDrawing() {
       if (!this.map) return;
       if (this.drawPoints.length < 3) { alert("ต้องคลิกอย่างน้อย 3 จุด"); return; }
       try { if (this.drawPolyline) this.map.Overlays.remove(this.drawPolyline); } catch (e) { }
       try { if (this.drawPolygon) this.map.Overlays.remove(this.drawPolygon); } catch (e) { }
+
+      // สีต่างกันตาม mode
+      const isEiaMode = this.currentMode === 'eia';
+      const lineColor = isEiaMode ? `rgba(${this.eiaColorRgb},0.9)` : "rgba(30,144,255,0.9)";
+      const fillColor = isEiaMode ? `rgba(${this.eiaColorRgb},0.25)` : "rgba(30,144,255,0.25)";
+
       this.drawPolygon = new window.longdo.Polygon(this.drawPoints, {
-        lineWidth: 2, lineColor: "rgba(30,144,255,0.9)", fillColor: "rgba(30,144,255,0.25)",
+        lineWidth: 2,
+        lineColor: lineColor,
+        fillColor: fillColor,
       });
       this.map.Overlays.add(this.drawPolygon);
       this.drawMode = false;
+
+      // ถ้าเป็น EIA mode ให้เตรียมฟอร์ม
+      if (isEiaMode) {
+        this.isFormOpen = true;
+        this.eiaProjectData = {
+          projectName: '',
+          projectLink: '',
+          investment: '',
+          tempLocation: this.drawPoints[0],
+          geometry: {
+            type: "Polygon",
+            coordinates: this.drawPoints.map(p => [p.lon, p.lat])
+          }
+        };
+        this.editingEiaId = null;
+      }
+
       this.updateSnapPoints();
       try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
     },
@@ -1885,14 +3931,411 @@ export default {
       try { if (this.drawPolygon) this.map.Overlays.remove(this.drawPolygon); } catch (e) { }
       this.drawPolyline = null;
       this.drawPolygon = null;
+
       this.updateSnapPoints();
       try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
     },
 
+    // ========== EIA Project Methods (uses shared drawing functions) ==========
+
+    async saveEiaProjectData(data) {
+      if (!data.projectName?.trim() && !data.projectLink?.trim()) {
+        alert("กรุณากรอก Project Name หรือ Link อย่างน้อย 1 ช่อง");
+        return;
+      }
+
+      // ใช้ geometry ถ้ามี หรือ location จากการแก้ไข
+      const geometry = data.geometry ||
+        (this.selectedEiaProject && this.selectedEiaProject.geometry) ||
+        null;
+
+      const markerLoc = data.tempLocation ||
+        (this.selectedEiaProject && this.selectedEiaProject.location) ||
+        { lon: this.currentLocation.lon, lat: this.currentLocation.lat };
+
+      const payload = {
+        projectStartDate: (data.projectStartDate || "").trim(),
+        ownerNameTo: (data.ownerNameTo || "").trim(),
+        projectName: (data.projectName || "").trim(),
+        investment: data.investment || "",
+        projectValue: data.projectValue || "",
+        projectImage: data.projectImage || "",
+        projectImageName: data.projectImageName || "",
+        landSizeRai: data.landSizeRai || "",
+        landSizeNgan: data.landSizeNgan || "",
+        landSizeWah: data.landSizeWah || "",
+        usableArea: data.usableArea || "",
+        reportNumber: (data.reportNumber || "").trim(),
+        engineerNumber: (data.engineerNumber || "").trim(),
+        approvalDate: (data.approvalDate || "").trim(),
+        approvalNumber: (data.approvalNumber || "").trim(),
+        projectType: (data.projectType || "").trim(),
+        projectSubType: (data.projectSubType || "").trim(),
+        reviewStatus: (data.reviewStatus || "").trim(),
+        projectStatus: (data.projectStatus || "").trim(),
+        region: (data.region || "").trim(),
+        province: (data.province || "").trim(),
+        district: (data.district || "").trim(),
+        subdistrict: (data.subdistrict || "").trim(),
+        projectLink: (data.projectLink || "").trim(),
+        projectLink2: (data.projectLink2 || "").trim(),
+        isHighlighted: data.isHighlighted || false,
+        location: markerLoc,
+        geometry: geometry,
+        lastUpdated: new Date().toISOString(),
+        id: this.editingEiaId || undefined,
+      };
+
+      try {
+        if (!this.currentUserId) {
+          alert("ยังไม่ได้เข้าสู่ระบบ");
+          return;
+        }
+
+        await saveEiaProject(this.currentUserId, payload);
+
+        // Clear form and drawing
+        this.clearEiaForm();
+        this.clearDrawing();
+        alert("บันทึกเรียบร้อย");
+      } catch (e) {
+        console.error("saveEiaProject failed:", e);
+        alert("บันทึกไม่สำเร็จ: " + (e?.message || e));
+      }
+    },
+
+    async deleteEiaProjectData(projectId) {
+      if (!confirm("ยืนยันการลบโครงการนี้?")) return;
+
+      try {
+        if (!this.currentUserId) {
+          alert("ยังไม่ได้เข้าสู่ระบบ");
+          return;
+        }
+
+        await deleteEiaProject(this.currentUserId, projectId);
+
+        // Clear form
+        this.clearEiaForm();
+        alert("ลบเรียบร้อย");
+      } catch (e) {
+        console.error("deleteEiaProject failed:", e);
+        alert("ลบไม่สำเร็จ: " + (e?.message || e));
+      }
+    },
+
+    renderEiaProjectsOnMap() {
+      if (!this.map) return;
+
+      // แสดงเฉพาะในโหมด EIA
+      if (this.currentMode !== 'eia') {
+        // ล้าง overlay ถ้าอยู่ใน mode อื่น
+        this.eiaOverlays.forEach(overlay => {
+          try { this.map.Overlays.remove(overlay); } catch (e) { }
+        });
+        this.eiaOverlays = [];
+        return;
+      }
+
+      // Remove old overlays
+      this.eiaOverlays.forEach(overlay => {
+        try { this.map.Overlays.remove(overlay); } catch (e) { }
+      });
+      this.eiaOverlays = [];
+
+      // ถ้าเคยกด filter แล้ว ใช้ filteredEiaProjects (แม้จะว่างก็แสดงตามนั้น)
+      // ถ้ายังไม่เคยกด filter ให้แสดงทั้งหมดจาก savedEiaProjects
+      const projects = this.hasAppliedEiaFilters ? this.filteredEiaProjects : this.savedEiaProjects;
+
+      // Render new overlays
+      projects.forEach((project, idx) => {
+        if (!project.geometry || project.geometry.type !== 'Polygon') {
+          console.warn(`    ⚠️ Skipping project ${idx + 1} - no valid geometry`);
+          return;
+        }
+
+        const coords = project.geometry.coordinates.map(c => ({ lon: c[0], lat: c[1] }));
+        // --- Calculate centroid for marker ---
+        let markerLoc = null;
+        try {
+          const pts = coords;
+          if (pts.length >= 3) {
+            let area = 0, cx = 0, cy = 0;
+            for (let i = 0; i < pts.length; i++) {
+              const a = pts[i], b = pts[(i + 1) % pts.length];
+              const f = (a.lon * b.lat - b.lon * a.lat);
+              area += f;
+              cx += (a.lon + b.lon) * f;
+              cy += (a.lat + b.lat) * f;
+            }
+            area *= 0.5;
+            markerLoc = area ? { lon: cx / (6 * area), lat: cy / (6 * area) } : pts[0];
+          }
+        } catch (e) {
+          console.warn('    ⚠️ Centroid calculation failed, using first point');
+          markerLoc = coords[0];
+        }
+
+        // Fallback to saved location
+        if (!markerLoc && project.location) {
+          markerLoc = project.location;
+        }
+
+        // --- Create marker at centroid ---
+        if (markerLoc) {
+          // เลือกสีตาม isHighlighted: เหลือง = Highlight, เขียว = Future Project
+          const colorRgb = project.isHighlighted ? this.eiaHighlightColorRgb : this.eiaColorRgb;
+          const colorUrlEncoded = project.isHighlighted ? this.eiaHighlightColorUrlEncoded : this.eiaColorUrlEncoded;
+
+          // สร้าง SVG พร้อม glow effect สำหรับ Highlight
+          let markerSvg;
+          if (project.isHighlighted) {
+            // SVG พร้อม glow/aura effect + animation กระพริบ สีเหลือง
+            markerSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 32 32'><defs><filter id='glow' x='-50%25' y='-50%25' width='200%25' height='200%25'><feGaussianBlur stdDeviation='5' result='coloredBlur'/><feMerge><feMergeNode in='coloredBlur'/><feMergeNode in='coloredBlur'/><feMergeNode in='coloredBlur'/><feMergeNode in='SourceGraphic'/></feMerge></filter></defs><circle cx='16' cy='14' r='14' fill='rgba(${colorRgb},0.12)'><animate attributeName='r' values='12;16;12' dur='1s' repeatCount='indefinite'/><animate attributeName='opacity' values='1;0.5;1' dur='1s' repeatCount='indefinite'/></circle><path filter='url(%23glow)' d='M16 4C10.48 4 6 8.48 6 14c0 7 7.2 14.1 9.6 16.25a1.6 1.6 0 0 0 2.13 0C19.93 28.1 26 21 26 14c0-5.52-4.48-10-10-10z' fill='rgba(${colorRgb},1)' stroke='%23FFD700' stroke-width='2'><animate attributeName='opacity' values='1;0.7;1' dur='1s' repeatCount='indefinite'/></path><circle cx='16' cy='14' r='4' fill='white'/></svg>`;
+          } else {
+            // SVG ปกติสำหรับ Future Project (เขียว)
+            markerSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'><path d='M12 2C7.58 2 4 5.58 4 10c0 5.25 5.4 10.58 7.2 12.19a1.2 1.2 0 0 0 1.6 0C14.6 20.58 20 15.25 20 10c0-4.42-3.58-8-8-8z' fill='rgba(${colorRgb},0.9)' stroke='${colorUrlEncoded}' stroke-width='1.5'/><circle cx='12' cy='10' r='3' fill='white'/></svg>`;
+          }
+
+          const marker = new window.longdo.Marker(markerLoc, {
+            visibleRange: { min: 7, max: 20 },
+            icon: {
+              url: markerSvg,
+              size: project.isHighlighted ? { width: 40, height: 40 } : { width: 28, height: 28 },
+              offset: project.isHighlighted ? { x: 20, y: 36 } : { x: 14, y: 28 }
+            },
+            detail: this.makeEiaMarkerDetailHtml(project),
+          });
+          marker.__isEiaProject = true;
+          marker.__eiaProject = project;
+
+          this.map.Overlays.add(marker);
+          this.eiaOverlays.push(marker);
+        }
+
+        // --- Create polygon ---
+        // เลือกสี polygon ตาม isHighlighted พร้อม glow effect
+        const polyColorRgb = project.isHighlighted ? this.eiaHighlightColorRgb : this.eiaColorRgb;
+
+        // สำหรับ Highlight: เส้นหนาขึ้น, สีเข้มขึ้น เพื่อให้เด่น
+        const lineWidth = project.isHighlighted ? 4 : 2;
+        const lineOpacity = project.isHighlighted ? 1 : 0.9;
+        const fillOpacity = project.isHighlighted ? 0.4 : 0.25;
+
+        const polygon = new window.longdo.Polygon(coords, {
+          lineWidth: lineWidth,
+          lineColor: `rgba(${polyColorRgb},${lineOpacity})`,
+          fillColor: `rgba(${polyColorRgb},${fillOpacity})`,
+          title: project.projectName || 'EIA Project',
+          weight: window.longdo.OverlayWeight.Top
+        });
+
+        // Add flags for identification
+        polygon.__isEiaProject = true;
+        polygon.__eiaProject = project;
+
+        this.map.Overlays.add(polygon);
+        this.eiaOverlays.push(polygon);
+      });
+    },
+
+    onEiaProjectClick(project) {
+
+      // Ensure app is in EIA mode and the left form is open,
+      // then load project data into the form.
+      try {
+        this.currentMode = 'eia';
+        this.isFormOpen = true;
+      } catch (e) { /* ignore */ }
+
+      // แสดงข้อมูลในช่องซ้าย (ฟอร์ม)
+      this.editEiaProject(project);
+
+      // แสดง info popup ด้วย
+      this.selectedEiaForInfo = project;
+      this.showEiaInfo = true;
+
+      // Center map on project
+      if (project.location) {
+        this.map.location(project.location, true);
+      }
+    },
+
+    closeEiaInfo() {
+      this.showEiaInfo = false;
+      this.selectedEiaForInfo = null;
+    },
+
+    addEiaMarkerAtLocation(location) {
+      // ไม่เปิด popup แต่ใส่ข้อมูลลงฟอร์ม navbar
+      this.selectedEiaProject = null;
+      this.eiaProjectData = {
+        projectName: '',
+        projectLink: '',
+        investment: '',
+        tempLocation: location // เก็บตำแหน่งชั่วคราว
+      };
+      this.editingEiaId = null;
+
+      // เปิดฟอร์มถ้าปิดอยู่
+      this.isFormOpen = true;
+
+      // Focus ไปที่ฟอร์ม
+      setTimeout(() => {
+        const input = document.querySelector('.form-section input[type="text"]');
+        if (input) input.focus();
+      }, 100);
+    },
+
+    saveEiaProjectFromForm() {
+      // บันทึกจากฟอร์มใน navbar
+      if (!this.eiaProjectData.projectName?.trim() && !this.eiaProjectData.projectLink?.trim()) {
+        alert("กรุณากรอก Project Name หรือ Link อย่างน้อย 1 ช่อง");
+        return;
+      }
+
+      // ต้องมี geometry จากการวาด หรือจากข้อมูลเดิม (กรณีแก้ไข)
+      const geometry = this.eiaProjectData.geometry ||
+        (this.selectedEiaProject && this.selectedEiaProject.geometry);
+
+      if (!geometry) {
+        alert("กรุณาวาดพื้นที่บนแผนที่ก่อนบันทึก");
+        return;
+      }
+
+      // ถ้าไม่มี tempLocation (กรณีแก้ไข) ให้ใช้ของเดิม
+      let markerLoc = this.eiaProjectData.tempLocation;
+      if (!markerLoc && this.selectedEiaProject) {
+        markerLoc = this.selectedEiaProject.location;
+      }
+      if (!markerLoc && geometry && geometry.coordinates && geometry.coordinates.length > 0) {
+        // ใช้จุดแรกของ polygon เป็น location
+        markerLoc = { lon: geometry.coordinates[0][0], lat: geometry.coordinates[0][1] };
+      }
+      if (!markerLoc) {
+        alert("ไม่พบตำแหน่งโครงการ");
+        return;
+      }
+
+      this.saveEiaProjectData({
+        projectStartDate: this.eiaProjectData.projectStartDate,
+        ownerNameTo: this.eiaProjectData.ownerNameTo,
+        projectName: this.eiaProjectData.projectName,
+        investment: this.eiaProjectData.investment,
+        projectValue: this.eiaProjectData.projectValue,
+        projectImage: this.eiaProjectData.projectImage,
+        projectImageName: this.eiaProjectData.projectImageName,
+        landSizeRai: this.eiaProjectData.landSizeRai,
+        landSizeNgan: this.eiaProjectData.landSizeNgan,
+        landSizeWah: this.eiaProjectData.landSizeWah,
+        usableArea: this.eiaProjectData.usableArea,
+        reportNumber: this.eiaProjectData.reportNumber,
+        engineerNumber: this.eiaProjectData.engineerNumber,
+        approvalDate: this.eiaProjectData.approvalDate,
+        approvalNumber: this.eiaProjectData.approvalNumber,
+        projectType: this.eiaProjectData.projectType,
+        projectSubType: this.eiaProjectData.projectSubType,
+        reviewStatus: this.eiaProjectData.reviewStatus,
+        projectStatus: this.eiaProjectData.projectStatus,
+        region: this.eiaProjectData.region,
+        province: this.eiaProjectData.province,
+        district: this.eiaProjectData.district,
+        subdistrict: this.eiaProjectData.subdistrict,
+        projectLink: this.eiaProjectData.projectLink,
+        projectLink2: this.eiaProjectData.projectLink2,
+        isHighlighted: this.eiaProjectData.isHighlighted || false,
+        tempLocation: markerLoc,
+        geometry: geometry
+      });
+    },
+
+    editEiaProject(project) {
+      this.selectedEiaProject = project;
+      this.eiaProjectData = {
+        projectStartDate: project.projectStartDate || '',
+        ownerNameTo: project.ownerNameTo || '',
+        projectName: project.projectName || '',
+        investment: project.investment || '',
+        projectValue: project.projectValue || '',
+        projectImage: project.projectImage || '',
+        projectImageName: project.projectImageName || '',
+        landSizeRai: project.landSizeRai || '',
+        landSizeNgan: project.landSizeNgan || '',
+        landSizeWah: project.landSizeWah || '',
+        usableArea: project.usableArea || '',
+        reportNumber: project.reportNumber || '',
+        engineerNumber: project.engineerNumber || '',
+        approvalDate: project.approvalDate || '',
+        approvalNumber: project.approvalNumber || '',
+        projectType: project.projectType || '',
+        projectSubType: project.projectSubType || '',
+        reviewStatus: project.reviewStatus || '',
+        projectStatus: project.projectStatus || '',
+        region: project.region || '',
+        province: project.province || '',
+        district: project.district || '',
+        subdistrict: project.subdistrict || '',
+        projectLink: project.projectLink || '',
+        projectLink2: project.projectLink2 || '',
+        lastUpdated: project.lastUpdated || null,
+        isHighlighted: project.isHighlighted || false,
+        tempLocation: project.location,
+        geometry: project.geometry
+      };
+      this.editingEiaId = project.id;
+
+      // เปิดฟอร์ม
+      this.isFormOpen = true;
+
+      // Center map on project
+      if (project.location && this.map) {
+        this.map.location({ lon: project.location.lon, lat: project.location.lat }, true);
+      }
+    },
+
+    editEiaProjectFromCard(project) {
+      // เรียกจาก card popup
+      this.closeEiaInfo();
+      this.editEiaProject(project);
+    },
+
+    clearEiaForm() {
+      this.selectedEiaProject = null;
+      this.eiaProjectData = {
+        projectStartDate: '',
+        ownerNameTo: '',
+        projectName: '',
+        investment: '',
+        projectValue: '',
+        projectImage: '',
+        projectImageName: '',
+        landSizeRai: '',
+        landSizeNgan: '',
+        landSizeWah: '',
+        usableArea: '',
+        reportNumber: '',
+        engineerNumber: '',
+        approvalDate: '',
+        approvalNumber: '',
+        projectType: '',
+        projectSubType: '',
+        reviewStatus: '',
+        projectStatus: '',
+        region: '',
+        province: '',
+        district: '',
+        subdistrict: '',
+        projectLink: '',
+        projectLink2: '',
+        lastUpdated: null,
+        isHighlighted: false,
+      };
+      this.editingEiaId = null;
+    },
 
     applyFilters() {
-      console.log(this.filters);
       this.showFilters = false;
+      this.hasAppliedFilters = true; // บันทึกว่าได้กด filter แล้ว
       const {
         roadWidth, areaMin, areaMax, areaMinRai, areaMaxRai, priceMin, totalPriceMin, totalPriceMax, priceMax, frontMin, frontMax,
       } = this.filters;
@@ -1971,6 +4414,11 @@ export default {
       this.applyKmlFiltersUsingUI();
     },
 
+    applyEiaFilters() {
+      this.hasAppliedEiaFilters = true; // บันทึกว่าได้กด filter แล้ว
+      this.renderEiaProjectsOnMap();
+    },
+
     applyKmlFiltersUsingUI() {
       if (!this.map || !Array.isArray(this.kmlFeatures) || !this.kmlFeatures.length) return;
 
@@ -2034,7 +4482,7 @@ export default {
               overlay._onMap = true;
             }
           } else {
-            console.log("Removing", overlay.__kml?.props?.name, overlay);
+
             this.map.Overlays.remove(overlay);
             overlay._onMap = false;
           }
@@ -2052,8 +4500,66 @@ export default {
         frontMin: "", frontMax: "",
       };
       this.filteredLands = [];
+      this.hasAppliedFilters = false; // รีเซ็ต flag
       this.addMarkersToMap();
       this.renderLandsOnMap();
+    },
+
+    resetEiaFilters() {
+      this.eiaFilters = {
+        projectValueMin: '',
+        projectValueMax: '',
+        landSizeRaiMin: '',
+        landSizeRaiMax: '',
+        usableAreaMin: '',
+        usableAreaMax: '',
+        region: '',
+        province: '',
+        projectStatus: '',
+      };
+      this.hasAppliedEiaFilters = false; // รีเซ็ต flag
+      this.renderEiaProjectsOnMap();
+    },
+
+    startDragEiaFilter(event) {
+      // เฉพาะคลิกที่ปุ่มปิดเท่านั้น
+      if (event.target.classList.contains('close-btn') ||
+        event.target.tagName === 'INPUT' ||
+        event.target.tagName === 'SELECT' ||
+        event.target.tagName === 'BUTTON') {
+        return;
+      }
+
+      this.isDraggingEiaFilter = true;
+      this.dragStartX = event.clientX - this.eiaFilterPanelX;
+      this.dragStartY = event.clientY - this.eiaFilterPanelY;
+
+      document.addEventListener('mousemove', this.dragEiaFilter);
+      document.addEventListener('mouseup', this.stopDragEiaFilter);
+      event.preventDefault();
+    },
+
+    dragEiaFilter(event) {
+      if (!this.isDraggingEiaFilter) return;
+
+      this.eiaFilterPanelX = event.clientX - this.dragStartX;
+      this.eiaFilterPanelY = event.clientY - this.dragStartY;
+
+      // จำกัดไม่ให้ panel ออกนอกหน้าจอ
+      if (this.eiaFilterPanelX < 0) this.eiaFilterPanelX = 0;
+      if (this.eiaFilterPanelY < 0) this.eiaFilterPanelY = 0;
+      if (this.eiaFilterPanelX > window.innerWidth - 100) {
+        this.eiaFilterPanelX = window.innerWidth - 100;
+      }
+      if (this.eiaFilterPanelY > window.innerHeight - 50) {
+        this.eiaFilterPanelY = window.innerHeight - 50;
+      }
+    },
+
+    stopDragEiaFilter() {
+      this.isDraggingEiaFilter = false;
+      document.removeEventListener('mousemove', this.dragEiaFilter);
+      document.removeEventListener('mouseup', this.stopDragEiaFilter);
     },
 
     getClickLocation(ev) {
@@ -2078,7 +4584,10 @@ export default {
 
 
     async saveLandData() {
+      console.log('saveLandData: entry', { currentUserId: this.currentUserId, owner: this.landData.owner, agent: this.landData.agent, drawPointsLen: this.drawPoints.length });
+
       if (!(this.landData.owner?.trim() || this.landData.agent?.trim())) {
+        console.log('saveLandData: validation failed - missing owner/agent');
         alert("กรุณากรอกชื่อเจ้าของ หรือ ชื่อนายหน้า อย่างใดอย่างหนึ่ง");
         return;
       }
@@ -2115,15 +4624,23 @@ export default {
         lineId: (this.landData.lineId || "").trim(),
         location: markerLoc,
         geometry,
+        images: this.landData.images || [],
 
         id: this.editingLandId || undefined,
       };
 
+
+
       try {
-        if (!this.currentUserId) { alert("ยังไม่ได้เข้าสู่ระบบ (เปิด anonymous ได้)"); return; }
+        if (!this.currentUserId) {
+          console.log('saveLandData: abort - no currentUserId');
+          alert("ยังไม่ได้เข้าสู่ระบบ (เปิด anonymous ได้)");
+          return;
+        }
 
-
-        await saveLand(this.currentUserId, payload);
+        console.log('saveLandData: calling saveLand', { uid: this.currentUserId, payloadSummary: { size: payload.size, images: (payload.images || []).length, hasGeometry: !!payload.geometry, id: payload.id } });
+        const savedId = await saveLand(this.currentUserId, payload);
+        console.log('saveLandData: saveLand resolved', { savedId });
         this.landData = {
           size: "",
           width: "",
@@ -2136,6 +4653,7 @@ export default {
           road: "",
           landFrame: "",
           deedInformation: "",
+          images: [],
         };
         this.editingLandId = null;
         this.clearDrawing();
@@ -2153,11 +4671,47 @@ export default {
       this.showChat = false;
     },
 
+    toggleChat() {
+      this.showChat = !this.showChat;
+      this.showFilters = false;
+      this.showLayers = false;
+      this.showSearch = false;
+
+      // When opening the chat, reset any inline positioning left by drag
+      // so it reappears at the default bottom-right location.
+      if (this.showChat) {
+        this.$nextTick(() => {
+          try {
+            const el = document.querySelector('.chat-popup');
+            if (el) {
+              el.style.position = 'fixed';
+              el.style.left = '';
+              el.style.top = '';
+              el.style.right = '10px';
+              el.style.bottom = '10px';
+              el.style.zIndex = '9999';
+            }
+          } catch (e) {
+            console.debug && console.debug('reset chat popup position failed', e);
+          }
+          // re-enable draggables and scroll to bottom
+          try { this.enableDraggables(); } catch (_) { }
+          this.$nextTick(() => this.scrollToBottom());
+        });
+      }
+    },
+
     toggleFilters() {
       this.showFilters = !this.showFilters;
       this.showSearch = false;
       this.showLayers = false;
       this.showChat = false;
+      // เรียก enableDraggables หลัง DOM render เพื่อให้ลากได้
+      if (this.showFilters) {
+        this.$nextTick(() => {
+          this.enableDraggables();
+        });
+      }
     },
 
     toggleLayers() {
@@ -2168,7 +4722,6 @@ export default {
     },
 
     viewMyProperty() {
-      console.log("View my property");
       // Show only user's markers
       this.showSearch = false;
       this.showFilters = false;
@@ -2176,7 +4729,6 @@ export default {
     },
 
     exploreArea() {
-      console.log("Explore area");
     },
 
     centerTo(lon, lat, zoom = 17) {
@@ -2188,6 +4740,9 @@ export default {
       } catch (e) {
         console.debug("[SEARCH] centerTo error:", e);
       }
+
+      // close select-area modal if open (called from area selector)
+      try { this.showSelectAreaModal = false; } catch (e) { }
 
       /* try {
         if (this.myMarker) this.map.Overlays.remove(this.myMarker);
@@ -2394,6 +4949,7 @@ export default {
         agent: land.agent ?? "",
         phone: land.phone ?? "",
         lineId: land.lineId ?? "",
+        images: land.images || [],
       };
 
       // แตก size (ตร.วา) เป็น RNW ให้ช่องด้านขวา
@@ -2401,22 +4957,6 @@ export default {
       this.raiModel = (rai === "" ? "" : String(rai));
       this.nganModel = (ngan === "" ? "" : String(ngan));
       this.wahModel = (wah === "" ? "" : (this.fmt2 ? this.fmt2(wah) : wah.toFixed(2)));
-
-
-      // Map model -> form model
-      this.landData = {
-        size: land.size ?? land.area ?? "",
-        width: land.frontage ?? land.width ?? "",
-        road: land.roadWidth ?? land.road ?? "",
-        price: land.pricePerSqw != null ? this.formatMoney(land.pricePerSqw) : "",
-        totalPrice: land.totalPrice ?? "",
-        landFrame: land.landFrame ?? "",
-        deedInformation: land.deedInformation ?? "",
-        owner: land.owner ?? "",
-        agent: land.agent ?? "",
-        phone: land.phone ?? "",
-        lineId: land.lineId ?? "",
-      };
 
       // Draw selected geometry for visual
       try {
@@ -2437,332 +4977,21 @@ export default {
     },
 
     onLandOverlayClick(land) {
+      // Auto-open left-side sale form and select the land so fields populate
+      try {
+        try { this.currentMode = 'sale'; } catch (_) { }
+        try { this.isFormOpen = true; } catch (_) { }
+      } catch (e) { /* ignore */ }
+      // Preserve existing behavior (select + draw), then show marker-style info
       this.selectLand(land);
-    },
-    // ===== Flood Zone helpers =====
-    startFloodDrawing(level = 'medium') {
-      this.floodMode = true;
-      this.floodLevel = level;
-      this.floodPoints = [];
-      this.redrawFloodDrawing();
-      try { document.getElementById('map').style.cursor = 'crosshair'; } catch (e) { }
-    },
-
-    async finishFloodDrawing() {
-      if (!this.map) return;
-      if (this.floodPoints.length < 3) { alert("ต้องคลิกอย่างน้อย 3 จุด"); return; }
-
-      // ลบชั่วคราว
-      try { if (this.floodPolyline) this.map.Overlays.remove(this.floodPolyline); } catch (e) { }
-      try { if (this.floodPolygon) this.map.Overlays.remove(this.floodPolygon); } catch (e) { }
-
-      // เตรียม payload
-      const geometry = { type: "Polygon", coordinates: this.floodPoints.map(p => [p.lon, p.lat]) };
-      const center = this.floodPoints[0] || this.currentLocation; // optional
-
-      if (!this.currentUserId) { alert("ยังไม่ได้เข้าสู่ระบบ"); return; }
-
       try {
-        await saveFloodZone(this.currentUserId, {
-          level: this.floodLevel,
-          waterAmount: this.waterAmount,
-          geometry,
-          location: center,
-        });
-
-        // ปล่อยให้ subscribeFloodZonesAll → renderFloodsOnMap() เป็นคนวาด (จะไม่ซ้ำ)
+        this.selectedMarker = land;
+        this.showMarkerInfo = true;
       } catch (e) {
-        console.error("saveFloodZone failed:", e);
-        alert("บันทึกน้ำท่วมไม่สำเร็จ");
-      }
-
-      // reset state การวาด
-      this.floodMode = false;
-      this.floodPoints = [];
-      this.floodPolyline = null;
-      this.floodPolygon = null;
-      try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
-    },
-
-
-    clearFloodDrawing() {
-      this.floodMode = false;
-      this.floodPoints = [];
-      try { if (this.floodPolyline) this.map.Overlays.remove(this.floodPolyline); } catch (e) { }
-      try { if (this.floodPolygon) this.map.Overlays.remove(this.floodPolygon); } catch (e) { }
-      this.floodPolyline = null;
-      this.floodPolygon = null;
-      try { document.getElementById('map').style.cursor = 'default'; } catch (e) { }
-    },
-
-    redrawFloodDrawing() {
-      if (!this.map) return;
-
-      try { if (this.floodPolyline) this.map.Overlays.remove(this.floodPolyline); } catch (e) { }
-      try { if (this.floodPolygon) this.map.Overlays.remove(this.floodPolygon); } catch (e) { }
-
-      if (this.floodPoints.length >= 2) {
-        this.floodPolyline = new window.longdo.Polyline(this.floodPoints, {
-          lineWidth: 3,
-          lineColor: "rgba(0,90,255,0.5)", // ฟ้าอ่อนสำหรับระหว่างวาด
-        });
-        this.map.Overlays.add(this.floodPolyline);
+        console.debug('onLandOverlayClick: show marker info failed', e);
       }
     },
 
-    getFloodStyle(level) {
-      // base color ต่อระดับ (โทนฟ้า)
-      let line = 'rgba(0,90,255,0.95)';
-      let baseFillAlpha = 0.22; // ค่าเริ่ม
-
-      switch (String(level)) {
-        case 'low':
-          line = 'rgba(0,128,255,0.95)';
-          baseFillAlpha = 0.16;
-          break;
-        case 'high':
-          line = 'rgba(0,64,160,1)';
-          baseFillAlpha = 0.30;
-          break;
-        case 'medium':
-        default:
-          line = 'rgba(0,90,255,0.95)';
-          baseFillAlpha = 0.22;
-          break;
-      }
-
-      // ปรับตาม waterAmount (1..5) ให้ทึบขึ้นทีละนิด
-      const step = 0.06; // ความทึบเพิ่มต่อระดับ
-      const alpha = Math.max(0.10, Math.min(0.65, baseFillAlpha + (this.waterAmount - 1) * step));
-      const fill = `rgba(0,120,255,${alpha})`;
-
-      return { lineColor: line, fillColor: fill };
-    },
-
-
-    toggleFloodLayer() {
-      this.showFloodLayer = !this.showFloodLayer;
-      if (!this.map) return;
-
-      // ถ้าปิดเลเยอร์ ให้ล้างการเลือกด้วย
-      if (!this.showFloodLayer) this.clearFloodSelection();
-
-      this.floodOverlays.forEach(ov => {
-        try {
-          if (this.showFloodLayer && !ov._onMap) {
-            this.map.Overlays.add(ov);
-            ov._onMap = true;
-          } else if (!this.showFloodLayer && ov._onMap) {
-            this.map.Overlays.remove(ov);
-            ov._onMap = false;
-          }
-        } catch (e) { }
-      });
-    },
-
-    increaseWaterAmount() {
-      if (this.waterAmount < 5) {
-        this.waterAmount++;
-        this.restyleAllFloodPolygons();
-      }
-    },
-    decreaseWaterAmount() {
-      if (this.waterAmount > 1) {
-        this.waterAmount--;
-        this.restyleAllFloodPolygons();
-      }
-    },
-
-    restyleAllFloodPolygons() {
-      if (!this.map) return;
-
-      // เราจะสร้างโพลิกอนใหม่แทนตัวเดิม เพื่อให้สีอัปเดตได้แน่นอน
-      this.floodOverlays = this.floodOverlays.map(oldOv => {
-        const wasOnMap = !!oldOv._onMap;
-        const oldMeta = oldOv.__flood || {};
-        const points = oldOv.__points;
-        const style = this.getFloodStyle(oldMeta.level || 'medium');
-
-        try { if (wasOnMap) this.map.Overlays.remove(oldOv); } catch (e) { }
-
-        const newOv = new window.longdo.Polygon(points, {
-          lineWidth: 2,
-          lineColor: style.lineColor,
-          fillColor: style.fillColor
-        });
-        newOv.__isFlood = true;
-        newOv.__points = points;
-        newOv.__flood = {
-          id: oldMeta.id || null,
-          level: oldMeta.level || 'medium',
-          ownerUid: oldMeta.ownerUid || null,
-        };
-        newOv._onMap = false;
-        this.attachFloodEvents(newOv);
-
-        if (this.showFloodLayer && wasOnMap) {
-          this.map.Overlays.add(newOv);
-          newOv._onMap = true;
-        }
-        return newOv;
-      });
-
-      // อัปเดตของที่กำลังวาดอยู่ (เส้นชั่วคราวใช้สีคงเดิมพอ)
-      if (this.floodPolygon) {
-        try { this.map.Overlays.remove(this.floodPolygon); } catch (e) { }
-        const style = this.getFloodStyle(this.floodLevel);
-        this.floodPolygon = new window.longdo.Polygon(this.floodPoints, {
-          lineWidth: 2,
-          lineColor: style.lineColor,
-          fillColor: style.fillColor
-        });
-        this.map.Overlays.add(this.floodPolygon);
-      }
-    },
-    attachFloodEvents(poly) {
-      // ผูกคลิกกับโพลิกอนน้ำท่วมแต่ละชิ้น
-      try {
-        poly.Event.bind('click', () => {
-          // ห้ามชนกับโหมดกำลังวาดแปลงหรือวาดน้ำท่วม
-          if (this.drawMode || this.floodMode) return;
-          this.selectFloodPolygon(poly);
-        });
-      } catch (e) { }
-    },
-
-    selectFloodPolygon(poly) {
-      if (!this.map) return;
-
-      // ล้างไฮไลท์เดิมก่อน
-      this.clearFloodSelection();
-
-      this.selectedFlood = poly;
-
-      // สร้างเส้นไฮไลท์ทับ (เส้นเหลือง ไม่มีสีพื้น)
-      const pts = poly.__points || [];
-      try {
-        this.selectedFloodHighlight = new window.longdo.Polygon(pts, {
-          lineWidth: 4,
-          lineColor: 'rgba(255,215,0,0.95)', // เหลืองทอง
-          fillColor: 'rgba(255,215,0,0.01)',
-          weight: window.longdo.OverlayWeight.Top
-        });
-        this.map.Overlays.add(this.selectedFloodHighlight);
-      } catch (e) { }
-    },
-    clearFloodSelection() {
-      if (!this.map) return;
-      try {
-        if (this.selectedFloodHighlight)
-          this.map.Overlays.remove(this.selectedFloodHighlight);
-      } catch (e) { }
-      this.selectedFloodHighlight = null;
-      this.selectedFlood = null;
-    },
-
-    async deleteSelectedFlood() {
-      if (!this.map || !this.selectedFlood) return;
-
-      const id = this.selectedFlood.__flood?.id;
-      const ownerUid = this.selectedFlood.__flood?.ownerUid || this.currentUserId;
-
-      if (!confirm("ยืนยันลบโซนน้ำท่วมนี้?")) return;
-
-      try {
-        if (id) {
-          await deleteFloodZone(ownerUid, id);
-          // หลังลบ สำเนาในหน้าจอจะถูก sync ออกโดย subscribe → renderFloodsOnMap()
-        } else {
-          // กรณียังไม่ถูกบันทึก (ไม่มี id) → ลบเฉพาะบนแผนที่
-          if (this.selectedFlood._onMap) this.map.Overlays.remove(this.selectedFlood);
-          this.floodOverlays = this.floodOverlays.filter(ov => ov !== this.selectedFlood);
-        }
-      } catch (e) {
-        console.error("deleteFloodZone failed:", e);
-        alert("ลบไม่สำเร็จ");
-      }
-
-      this.clearFloodSelection();
-    },
-    // ====== ตรวจสอบแปลงที่ดินอยู่ในเขตน้ำท่วมระดับใด ======
-    async checkLandsFloodStatus() {
-      const lands = (this.filteredLands?.length ? this.filteredLands : this.savedLands) || [];
-      const floods = Array.isArray(this.savedFloods) ? this.savedFloods : [];
-
-      const result = { low: 0, medium: 0, high: 0, none: 0 };
-      if (!lands.length) { this.floodSummary = result; return; }
-
-      // เตรียม polygon ของน้ำท่วม (ปิดห่วงถ้ายังไม่ปิด)
-      const floodPolys = floods
-        .filter(f => f?.geometry?.type === "Polygon" && Array.isArray(f.geometry.coordinates))
-        .map(f => {
-          let ring = f.geometry.coordinates.slice();
-          if (ring.length >= 3) {
-            const first = ring[0], last = ring[ring.length - 1];
-            if (first[0] !== last[0] || first[1] !== last[1]) ring = [...ring, first]; // ปิดห่วง
-            try {
-              return { level: f.level || "medium", poly: turf.polygon([ring]) };
-            } catch { return null; }
-          }
-          return null;
-        })
-        .filter(Boolean);
-
-      const levelOrder = { low: 0, medium: 1, high: 2 };
-
-      for (const land of lands) {
-        // หาจุดแทนแปลง: centroid ของ polygon หรือ location
-        let pt = null;
-        try {
-          if (land.geometry?.type === "Polygon" && Array.isArray(land.geometry.coordinates)) {
-            const ring = land.geometry.coordinates;
-            pt = turf.centroid(turf.polygon([ring]));
-          } else if (land.location && typeof land.location.lon === "number" && typeof land.location.lat === "number") {
-            pt = turf.point([land.location.lon, land.location.lat]);
-          }
-        } catch { /* ignore */ }
-        if (!pt) { result.none++; continue; }
-
-        // เช็คว่าอยู่ในโซนใด (ถ้าอยู่หลายโซนเอาที่ระดับสูงกว่า)
-        let best = null;
-        for (const f of floodPolys) {
-          try {
-            if (turf.booleanPointInPolygon(pt, f.poly)) {
-              if (!best || levelOrder[f.level] > levelOrder[best]) best = f.level;
-            }
-          } catch { /* ignore */ }
-        }
-        if (!best) result.none++; else result[best]++;
-      }
-
-      this.floodSummary = result;
-    },
-
-    recomputeFloodSummary() {
-      this.floodSummary = this._calcFloodSummary(this.lands || [], this._floodPolysCache || []);
-    },
-    _calcFloodSummary(lands, floodPolys) {
-      const t = (window.turf || this.$turf);
-      const order = { low: 0, medium: 1, high: 2 };
-      const res = { low: 0, medium: 0, high: 0, none: 0 };
-
-      lands.forEach(land => {
-        let pt = null;
-        if (land.geometry?.type === 'Polygon') pt = t.centroid(land.geometry);
-        else if (land.location) pt = t.point([land.location.lon, land.location.lat]);
-        if (!pt) return;
-
-        let level = null;
-        floodPolys.forEach(f => {
-          if (t.booleanPointInPolygon(pt, f.poly)) {
-            if (level == null || order[f.level] > order[level]) level = f.level;
-          }
-        });
-        if (!level) res.none++; else res[level]++;
-      });
-
-      return res;
-    },
   },
   watch: {
     availableLayers: {
@@ -2771,7 +5000,7 @@ export default {
         if (markersLayer) {
           this.toggleMarkersLayer();
         }
-        console.log("Start pop-up");
+
       },
       deep: true,
     },
@@ -2788,22 +5017,26 @@ export default {
       if (val && val.trim() !== '') this.landData.owner = '';
     },
 
+    // Reset district and subdistrict when province changes
+    'eiaProjectData.province'(newVal, oldVal) {
+      if (newVal !== oldVal) {
+        this.eiaProjectData.district = '';
+        this.eiaProjectData.subdistrict = '';
+      }
+    },
+
+    // Reset subdistrict when district changes
+    'eiaProjectData.district'(newVal, oldVal) {
+      if (newVal !== oldVal) {
+        this.eiaProjectData.subdistrict = '';
+      }
+    },
+
     // ล็อก scroll ตอน popup เปิด
     showDisclaimer(val) {
       document.body.style.overflow = val ? "hidden" : "";
     },
-    savedLands: {
-      handler() { this.checkLandsFloodStatus(); },
-      deep: true
-    },
-    filteredLands: {
-      handler() { this.checkLandsFloodStatus(); },
-      deep: true
-    },
-    savedFloods: {
-      handler() { this.checkLandsFloodStatus(); },
-      deep: true
-    },
+
   },
 
 

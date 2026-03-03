@@ -2,7 +2,9 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import LongdoMap from 'longdo-map-vue'
-import './firebase'
+
+// Lazy load Firebase (ไม่ต้องรอโหลดก่อน render)
+import('./firebase')
 
 const app = createApp(App)
 
@@ -12,9 +14,9 @@ window.__LONGDO_KEY = '3013d29eca5230ad752a9dc3c9b4bad1';
 
 app.use(LongdoMap, {
     load: {
-        apiKey: window.__LONGDO_KEY, // ใช้ key เดียวกัน
+        apiKey: window.__LONGDO_KEY,
         language: 'th',
-        defer: false,
+        defer: true,  // เปลี่ยนเป็น true เพื่อโหลดแบบ non-blocking
         services: ['search'],
     },
 })

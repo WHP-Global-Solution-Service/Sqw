@@ -1,40 +1,176 @@
-/* src/components/map/eia/eia-dashboard.css */
-
-.eia-dashboard {
+.dashbar{
   position: fixed;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 12px;
-  z-index: 900;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+
+  display:flex;
+  justify-content:center;
+
+  z-index:60;
+  pointer-events:auto;
+
+  position: fixed;
 }
 
-.eia-stat {
-  background: #fff;
-  border: 2px solid #16a34a;
-  border-radius: 16px;
-  padding: 12px 18px;
-  min-width: 110px;
-  text-align: center;
-  box-shadow: 0 12px 24px rgba(0,0,0,.12);
+.dashbar::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none; /* กัน block map */
 }
 
-.eia-stat .v {
-  font-size: 20px;
-  font-weight: 800;
-  color: #16a34a;
+/* ซ่อนเฉพาะเนื้อหา */
+.dashContent{
+  position:relative; 
+  bottom:0;              /* ⭐ เปลี่ยนตรงนี้ */
+
+  display:flex;
+  gap:16px;
+  padding:18px;
+  border-radius:18px;
+
+  background: rgba(255,255,255,.75);
+  backdrop-filter: blur(14px);
+  border:1px solid rgba(255,255,255,.6);
+  box-shadow:0 10px 40px rgba(0,0,0,.15);
+
+  pointer-events:auto;
 }
 
-.eia-stat .k {
+.dashToggleFloating{
+  position:absolute;
+
+  bottom:100%;      /* ให้อยู่เหนือ dashContent */
+  margin-bottom:12px;
+
+  left:50%;
+  transform:translateX(-50%);
+
+  pointer-events:auto;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+
+  padding:10px 18px;
+  border-radius:999px;
+  border:none;
+  background:#fff;
+
+  box-shadow:0 10px 24px rgba(0,0,0,.18);
+  font-weight:800;
+  cursor:pointer;
+}
+
+/* arrow animation */
+.dashArrow{
+  transition:.25s;
+  font-size:18px;
+  line-height:1;
+}
+
+.dashArrow.up{
+  transform: rotate(180deg);
+}
+
+.dashbar.collapsed .dashContent{
+  max-height:0;
+  opacity:0;
+  overflow:hidden;
+  display:none;
+}
+
+.dashcard{
+  pointer-events: auto;
+  min-width: 170px;
+  padding: 12px 16px;
+
+  background: #ffffff;
+  border: 1px solid #edf1f7;
+  border-radius: 14px;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-start;
+
+  text-align:left;
+  transition:.2s ease;
+}
+
+.dashcard:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+}
+
+.dashlabel{
   font-size: 12px;
-  opacity: .7;
+  font-weight: 600;
+  color:#6b7280;
 }
 
-.eia-stat.warn {
-  border-color: #f59e0b;
+.dashvalue{
+  margin-top:2px;
+  font-size:22px;
+  font-weight:700;
+  color:#111827;
 }
 
-.eia-stat.warn .v {
-  color: #f59e0b;
+.dashunit{
+  margin-top:2px;
+  font-size:12px;
+  font-weight:500;
+  color:#9ca3af;
+}
+
+.dashbar{
+  transition:.25s ease;
+}
+
+
+.dashToggleAttached{
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  padding:10px 16px;
+  border-radius:999px;
+  border:none;
+  box-shadow:0 10px 24px rgba(0,0,0,.18);
+
+  font-weight:800;
+  cursor:pointer;
+}
+
+.dashArrow{
+  font-size:18px;
+}
+
+.dashToggleAttached:hover{
+  transform:none;
+}
+
+
+/* ===== Responsive ===== */
+
+@media (max-width:720px){
+
+  .dashbar{
+    width: calc(100% - 24px);
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+
+  .dashcard{
+    flex:1 1 calc(50% - 8px);
+    min-width:auto;
+  }
+}
+
+@media (max-width:420px){
+  .dashcard{
+    flex:1 1 100%;
+  }
 }

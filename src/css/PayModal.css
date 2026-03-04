@@ -847,6 +847,19 @@
   font-size:13px;
   font-weight:600;
 }
+
+.pay-brand{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.pay-brand img{
+  height:28px;
+  width:auto;
+  object-fit:contain;
+}
+
 /* ==================================================
    Mobile
 ================================================== */

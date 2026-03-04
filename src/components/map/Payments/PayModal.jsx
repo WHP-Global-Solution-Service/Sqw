@@ -168,10 +168,15 @@ export default function PayModal({ open, draft, onClose, dock="center" }){
 
         {/* HEADER */}
         <div className="pay-head">
-          <div className="pay-title">{t("title")}</div>
-          <button className="pay-close" onClick={onClose}>×</button>
-        </div>
 
+          <div className="pay-brand">
+            <img src="/chillpay.png" alt="ChillPay"/>
+            <div className="pay-title">{t("title")}</div>
+          </div>
+
+          <button className="pay-close" onClick={onClose}>×</button>
+
+        </div>
         <div className="pay-meta">
           {t("landId",{id:landId})}
         </div>

@@ -40,26 +40,57 @@ export default function UnlockPickerModal({
   const canAct = !!landId && selected.length > 0;
   const locale = i18n.language === "th" ? "th-TH" : "en-US";
 
+  const getIconBg = (key) => {
+    const map = {
+      contactOwner: "#e8f0ff",
+      broker: "#fff4e6",
+      phone: "#ffe8f0",
+      line: "#e6f9f0",
+      frame: "#eef2ff",
+      chanote: "#f3e8ff",
+      chat: "#e6f9f0",
+    };
+    return map[key] || "#f3f4f6";
+  };
+
+  const getIconColor = (key) => {
+    const map = {
+      contactOwner: "#2563eb",
+      broker: "#f59e0b",
+      phone: "#db2777",
+      line: "#16a34a",
+      frame: "#4f46e5",
+      chanote: "#9333ea",
+      chat: "#16a34a",
+    };
+    return map[key] || "#6b7280";
+  };
+
+
   return (
     <div
-      style={{
+        style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,.35)",
+        background: "rgba(5, 57, 116, 0.35)",
         zIndex: 1000001,
-        placeItems: "start center",
-        paddingTop: 68,
-        padding: 16,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        paddingTop: "calc(var(--nav-height) + 54px)",
+        paddingLeft: 16,
+        paddingRight: 16,
       }}
       onClick={onCancel}
     >
       <div
-        style={{
-          width: 720,
+          style={{
+          width: 680,
           maxWidth: "100%",
+          maxHeight: "85vh",
           background: "#fff",
           borderRadius: 18,
-          padding: 14,
+          padding: 8 ,
           boxShadow: "0 18px 60px rgba(0,0,0,.25)",
         }}
         onClick={(e) => e.stopPropagation()}
@@ -70,10 +101,6 @@ export default function UnlockPickerModal({
             <div style={{ fontWeight: 900, fontSize: 18 }}>
               {t("title")}
             </div>
-            <div style={{ opacity: 0.65, marginTop: 2 }}>
-              {t("subtitle")}
-            </div>
-
             {landId ? (
               <div style={{ opacity: 0.6, marginTop: 6, fontSize: 12 }}>
                 {t("picker.landId", { id: landId })}
@@ -126,7 +153,7 @@ export default function UnlockPickerModal({
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  padding: "12px 14px",
+                  padding: "8px 10px",
                   borderRadius: 14,
                   border: checked ? `1px solid ${PRIMARY}` : "1px solid #e8e8e8",
                   background: checked ? PRIMARY_LIGHT : "#fff",
@@ -134,8 +161,28 @@ export default function UnlockPickerModal({
                 }}
               >
                 {/* ===== LEFT CONTENT ===== */}
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <div style={{ fontSize: 20 }}>{it.icon}</div>
+                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      background: getIconBg(it.k),
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontSize: 22,
+                        color: getIconColor(it.k),
+                      }}
+                    >
+                      {it.icon}
+                    </span>
+                  </div>
 
                   <div>
                     <div style={{ fontWeight: 900 }}>{it.label}</div>
@@ -154,7 +201,7 @@ export default function UnlockPickerModal({
                   style={{
                     width: 18,
                     height: 18,
-                    accentColor: "#118e44",
+                    accentColor: "rgba(5, 57, 116, 0.35)",
                     cursor: "pointer",
                   }}
                 />
@@ -207,7 +254,7 @@ export default function UnlockPickerModal({
                 height: 40,
                 padding: "0 18px",
                 borderRadius: 999,
-                border: "2px solid #118e44",
+                border: "2px solid rgba(5, 57, 116, 0.35)",
                 background: "#fff",
                 fontWeight: 900,
                 opacity: canAct ? 1 : 0.6,

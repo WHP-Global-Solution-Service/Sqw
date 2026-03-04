@@ -322,6 +322,29 @@
             </div>
           )}
 
+          {/* Language Switch */}
+          <div className="nav-lang">
+            {/*<span className="material-symbols-outlined lang-icon">language</span>*/}
+
+            <div className="lang-pill">
+              <button
+                className={currentLang === "th" ? "active" : ""}
+                onClick={() => changeLanguage("th")}
+              >
+                TH
+              </button>
+
+              <span className="sep">|</span>
+
+              <button
+                className={currentLang === "en" ? "active" : ""}
+                onClick={() => changeLanguage("en")}
+              >
+                EN
+              </button>
+            </div>
+          </div>
+
           <div className="nav-user-group ">
             {/* Profile / Auth */}
             {isLoggedIn ? (
@@ -398,7 +421,7 @@
               {isLoggedIn && (
                 <Link to="/cart" className="cart-btn">
                   <span className="material-symbols-outlined cart-icon">
-                    shopping_cart
+                    shopping_bag
                   </span>
 
                   {cartCount > 0 && (
@@ -408,28 +431,6 @@
               )}
           </div>
 
-          {/* Language Switch */}
-          <div className="nav-lang">
-            {/*<span className="material-symbols-outlined lang-icon">language</span>*/}
-
-            <div className="lang-pill">
-              <button
-                className={currentLang === "th" ? "active" : ""}
-                onClick={() => changeLanguage("th")}
-              >
-                TH
-              </button>
-
-              <span className="sep">|</span>
-
-              <button
-                className={currentLang === "en" ? "active" : ""}
-                onClick={() => changeLanguage("en")}
-              >
-                EN
-              </button>
-            </div>
-          </div>
         </div>
       </header>
     );

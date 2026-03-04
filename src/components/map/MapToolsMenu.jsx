@@ -101,7 +101,7 @@ export default function MapToolsMenu({
 
           <div className="mtm-text">
             <div className="mtm-sub">{t("draw")}</div>
-            <div className="mtm-title">{t("drawPolygon")}</div>
+            
           </div>
         </div>
 
@@ -132,24 +132,6 @@ export default function MapToolsMenu({
               <span className="material-symbols-outlined">
                 play_arrow
               </span>
-            </button>
-
-              {/* UNDO */}
-            <button
-              className="mtm-iconBtn"
-              disabled={!canDraw}
-              onClick={onUndoDrawing}
-            >
-              <span className="material-symbols-outlined">undo</span>
-            </button>
-
-            {/* REDO */}
-            <button
-              className="mtm-iconBtn"
-              disabled={!canDraw}
-              onClick={onRedoDrawing}
-            >
-              <span className="material-symbols-outlined">redo</span>
             </button>
 
             <button

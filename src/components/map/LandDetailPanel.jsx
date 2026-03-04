@@ -9,14 +9,14 @@ import {
 
 import MemberActions from "./MemberActions";
 import GuestActions from "./GuestActions";
+import { useAuth } from "../../auth/AuthProvider";
 
 
 // -------------------------
 // contact field config
 // -------------------------
 const CONTACT_FIELDS = [
-  { key: "contactOwner", label: "field.owner", mask: "-----", icon: "person" },
-  { key: "broker", label: "field.agent", mask: "-----", icon: "badge" },
+  { key: "contactOwner,broker", label: "field.owner", mask: "-----", icon: "person" },
   { key: "phone", label: "field.phone", mask: "**********", icon: "call" },
   { key: "line", label: "field.lineId", mask: "**********", icon: "chat" },
   { key: "frame", label: "field.landFrame", mask: "-----", icon: "crop_square" },
@@ -34,6 +34,7 @@ export default function LandDetailPanel({
   onUnlockAll,
   onChatSeller,
   isFavorite,
+  userRole,
   onToggleFavorite,
   images,
   onBroadcast
@@ -43,6 +44,9 @@ export default function LandDetailPanel({
 
   const L = useMemo(() => normalizeLand(land), [land]);
   const unlockedSet = useMemo(() => new Set(unlockedFields), [unlockedFields]);
+  const { role } = useAuth();
+
+  const canBroadcast = ["landlord", "agent", "admin"].includes(role);
  
   // --- [view] ---
   const [currentViews, setCurrentViews] = useState(0);
@@ -176,6 +180,11 @@ export default function LandDetailPanel({
             <div className="label">{t("field.rnw")}</div>
             <div className="value">{L.raw || "-"}</div>
           </div>
+
+          <div className="sqw-info-item">
+            <div className="label">{t("field.frontage")}</div>
+            <div className="value">{L.raw || "-"}</div>
+          </div>
         </div>
 
       </div>   
@@ -223,13 +232,15 @@ export default function LandDetailPanel({
           />
         )}
       </div>
-        <button
-          className="btn-broadcast-heavy"
-          onClick={() => onBroadcast?.(L)}
-        >
-          <span className="material-symbols-outlined">campaign</span>
-          broadcast
-        </button>
+        {canBroadcast && (
+          <button
+            className="btn-broadcast-heavy"
+            onClick={() => onBroadcast?.(L)}
+          >
+            <span className="material-symbols-outlined">campaign</span>
+            broadcast
+          </button>
+        )}
       </div>
     </div>
   );

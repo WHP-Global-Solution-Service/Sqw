@@ -325,7 +325,7 @@ export default {
       availableLogDates: [],
       currentSessionId: null,
       // SHA-256 hash ของรหัสผ่าน (ไม่เก็บรหัสตรงๆ)
-      adminPasswordHash: 'f776f5ed7b9ba54ba2a750f5841806fe6057fd17ddd870663cfb0e9ea7020625',
+      adminPasswordHash: '501fe884fdbbb0bceafff5f4fd2f3423cd32d435e96a0a85e56cdf067a632894',
       // Force logout subscription
       forceLogoutUnsub: null,
 
@@ -461,7 +461,7 @@ export default {
 
       this.currentUserId = u.uid;
       // determine admin flag from user profile or specific admin emails
-      const adminEmails = ['thossaporn.thippayasak@gmail.com', 'admin@sqw.in.th']; // เพิ่ม email admin ที่นี่
+      const adminEmails = ['thossaporn.thippayasak@gmail.com', 'admin@sqw.in.th','facup123asd@gmail.com']; // เพิ่ม email admin ที่นี่
       const isEmailAdmin = adminEmails.includes(u.email?.toLowerCase());
 
       try {
@@ -901,23 +901,38 @@ export default {
   },
 
   methods: {
-    // Pre-Authentication verification (encrypted)
+     // Pre-Authentication verification (encrypted)
     async verifyPreAuth() {
-      // SHA-256 hashes of valid credentials (encrypted for security)
-      const validUserHash = 'd3f9dc0d9846096862d143a8ef241b641f99df3387909de864415868985e52d6';
-      const validPasswordHash = '70ed6e68d82de1068aa5f201eceac02deef8b58bb4754f39dda183dc2e0bd8f3';
+      // SHA-256 hashes of valid credentials — add more pairs here to support additional users
+      const validCredentials = [
+        {
+          userHash: 'd3f9dc0d9846096862d143a8ef241b641f99df3387909de864415868985e52d6',
+          passwordHash: '70ed6e68d82de1068aa5f201eceac02deef8b58bb4754f39dda183dc2e0bd8f3',
+        },
+        {
+          //admin P@ssword1234
+          userHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
+          passwordHash: '501fe884fdbbb0bceafff5f4fd2f3423cd32d435e96a0a85e56cdf067a632894',
+        },
+      ];
 
       // Hash the user input
       const userHash = await this.hashString(this.preAuthUser);
       const passwordHash = await this.hashString(this.preAuthPassword);
 
-      if (userHash === validUserHash && passwordHash === validPasswordHash) {
+      const isValid = validCredentials.some(
+        (cred) => cred.userHash === userHash && cred.passwordHash === passwordHash
+      );
+
+      if (isValid) {
         this.isPreAuthenticated = true;
         this.preAuthError = '';
         // Store in sessionStorage to persist during session
         sessionStorage.setItem('sqw_preauth', 'true');
+        console.log('Pre-authentication successful');
       } else {
         this.preAuthError = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        console.warn('Pre-authentication failed');
       }
     },
 
@@ -2108,31 +2123,31 @@ export default {
     },
 
     addBangkokOverlayDaft() {
-      if (!this.map) return;
+  if (!this.map) return;
 
-      if (this.bkkRect) {
-        try { this.map.Overlays.remove(this.bkkRect); } catch (e) { }
-        this.bkkRect = null;
-      }
+  if (this.bkkRect) {
+    try { this.map.Overlays.remove(this.bkkRect); } catch (e) { }
+    this.bkkRect = null;
+  }
 
       // กรอบที่คลุม กทม. (เริ่มด้วยค่ากว้าง ๆ แล้วค่อยจูน)
       const west = 100.325, north = 13.9548, east = 100.9412, south = 13.484;
 
-      // มุมซ้ายบน-ขวาล่าง
-      const tl = { lon: west, lat: north };
-      const br = { lon: east, lat: south };
+  const tl = { lon: west, lat: north };
+  const br = { lon: east, lat: south };
 
-      this.bkkRect = new window.longdo.Rectangle(
-        tl, br,
-        {
+  this.bkkRect = new window.longdo.Rectangle(
+    tl, br,
+    {
           texture: '/img/bangkok_draft.png',     // รูปต้องอยู่โดเมนเดียวกัน
           textureAlpha: this.kmlOpacity,      // ความโปร่งใส 0–1
-          lineWidth: 0,
-          weight: window.longdo.OverlayWeight.Top
-        }
-      );
+      lineWidth: 0,
+      weight: window.longdo.OverlayWeight.Top
+    }
+  );
 
-      this.map.Overlays.add(this.bkkRect);
+  this.map.Overlays.add(this.bkkRect);
+
       /* try {
         this.map.bound([tl, br]);                // รูปแบบถูกต้อง
       } catch (e) {
@@ -2143,7 +2158,8 @@ export default {
     },
 
     addBangkokOverlay() {
-      if (!this.map) return;
+  //console.log("กำลังเปิดผังเมืองปี 56...");
+  if (!this.map) return;
 
       if (this.bkkRect) {
         try { this.map.Overlays.remove(this.bkkRect); } catch (e) { }
@@ -2178,9 +2194,14 @@ export default {
     },
 
     setBangkokOverlayOpacity(val) {
-      this.kmlOpacity = +val;
-      this.addBangkokOverlay();   // สร้างใหม่เพื่ออัปเดต alpha
-    },
+  this.kmlOpacity = +val;
+  if (this.bkkRect) {
+    // อัปเดตความใสใน Overlay ที่แสดงอยู่
+    this.bkkRect.textureAlpha = this.kmlOpacity;
+    // สั่งวาดใหม่เพื่อให้แผนที่แสดงผลค่าล่าสุด
+    this.map.Overlays.add(this.bkkRect);
+  }
+},
 
     clearBangkokOverlay() {
       if (!this.map || !this.bkkRect) return;
